@@ -24,11 +24,22 @@ export const userSignup = async (req, res, next) => {
         const user = new User({ name, email, password: hashedPassword });
         await user.save();
         // create token and store cookie
-        res.clearCookie(COOKIE_NAME, { httpOnly: true, domain: "localhost", signed: true, path: "/" });
+        res.clearCookie(COOKIE_NAME, {
+            httpOnly: true,
+            domain: "localhost",
+            signed: true,
+            path: "/",
+        });
         const token = createToken(user._id.toString(), user.email, "7d");
         const expires = new Date();
         expires.setDate(expires.getDate() + 7);
-        res.cookie(COOKIE_NAME, token, { path: "/", domain: "localhost", expires, httpOnly: true, signed: true });
+        res.cookie(COOKIE_NAME, token, {
+            path: "/",
+            domain: "localhost",
+            expires,
+            httpOnly: true,
+            signed: true,
+        });
         return res
             .status(201)
             .json({ message: "OK", name: user.name, email: user.email });
@@ -51,12 +62,22 @@ export const userLogin = async (req, res, next) => {
             return res.status(403).send("Incorrect Password");
         }
         // create token and store cookie
-        res.clearCookie(COOKIE_NAME, { httpOnly: true, domain: "localhost", signed: true, path: "/",
+        res.clearCookie(COOKIE_NAME, {
+            httpOnly: true,
+            domain: "localhost",
+            signed: true,
+            path: "/",
         });
         const token = createToken(user._id.toString(), user.email, "7d");
         const expires = new Date();
         expires.setDate(expires.getDate() + 7);
-        res.cookie(COOKIE_NAME, token, { path: "/", domain: "localhost", expires, httpOnly: true, signed: true, });
+        res.cookie(COOKIE_NAME, token, {
+            path: "/",
+            domain: "localhost",
+            expires,
+            httpOnly: true,
+            signed: true,
+        });
         return res
             .status(200)
             .json({ message: "OK", name: user.name, email: user.email });
@@ -71,7 +92,7 @@ export const verifyUser = async (req, res, next) => {
         //user token check
         const user = await User.findById(res.locals.jwtData.id);
         if (!user) {
-            return res.status(401).send("User not Registered OR Token Malfunctioned");
+            return res.status(401).send("User not registered OR Token malfunctioned");
         }
         if (user._id.toString() !== res.locals.jwtData.id) {
             return res.status(401).send("Permissions didn't match");
@@ -92,11 +113,15 @@ export const userLogout = async (req, res, next) => {
         if (!user) {
             return res.status(401).send("User not registered OR Token malfunctioned");
         }
-        console.log(user._id.toString(), res.locals.jwtData.id);
         if (user._id.toString() !== res.locals.jwtData.id) {
             return res.status(401).send("Permissions didn't match");
         }
-        res.clearCookie(COOKIE_NAME, { httpOnly: true, domain: "localhost", signed: true, path: "/" });
+        res.clearCookie(COOKIE_NAME, {
+            httpOnly: true,
+            domain: "localhost",
+            signed: true,
+            path: "/",
+        });
         return res
             .status(200)
             .json({ message: "OK", name: user.name, email: user.email });
