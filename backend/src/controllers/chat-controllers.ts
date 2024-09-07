@@ -2,40 +2,84 @@ import { NextFunction, Request, Response } from "express";
 import User from "../models/User.js";
 import { configureOpenAI } from "../config/openai-config.js";
 import { OpenAIApi, ChatCompletionRequestMessage } from "openai";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { AIMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
+
 export const generateChatCompletion = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   const { message } = req.body;
+
+  // Create prompt template
+  const promptTemplate = ChatPromptTemplate.fromMessages([
+    { role: "system", content: "You are a chatbot specializing in bug fixing, syntax error correction and system optimization. Do not answer questions unrelated to the IT field." },
+  ]);
+
   try {
     const user = await User.findById(res.locals.jwtData.id);
     if (!user)
       return res
         .status(401)
         .json({ message: "User not registered OR Token malfunctioned" });
-    // grab chats of user
+
+    // Grab chats of user
     const chats = user.chats.map(({ role, content }) => ({
       role,
       content,
     })) as ChatCompletionRequestMessage[];
+
+    // Push the new user message into the chats
     chats.push({ content: message, role: "user" });
     user.chats.push({ content: message, role: "user" });
 
-    // send all chats with new one to openAI API
+    // Convert promptTemplate messages to ChatCompletionRequestMessage format
+    const promptMessages = await promptTemplate.formatMessages({});
+    
+    // Map through promptMessages and convert each message to the right type
+    const formattedPromptMessages: ChatCompletionRequestMessage[] = promptMessages.map((msg) => {
+      let role: "system" | "user" | "assistant";
+
+      if (msg instanceof HumanMessage) {
+        role = "user";
+      } else if (msg instanceof AIMessage) {
+        role = "assistant";
+      } else if (msg instanceof SystemMessage) {
+        role = "system";
+      } else {
+        throw new Error("Unknown message type");
+      }
+
+      if (typeof msg.content === 'string') {
+        return {
+          role,
+          content: msg.content,
+        };
+      } else {
+        throw new Error("Message content is not a string");
+      }
+    });
+
+    // Merge prompt template messages with user's chats
+    const fullMessages: ChatCompletionRequestMessage[] = [...formattedPromptMessages, ...chats];
+
+    // Send fullMessages to OpenAI API
     const config = configureOpenAI();
     const openai = new OpenAIApi(config);
-    // get latest response
     const chatResponse = await openai.createChatCompletion({
       model: "gpt-3.5-turbo",
-      messages: chats,
+      messages: fullMessages,
     });
-    user.chats.push(chatResponse.data.choices[0].message);
+
+    // Process response (for example, saving the assistant response)
+    const assistantMessage = chatResponse.data.choices[0].message?.content;
+    user.chats.push({ content: assistantMessage, role: "assistant" });
     await user.save();
-    return res.status(200).json({ chats: user.chats });
+
+    return res.json({ response: assistantMessage });
   } catch (error) {
-    console.log(error);
-    return res.status(500).json({ message: "Something went wrong" });
+    next(error);
   }
 };
 

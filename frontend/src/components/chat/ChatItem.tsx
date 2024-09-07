@@ -77,9 +77,16 @@ const ChatItem = ({
       }}
     >
       <Avatar sx={{ ml: "0", bgcolor: "black", color: "white" }}>
-        {auth?.user?.name[0]}
-        {auth?.user?.name.split(" ")[1][0]}
-      </Avatar>
+  {auth?.user?.name ? (
+    <>
+      {auth.user.name[0]}
+      {auth.user.name.split(" ")[1]?.[0]}
+    </>
+  ) : (
+    "U" // Fallback initial or something else when user name is not available
+  )}
+</Avatar>
+
       <Box>
         {!messageBlocks && (
           <Typography sx={{ fontSize: "20px" }}>{content}</Typography>
