@@ -1,16 +1,22 @@
 import { NextFunction, Request, Response } from "express";
 import User from "../models/User.js";
 import { configureOpenAI } from "../config/openai-config.js";
-import { OpenAIApi, ChatCompletionRequestMessage } from "openai";
-import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { AIMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { InMemoryChatMessageHistory } from '@langchain/core/chat_history';
+import { RunnableWithMessageHistory } from '@langchain/core/runnables'
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { OpenAIApi, ChatCompletionRequestMessage } from "openai";
+
+// Create an in-memory message history object
+const messagesHistories = {};
+
 
 export const generateChatCompletion = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  const { message } = req.body;
+  const { message, sessionId } = req.body;
 
   // Create prompt template
   const promptTemplate = ChatPromptTemplate.fromMessages([

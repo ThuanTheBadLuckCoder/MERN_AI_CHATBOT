@@ -1,10 +1,12 @@
 import User from "../models/User.js";
 import { configureOpenAI } from "../config/openai-config.js";
-import { OpenAIApi } from "openai";
-import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { AIMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { OpenAIApi } from "openai";
+// Create an in-memory message history object
+const messagesHistories = {};
 export const generateChatCompletion = async (req, res, next) => {
-    const { message } = req.body;
+    const { message, sessionId } = req.body;
     // Create prompt template
     const promptTemplate = ChatPromptTemplate.fromMessages([
         { role: "system", content: "You are a chatbot specializing in bug fixing, syntax error correction and system optimization. Do not answer questions unrelated to the IT field." },
