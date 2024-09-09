@@ -11,7 +11,7 @@ import {
   signupValidator,
   validate,
 } from "../utils/validator.js";
-import { verifyToken } from "../utils/token-manager.js";
+import { verifyToken } from "../utils/token-manager.js"; 
 
 const userRoutes = Router();
 

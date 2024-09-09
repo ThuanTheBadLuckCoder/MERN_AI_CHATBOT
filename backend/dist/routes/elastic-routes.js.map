@@ -1,0 +1,1 @@
+{"version":3,"file":"elastic-routes.js","sourceRoot":"","sources":["../../src/routes/elastic-routes.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,MAAM,EAAE,MAAM,SAAS,CAAC;AACjC,OAAO,EAAE,mBAAmB,EAAE,MAAM,sCAAsC,CAAA;AAG1E,MAAM,aAAa,GAAG,MAAM,EAAE,CAAC;AAC/B,aAAa,CAAC,GAAG,CAAC,4BAA4B,EAAE,mBAAmB,CAAC,CAAC;AAErE,eAAe,aAAa,CAAC"}
