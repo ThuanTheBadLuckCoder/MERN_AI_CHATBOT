@@ -27,10 +27,25 @@ const Chat = () => {
     }
     const newMessage: Message = { role: "user", content };
     setChatMessages((prev) => [...prev, newMessage]);
-    const chatData = await sendChatRequest(content);
-    setChatMessages([...chatData.chats]);
-    //
+  
+    try {
+      const chatData = await sendChatRequest(content);
+  
+      // Assuming the API response has a 'response' field for assistant's reply
+      if (chatData?.response) {
+        const assistantMessage: Message = { role: "assistant", content: chatData.response };
+        setChatMessages((prev) => [...prev, assistantMessage]);
+      } else {
+        console.error("chatData does not contain a response field", chatData);
+        toast.error("Failed to load chat messages");
+      }
+    } catch (error) {
+      console.error("Error fetching chatData:", error);
+      toast.error("Failed to send chat request");
+    }
   };
+  
+  
   const handleDeleteChats = async () => {
     try {
       toast.loading("Deleting Chats", { id: "deletechats" });
@@ -148,24 +163,28 @@ const Chat = () => {
           Model - GPT 3.5 Turbo
         </Typography>
         <Box
-          sx={{
-            width: "100%",
-            height: "60vh",
-            borderRadius: 3,
-            mx: "auto",
-            display: "flex",
-            flexDirection: "column",
-            overflow: "scroll",
-            overflowX: "hidden",
-            overflowY: "auto",
-            scrollBehavior: "smooth",
-          }}
-        >
-          {chatMessages.map((chat, index) => (
-            //@ts-ignore
-            <ChatItem content={chat.content} role={chat.role} key={index} />
-          ))}
-        </Box>
+  sx={{
+    width: "100%",
+    height: "60vh",
+    borderRadius: 3,
+    mx: "auto",
+    display: "flex",
+    flexDirection: "column",
+    overflow: "scroll",
+    overflowX: "hidden",
+    overflowY: "auto",
+    scrollBehavior: "smooth",
+  }}
+>
+  {chatMessages.map((chat, index) => (
+    <ChatItem 
+      content={chat.content} 
+      role={chat.role} 
+      key={index} // This should be unique
+    />
+  ))}
+</Box>
+
         <div
           style={{
             width: "100%",

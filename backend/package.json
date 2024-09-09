@@ -13,8 +13,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@langchain/openai": "^0.2.10",
     "axios": "^1.7.7",
     "bcrypt": "^5.1.0",
+    "cheerio": "^1.0.0",
     "concurrently": "^8.2.0",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",

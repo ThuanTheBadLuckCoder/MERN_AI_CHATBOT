@@ -6,10 +6,12 @@ import { InMemoryChatMessageHistory } from '@langchain/core/chat_history';
 import { RunnableWithMessageHistory } from '@langchain/core/runnables'
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { OpenAIApi, ChatCompletionRequestMessage } from "openai";
+import { Readable } from 'stream';
 
-// Create an in-memory message history object
-const messagesHistories = {};
+// Initialize in-memory message histories
+const messageHistories: { [key: string]: InMemoryChatMessageHistory } = {};
 
+const context = "Thuan is a Developer and Tin is very handsome guy"
 
 export const generateChatCompletion = async (
   req: Request,
@@ -20,7 +22,8 @@ export const generateChatCompletion = async (
 
   // Create prompt template
   const promptTemplate = ChatPromptTemplate.fromMessages([
-    { role: "system", content: "You are a chatbot specializing in bug fixing, syntax error correction and system optimization. Do not answer questions unrelated to the IT field." },
+    { role: "system", content: "You are a expert specializing in bug fixing, syntax error correction and system optimization. Do not answer questions unrelated to the IT field." },
+    { role: "system", content: `You have to base on the given context to answer the question. If you don't know JUST say I don't know This is given context: ${context}.`}
   ]);
 
   try {
@@ -28,7 +31,13 @@ export const generateChatCompletion = async (
     if (!user)
       return res
         .status(401)
-        .json({ message: "User not registered OR Token malfunctioned" });
+        .json({ message: "User not registered OR Token malfunctioned" });    
+
+
+     // Initialize message history for the session if not existing
+     if (!messageHistories[sessionId]) {
+      messageHistories[sessionId] = new InMemoryChatMessageHistory();
+    }
 
     // Grab chats of user
     const chats = user.chats.map(({ role, content }) => ({
@@ -40,9 +49,18 @@ export const generateChatCompletion = async (
     chats.push({ content: message, role: "user" });
     user.chats.push({ content: message, role: "user" });
 
+    // Retrieve session-specific chat history from memory
+    const sessionChats = (await messageHistories[sessionId].getMessages()).map(msg => ({
+      role: msg instanceof HumanMessage ? "user": msg instanceof AIMessage ? "assistant": "system",
+      content: msg.content,
+    })) as ChatCompletionRequestMessage[];
+
+    sessionChats.push({ role: "user", content: message });
+    messageHistories[sessionId].addMessage(new HumanMessage(message));
+
     // Convert promptTemplate messages to ChatCompletionRequestMessage format
     const promptMessages = await promptTemplate.formatMessages({});
-    
+
     // Map through promptMessages and convert each message to the right type
     const formattedPromptMessages: ChatCompletionRequestMessage[] = promptMessages.map((msg) => {
       let role: "system" | "user" | "assistant";
@@ -66,9 +84,10 @@ export const generateChatCompletion = async (
         throw new Error("Message content is not a string");
       }
     });
+    
 
     // Merge prompt template messages with user's chats
-    const fullMessages: ChatCompletionRequestMessage[] = [...formattedPromptMessages, ...chats];
+    const fullMessages: ChatCompletionRequestMessage[] = [...sessionChats, ...chats, ...formattedPromptMessages];
 
     // Send fullMessages to OpenAI API
     const config = configureOpenAI();
@@ -76,7 +95,12 @@ export const generateChatCompletion = async (
     const chatResponse = await openai.createChatCompletion({
       model: "gpt-3.5-turbo",
       messages: fullMessages,
+      
     });
+
+
+    console.log(chatResponse.data);
+
 
     // Process response (for example, saving the assistant response)
     const assistantMessage = chatResponse.data.choices[0].message?.content;
