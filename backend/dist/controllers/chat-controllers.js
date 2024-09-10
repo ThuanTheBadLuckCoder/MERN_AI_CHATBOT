@@ -34,10 +34,11 @@ export const generateChatCompletion = async (req, res, next) => {
         const promptTemplate = ChatPromptTemplate.fromMessages([
             {
                 role: "system",
-                content: `You are an expert specializing in bug fixing, syntax error correction, and system optimization. Do not answer questions unrelated to the IT field. You have to base your answers on the given context. If you don't know, JUST say 'I don't know'. This is the given context: {{context}}`
+                content: `You are an expert specializing in bug fixing, syntax error correction, and system optimization. Do not answer questions unrelated to the IT field. You have to base your answers on the given context:  {{context}}. If the Context is not given YOU SHOULD say "Sorry I don't have any knowledge related to your request" DO NOT GIVEN THE ANSWER!.`
             }
         ]);
         console.log("Context for prompt template:", context);
+        console.log("promptTemplate: ", promptTemplate);
         const user = await User.findById(res.locals.jwtData.id);
         if (!user)
             return res.status(401).json({ message: "User not registered OR Token malfunctioned" });

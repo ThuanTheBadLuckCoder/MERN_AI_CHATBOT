@@ -43,14 +43,16 @@ export const generateChatCompletion = async (
     // Simplified prompt template for debugging
     // Correct prompt template definition with proper escape for single braces
     // Correct prompt template definition using escape sequences
+    
     const promptTemplate = ChatPromptTemplate.fromMessages([
       {
         role: "system",
-        content: `You are an expert specializing in bug fixing, syntax error correction, and system optimization. Do not answer questions unrelated to the IT field. You have to base your answers on the given context. If you don't know, JUST say 'I don't know'. This is the given context: {{context}}`
+        content: `You are an expert specializing in bug fixing, syntax error correction, and system optimization. Do not answer questions unrelated to the IT field. You have to base your answers on the given context:  {{context}}. If the Context is not given YOU SHOULD say "Sorry I don't have any knowledge related to your request" DO NOT GIVEN THE ANSWER!.`
       }
     ]);
 
     console.log("Context for prompt template:", context);
+    console.log("promptTemplate: ", promptTemplate);
 
     const user = await User.findById(res.locals.jwtData.id);
     if (!user)
