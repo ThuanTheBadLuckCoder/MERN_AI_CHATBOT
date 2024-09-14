@@ -25,6 +25,7 @@ const Chat = () => {
     if (inputRef && inputRef.current) {
       inputRef.current.value = "";
     }
+    console.log("content: ", inputRef.current?.value);
     const newMessage: Message = { role: "user", content };
     setChatMessages((prev) => [...prev, newMessage]);
   
@@ -33,8 +34,12 @@ const Chat = () => {
   
       // Assuming the API response has a 'response' field for assistant's reply
       if (chatData?.response) {
+        
         const assistantMessage: Message = { role: "assistant", content: chatData.response };
         setChatMessages((prev) => [...prev, assistantMessage]);
+
+        // log
+        console.log("response:", chatData?.response);
       } else {
         console.error("chatData does not contain a response field", chatData);
         toast.error("Failed to load chat messages");
