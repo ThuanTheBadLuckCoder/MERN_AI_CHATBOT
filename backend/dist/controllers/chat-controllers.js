@@ -1,8 +1,35 @@
 import User from "../models/User.js";
-import { configureOpenAI } from "../config/openai-config.js";
+import { configureOpenAI, model } from "../config/openai-config.js";
 import { OpenAIApi } from "openai";
+import { HumanMessage } from "@langchain/core/messages";
+import { InMemoryChatMessageHistory } from "@langchain/core/chat_history";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { RunnableWithMessageHistory } from "@langchain/core/runnables";
+const messageHistories = {};
 export const generateChatCompletion = async (req, res, next) => {
     const { message } = req.body;
+    const prompt = ChatPromptTemplate.fromMessages([
+        ["system",
+            `You are a ChatBOT that supports programmers in fixing errors and syntax in code.`,
+        ],
+        ["placeholder", "{chat_history}"],
+        ["human", `${message}`]
+    ]);
+    const chain = prompt.pipe(model);
+    const withMessageHistory = new RunnableWithMessageHistory({
+        runnable: chain,
+        getMessageHistory: async (sessionId) => {
+            if (messageHistories[sessionId] === undefined) {
+                messageHistories[sessionId] = new InMemoryChatMessageHistory();
+            }
+            return messageHistories[sessionId];
+        },
+        inputMessagesKey: "input",
+        historyMessagesKey: "chat_history",
+    });
+    console.log("message: ", message);
+    await model.invoke([new HumanMessage({ content: message })]);
+    console.log("model: ", model);
     try {
         const user = await User.findById(res.locals.jwtData.id);
         if (!user)

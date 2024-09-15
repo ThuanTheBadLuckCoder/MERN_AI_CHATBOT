@@ -1,4 +1,8 @@
+import { ChatOpenAI } from "@langchain/openai";
 import { Configuration } from "openai";
+import { config } from "dotenv";
+
+config();
 
 export const configureOpenAI = () => {
     const config = new Configuration({
@@ -7,3 +11,9 @@ export const configureOpenAI = () => {
     });
     return config; 
 }
+
+export const model = new ChatOpenAI({
+    model: "gpt-3.5-turbo",
+    temperature: 1,
+
+})

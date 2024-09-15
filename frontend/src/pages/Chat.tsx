@@ -20,10 +20,17 @@ const Chat = () => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const auth = useAuth();
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
+  const [inputValue, setInputValue] = useState<string>("");
+
+
   const handleSubmit = async () => {
-    const content = inputRef.current?.value as string;
+    const content = inputRef.current?.value.trim() as string;
+    if (!content) {
+      return;
+    }
     if (inputRef && inputRef.current) {
       inputRef.current.value = "";
+      setInputValue("");
     }
     const newMessage: Message = { role: "user", content };
     setChatMessages((prev) => [...prev, newMessage]);
@@ -61,6 +68,19 @@ const Chat = () => {
       return navigate("/login");
     }
   }, [auth]);
+
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setInputValue(event.target.value);
+  }
+
+  const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if(event.key === "Enter") {
+      event.preventDefault(); // Prevents the default behavior (like form submission)
+      handleSubmit();
+    }
+  }
+
+
   return (
     <Box
       sx={{
@@ -179,6 +199,9 @@ const Chat = () => {
           <input
             ref={inputRef}
             type="text"
+            value={inputValue}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyPress}
             style={{
               width: "100%",
               backgroundColor: "transparent",
@@ -189,7 +212,7 @@ const Chat = () => {
               fontSize: "20px",
             }}
           />
-          <IconButton onClick={handleSubmit} sx={{ color: "white", mx: 1 }}>
+          <IconButton onClick={handleSubmit} sx={{ color: "white", mx: 1 }} disabled={!inputValue.trim()}>
             <IoMdSend />
           </IconButton>
         </div>
