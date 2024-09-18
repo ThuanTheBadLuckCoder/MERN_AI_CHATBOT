@@ -1,13 +1,11 @@
 import { NextFunction, Request, Response } from "express";
 import User from "../models/User.js";
-import { configureOpenAI, model } from "../config/openai-config.js";
-import { OpenAIApi, ChatCompletionRequestMessage } from "openai";
+import { model } from "../config/openai-config.js";
+import { ChatCompletionRequestMessage } from "openai";
 import { HumanMessage } from "@langchain/core/messages";
 import { InMemoryChatMessageHistory } from "@langchain/core/chat_history";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { RunnableWithMessageHistory } from "@langchain/core/runnables";
-
-const messageHistories: Record<string, InMemoryChatMessageHistory> = {};
 
 export const generateChatCompletion = async (
   req: Request,
@@ -15,17 +13,18 @@ export const generateChatCompletion = async (
   next: NextFunction
 ) => {
   const { message } = req.body;
+  console.log();
+  const messageHistories: Record<string, InMemoryChatMessageHistory> = {};
 
   const prompt = ChatPromptTemplate.fromMessages([
-    ["system",
-    `You are a ChatBOT that supports programmers in fixing errors and syntax in code.`,
+    [
+      "system",
+      `You are a helpful assistant who remembers all details the user shares with you.`,
     ],
     ["placeholder", "{chat_history}"],
-    ["human", `${message}`]
+    ["human", "{input}"],
   ]);
-
   const chain = prompt.pipe(model);
-
   const withMessageHistory = new RunnableWithMessageHistory({
     runnable: chain,
     getMessageHistory: async (sessionId) => {
@@ -37,10 +36,6 @@ export const generateChatCompletion = async (
     inputMessagesKey: "input",
     historyMessagesKey: "chat_history",
   });
-
-  console.log("message: ", message)
-  await model.invoke([new HumanMessage({ content: message })]);
-  console.log("model: ", model);
   try {
     const user = await User.findById(res.locals.jwtData.id);
     if (!user)
@@ -55,15 +50,9 @@ export const generateChatCompletion = async (
     chats.push({ content: message, role: "user" });
     user.chats.push({ content: message, role: "user" });
 
-    // send all chats with new one to openAI API
-    const config = configureOpenAI();
-    const openai = new OpenAIApi(config);
-    // get latest response
-    const chatResponse = await openai.createChatCompletion({
-      model: "gpt-3.5-turbo",
-      messages: chats,
-    });
-    user.chats.push(chatResponse.data.choices[0].message);
+    // push chat response from openAI
+    const response = await model.invoke([new HumanMessage({ content: message })]);
+    user.chats.push({ content: response.content, role: "assistant" })
     await user.save();
     return res.status(200).json({ chats: user.chats });
   } catch (error) {
@@ -86,7 +75,7 @@ export const sendChatsToUser = async (
     if (user._id.toString() !== res.locals.jwtData.id) {
       return res.status(401).send("Permissions didn't match");
     }
-    return res.status(200).json({ message: "OK", chats: user.chats });
+    return res.status(200).json({ message: "OKO", chats: user.chats });
   } catch (error) {
     console.log(error);
     return res.status(200).json({ message: "ERROR", cause: error.message });
