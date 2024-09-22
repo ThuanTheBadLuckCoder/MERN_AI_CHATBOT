@@ -4,8 +4,11 @@ import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import { MemoryVectorStore } from "langchain/vectorstores/memory";
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { pull } from "langchain/hub";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { createStuffDocumentsChain } from "langchain/chains/combine_documents";
+import { model } from "../../../config/openai-config.js";
 const loader = new CheerioWebBaseLoader("https://thuanthebadluckcoder.github.io/Messi.html");
-const docs = await loader.load();
+export const docs = await loader.load();
 const textSplitter = new RecursiveCharacterTextSplitter({
     chunkSize: 1000,
     chunkOverlap: 200,
@@ -17,12 +20,12 @@ export const retriever = vectorStore.asRetriever();
 export const prompt = await pull("rlm/rag-prompt");
 // const llm = new ChatOpenAI({ model: "gpt-3.5-turbo", temperature: 0 });
 // to start call api to openai uncomment these below
-// const llm = model;
-// export const ragChain = await createStuffDocumentsChain({
-//   llm,
-//   prompt,
-//   outputParser: new StringOutputParser(),
-// });
+const llm = model;
+export const ragChain = await createStuffDocumentsChain({
+    llm,
+    prompt,
+    outputParser: new StringOutputParser(),
+});
 // if you want to show the result without using frontend input pls uncmt these below and call it from the index.ts
 // Let’s see what this prompt actually looks like:
 // console.log(prompt.promptMessages.map((msg) => msg.prompt.template).join("\n"));
@@ -30,13 +33,8 @@ export const prompt = await pull("rlm/rag-prompt");
 // Question: {question}
 // Context: {context}
 // Answer:
-/*
-await ragChain.invoke({
-  context: await retriever.invoke("What is Task Decomposition?"),
-  question: "What is Task Decomposition?",
-});
-*/
-/*
-
-*/ 
+// await ragChain.invoke({
+//   context: await retriever.invoke("What is Task Decomposition?"),
+//   question: "What is Task Decomposition?",
+// });
 //# sourceMappingURL=web-loader.js.map

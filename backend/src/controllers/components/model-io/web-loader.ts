@@ -18,7 +18,7 @@ const loader = new CheerioWebBaseLoader(
   "https://thuanthebadluckcoder.github.io/Messi.html"
 );
 
-const docs = await loader.load();
+export const docs = await loader.load();
 
 const textSplitter = new RecursiveCharacterTextSplitter({
   chunkSize: 1000,
@@ -36,12 +36,12 @@ export const prompt = await pull<ChatPromptTemplate>("rlm/rag-prompt");
 // const llm = new ChatOpenAI({ model: "gpt-3.5-turbo", temperature: 0 });
 
 // to start call api to openai uncomment these below
-// const llm = model;
-// export const ragChain = await createStuffDocumentsChain({
-//   llm,
-//   prompt,
-//   outputParser: new StringOutputParser(),
-// });
+const llm = model;
+export const ragChain = await createStuffDocumentsChain({
+  llm,
+  prompt,
+  outputParser: new StringOutputParser(),
+});
 
 // if you want to show the result without using frontend input pls uncmt these below and call it from the index.ts
 // Let’s see what this prompt actually looks like:
@@ -51,13 +51,8 @@ export const prompt = await pull<ChatPromptTemplate>("rlm/rag-prompt");
 // Context: {context}
 // Answer:
 
-/*
-await ragChain.invoke({
-  context: await retriever.invoke("What is Task Decomposition?"),
-  question: "What is Task Decomposition?",
-});
-*/
 
-/* 
-
-*/
+// await ragChain.invoke({
+//   context: await retriever.invoke("What is Task Decomposition?"),
+//   question: "What is Task Decomposition?",
+// });
