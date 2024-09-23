@@ -11,6 +11,7 @@ import {
   RunnablePassthrough,
   RunnableSequence,
 } from "@langchain/core/runnables";
+import { ragChain, retriever } from "./components/model-io/web-loader.js";
 
 
 let messageHistories: Record<string, InMemoryChatMessageHistory> = {};
@@ -74,11 +75,17 @@ export const generateChatCompletion = async (
     
     // console.log("chain2: ", chain2);
 
-    const response = await chain.invoke({
-      chat_history: chatHistory,
-      input: `${message}`,
+    // const response = await chain.invoke({
+    //   chat_history: chatHistory,
+    //   input: `${message}`,
       
-    });
+    // });
+
+    const response2 = await ragChain.invoke({
+      chat_history: chatHistory,
+      context: await retriever.invoke(`${message}`),
+      question: `${message}`
+    })
     // const stream = await chain.stream({
     //   chat_history: chatHistory,
     //   input: `${message}`
@@ -87,7 +94,7 @@ export const generateChatCompletion = async (
     //   console.log("|", chunk.content);
     // }
 
-    user.chats.push({ content: response.content, role: "assistant" })
+    user.chats.push({ content: response2, role: "assistant" })
     await user.save();
     return res.status(200).json({ chats: user.chats });
   } catch (error) {

@@ -10,29 +10,29 @@ connectToDatabase()
   app.listen(PORT, () => console.log(`Server Open & Connected to Database at ${PORT}`));
 }).catch((err) => console.log(err));
 
-import { retriever, prompt, ragChain } from './controllers/components/model-io/web-loader.js';
+// import { retriever, prompt, ragChain, loadedDocs, allSplits, } from './controllers/components/model-io/web-loader.js';
 
 
-try {
-//   console.log(prompt.promptMessages
-//     .map((msg) => (msg as any).prompt.template)
-//     .join("\n"));
+// try {
   
+//     // console.log(prompt.promptMessages);
 
-//   const response = await ragChain.invoke({
-//   context: await retriever.invoke("Who is Messi?"),
-//   question: "Who is Messi?",
-// });
-//   console.log("response: ", response);
-} catch (error) {
-  console.log("Cant load from web");
-}
+// //   const response = await ragChain.invoke({
+// //   context: await retriever.invoke("Who is Messi?"),
+// //   question: "Who is Messi?",
+// // });
+// //   console.log("response: ", response);
+// // console.log(allSplits.length);
+// } catch (error) {
+//   console.log("Cant load from web");
+// }
 
 
 
 
 // backend\src\db\mongo-langchain.mts
 // import { client, documents, vectorStore } from './db/mongo-langchain.mjs';
+// import { customPromptMessages } from './../dist/controllers/components/model-io/web-loader';
 // (async () => {
 //   try {
 //     await client.connect();
