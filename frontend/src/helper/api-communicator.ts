@@ -39,6 +39,15 @@ export const sendChatRequest = async (message: string) => {
   return data;
 };
 
+export const sendLinkRequest = async (link: string) => {
+  const res = await axios.post("/link/new", { link });
+  if (res.status !== 200) {
+    throw new Error("Unable to send chat");
+  }
+  const data = await res.data;
+  return data;
+}
+
 export const getUserChats = async () => {
   const res = await axios.get("/chat/all-chats");
   if (res.status !== 200) {

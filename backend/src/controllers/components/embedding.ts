@@ -8,5 +8,3 @@ const embeddings = new OpenAIEmbeddings({
     batchSize: 512,
     model: "text-embedding-3-small",
 });
-
-

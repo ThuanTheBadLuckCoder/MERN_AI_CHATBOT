@@ -6,10 +6,13 @@ import Signup from "./pages/Signup";
 import Chat from "./pages/Chat";
 import NotFound from "./pages/NotFound";
 import { useAuth } from "./context/AuthContext";
+import Admin from "./pages/Admin";
 import Footer from "./components/footer/Footer";
+
 function App() {
   const auth = useAuth();
-
+  const admin = "admin@gmail.com";
+  // console.log(auth.user?.email);
   return (
     <main>
       <Header />
@@ -20,6 +23,10 @@ function App() {
         {auth?.isLoggedIn && auth.user && (
           <Route path="/chat" element={<Chat />} />
         )}
+        {auth?.isLoggedIn && auth.user?.email == admin && (
+          <Route path="/admin" element={<Admin />} />
+        )}
+        
         <Route path="*" element={<NotFound />} />
       </Routes>
     </main>

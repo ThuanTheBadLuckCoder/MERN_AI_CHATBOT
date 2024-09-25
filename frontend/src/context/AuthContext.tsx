@@ -18,6 +18,7 @@ import {
   };
   type UserAuth = {
     isLoggedIn: boolean;
+    isAdmin: boolean;
     user: User | null;
     login: (email: string, password: string) => Promise<void>;
     signup: (name: string, email: string, password: string) => Promise<void>;
@@ -28,6 +29,7 @@ import {
   export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [isAdmin, setIsAdmin] = useState(false);
   
     useEffect(() => {
       // fetch if the user's cookies are valid then skip login
@@ -36,6 +38,9 @@ import {
         if (data) {
           setUser({ email: data.email, name: data.name });
           setIsLoggedIn(true);
+          if(data.email == "admin@gmail.com") {
+            setIsAdmin(true);
+          }
         }
       }
       checkStatus();
@@ -45,6 +50,9 @@ import {
       if (data) {
         setUser({ email: data.email, name: data.name });
         setIsLoggedIn(true);
+        if(data.email == "admin@gmail.com") {
+          setIsAdmin(true);
+        }
       }
     };
     const signup = async (name: string, email: string, password: string) => {
@@ -57,6 +65,7 @@ import {
     const logout = async () => {
       await logoutUser();
       setIsLoggedIn(false);
+      setIsAdmin(false);
       setUser(null);
       window.location.reload();
     };
@@ -64,6 +73,7 @@ import {
     const value = {
       user,
       isLoggedIn,
+      isAdmin,
       login,
       logout,
       signup,

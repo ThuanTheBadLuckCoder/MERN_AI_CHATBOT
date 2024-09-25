@@ -3,7 +3,7 @@ import { model } from "../config/openai-config.js";
 import { AIMessage, HumanMessage } from "@langchain/core/messages";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { RunnablePassthrough, RunnableSequence, } from "@langchain/core/runnables";
-import { ragChain, retriever } from "./components/model-io/web-loader.js";
+import { queryVectorStore } from "./webloader-controllers.js";
 let messageHistories = {};
 const filterMessages = (input) => input.chat_history.slice(-10);
 export const generateChatCompletion = async (req, res, next) => {
@@ -13,14 +13,18 @@ export const generateChatCompletion = async (req, res, next) => {
         if (!user) {
             return res.status(401).json({ message: "User not registered OR Token malfunctioned" });
         }
+        const context = await queryVectorStore(message);
         const prompt = ChatPromptTemplate.fromMessages([
             [
                 "system",
-                `You are a Chatbot.`,
+                `You are a ChatBOT. You have to base on the given context to answer
+        the question: ${context}. If the context didn't give any information 
+        relative to user topic please DO NOT ANSWER THE QUESTION!`,
             ],
             ["placeholder", "{chat_history}"],
             ["human", message],
         ]);
+        console.log("prompt: ", prompt);
         // const chain = prompt.pipe(model);
         const chain = RunnableSequence.from([
             RunnablePassthrough.assign({
@@ -49,15 +53,15 @@ export const generateChatCompletion = async (req, res, next) => {
         user.chats.push({ content: message, role: "user" });
         // push chat response from openAI
         // console.log("chain2: ", chain2);
-        // const response = await chain.invoke({
-        //   chat_history: chatHistory,
-        //   input: `${message}`,
-        // });
-        const response2 = await ragChain.invoke({
+        const response = await chain.invoke({
             chat_history: chatHistory,
-            context: await retriever.invoke(`${message}`),
-            question: `${message}`
+            input: `${message}`,
         });
+        // const response2 = await ragChain.invoke({
+        //   chat_history: chatHistory,
+        //   context: await retriever.invoke(`${message}`),
+        //   question: `${message}`
+        // })
         // const stream = await chain.stream({
         //   chat_history: chatHistory,
         //   input: `${message}`
@@ -65,7 +69,7 @@ export const generateChatCompletion = async (req, res, next) => {
         // for await (const chunk of stream) {
         //   console.log("|", chunk.content);
         // }
-        user.chats.push({ content: response2, role: "assistant" });
+        user.chats.push({ content: response.content, role: "assistant" });
         await user.save();
         return res.status(200).json({ chats: user.chats });
     }
@@ -84,7 +88,7 @@ export const sendChatsToUser = async (req, res, next) => {
         if (user._id.toString() !== res.locals.jwtData.id) {
             return res.status(401).send("Permissions didn't match");
         }
-        return res.status(200).json({ message: "OKO", chats: user.chats });
+        return res.status(200).json({ message: "OK", chats: user.chats });
     }
     catch (error) {
         console.log(error);

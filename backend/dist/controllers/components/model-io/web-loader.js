@@ -4,9 +4,9 @@ import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import { MemoryVectorStore } from "langchain/vectorstores/memory";
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { pull } from "langchain/hub";
-import { StringOutputParser } from "@langchain/core/output_parsers";
-import { createStuffDocumentsChain } from "langchain/chains/combine_documents";
-import { model } from "../../../config/openai-config.js";
+// import { ragChain } from './../../../../dist/controllers/components/web-loader';
+function addDocuments() {
+}
 const loader = new CheerioWebBaseLoader("https://thuanthebadluckcoder.github.io/Messi.html");
 const cheerioLoader = new CheerioWebBaseLoader("https://thuanthebadluckcoder.github.io/Messi.html");
 export const docs = await loader.load();
@@ -17,18 +17,18 @@ const textSplitter = new RecursiveCharacterTextSplitter({
 });
 const splits = await textSplitter.splitDocuments(docs);
 export const allSplits = await textSplitter.splitDocuments(loadedDocs);
-const vectorStore = await MemoryVectorStore.fromDocuments(splits, new OpenAIEmbeddings());
+export const vectorStore = await MemoryVectorStore.fromDocuments(splits, new OpenAIEmbeddings());
 // Retrieve and generate using the relevant snippets of the blog.
 export const retriever = vectorStore.asRetriever();
 export const prompt = await pull("rlm/rag-prompt");
 // const llm = new ChatOpenAI({ model: "gpt-3.5-turbo", temperature: 0 });
 // to start call api to openai uncomment these below
-const llm = model;
-export const ragChain = await createStuffDocumentsChain({
-    llm,
-    prompt,
-    outputParser: new StringOutputParser(),
-});
+// const llm = model;
+// export const ragChain = await createStuffDocumentsChain({
+//   llm,
+//   prompt,
+//   outputParser: new StringOutputParser(),
+// });
 // if you want to show the result without using frontend input pls uncmt these below and call it from the index.ts
 // Let’s see what this prompt actually looks like:
 // console.log(prompt.promptMessages.map((msg) => (msg as any).prompt.template).join("\n"));
