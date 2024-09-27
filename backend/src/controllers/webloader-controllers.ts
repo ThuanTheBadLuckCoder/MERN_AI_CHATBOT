@@ -3,16 +3,20 @@ import { NextFunction, Request, Response } from "express";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import type { Document } from "@langchain/core/documents";
 import { randomUUID } from "crypto";
-import { vectorStore } from "../config/elastic-config.js";
+import { client, config, embeddings } from "../config/elastic-config.js";
+import User from "../models/User.js";
+import { ElasticClientArgs, ElasticVectorSearch } from "@langchain/community/vectorstores/elasticsearch";
+import { Client, type ClientOptions  } from "@elastic/elasticsearch";
+
 const textSplitter = new RecursiveCharacterTextSplitter({
     chunkSize: 1000,
     chunkOverlap: 200,
 })
 
 export const addVectorStore = async ( req: Request, res: Response, next: NextFunction ) => {
-    const { link } = req.body;
+    const { link, index } = req.body;
     console.log("link: ", link);
-    
+    console.log("indexChosen: ", index);
     const cheerioLoader = new CheerioWebBaseLoader(`${link}`);
     const loadedDocs = await cheerioLoader.load();
     
@@ -24,16 +28,24 @@ export const addVectorStore = async ( req: Request, res: Response, next: NextFun
         id: randomUUID(),
     }));
 
-    await vectorStore.addDocuments(documents);
+    const clientArgs: ElasticClientArgs = {
+        client: new Client(config),
+        indexName: process.env.ELASTIC_INDEX ?? `${index}`,
+    }
+    const vectorStore = new ElasticVectorSearch(embeddings, clientArgs);
+
+    const result = await vectorStore.addDocuments(documents);
+    console.log(result);
 }
 
 export const deleteVectorStore = async ( req: Request, res: Response, next: NextFunction ) => {
     const string = "thisisarandomkeycreatebyRandomUUID"
     let id = `${string}-${string}-${string}-${string}-${string}`;
-    await vectorStore.delete({ ids: [`${id}`] });
+    // await vectorStore.delete({ ids: [`${id}`] });
 }
 
-export const queryVectorStore = async (message: string) => {
+export const queryVectorStore = async (req: Request, res: Response, next: NextFunction, message: string) => {
+    const index = "uncategorized_vectorstore";
     const filter = [
         {
             operator: "match",
@@ -42,6 +54,11 @@ export const queryVectorStore = async (message: string) => {
             
         },
     ];
+    const clientArgs: ElasticClientArgs = {
+        client: new Client(config),
+        indexName: process.env.ELASTIC_INDEX ?? `${index}`,
+    }
+    const vectorStore = new ElasticVectorSearch(embeddings, clientArgs);
 
     const similaritySearchResults = await vectorStore.similaritySearch(
         `${message}`,
@@ -52,4 +69,25 @@ export const queryVectorStore = async (message: string) => {
     const context = similaritySearchResults.map((result) => result.pageContent);
 
     return context;
+}
+
+export const getAllIndexies = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        //user token check
+        const admin = await User.findById(res.locals.jwtData.id);
+        if (!admin) {
+            return res.status(401).send("User not registered OR Token malfunctioned");
+        }
+        if (admin._id.toString() !== res.locals.jwtData.id) {
+            return res.status(401).send("Permissions didn't match");
+        }
+        const indices = await client.cat.indices({
+            format: 'json',
+            h: 'index'
+        });
+        return res.status(200).json({ message: "OK", indices: indices});
+      } catch (error) {
+        console.log(error);
+        return res.status(200).json({ message: "ERROR", cause: error.message });
+      }
 }

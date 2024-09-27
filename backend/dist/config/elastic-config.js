@@ -25,5 +25,8 @@ const clientArgs = {
     indexName: process.env.ELASTIC_INDEX ?? "uncategorized_vectorstore",
 };
 const vectorStore = new ElasticVectorSearch(embeddings, clientArgs);
-export { vectorStore };
+const client = new Client({
+    node: 'http://localhost:9200'
+});
+export { client, config };
 //# sourceMappingURL=elastic-config.js.map

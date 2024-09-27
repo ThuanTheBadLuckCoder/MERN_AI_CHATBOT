@@ -46,3 +46,11 @@ html,body {
     transform: rotate(359deg);
   }
 }
+
+.css-99wn1p-MuiList-root-MuiMenu-list {
+  background-color: #000 !important;
+}
+
+.css-1awogxv-MuiButtonBase-root-MuiMenuItem-root:hover {
+  background-color: rgb(125 125 125) !important;
+}

@@ -13,7 +13,7 @@ export const generateChatCompletion = async (req, res, next) => {
         if (!user) {
             return res.status(401).json({ message: "User not registered OR Token malfunctioned" });
         }
-        const context = await queryVectorStore(message);
+        const context = await queryVectorStore(req, res, next, message);
         const prompt = ChatPromptTemplate.fromMessages([
             [
                 "system",

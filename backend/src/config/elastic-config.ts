@@ -4,7 +4,7 @@ import {
 } from "@langchain/community/vectorstores/elasticsearch";
 import { OpenAIEmbeddings } from "@langchain/openai";
 
-import { Client, type ClientOptions } from "@elastic/elasticsearch";
+import { Client, type ClientOptions  } from "@elastic/elasticsearch";
 import * as fs from "node:fs";
 
 export const embeddings = new OpenAIEmbeddings({
@@ -36,4 +36,9 @@ const clientArgs: ElasticClientArgs = {
 
 const vectorStore = new ElasticVectorSearch(embeddings, clientArgs);
 
-export { vectorStore }
+const client = new Client({
+    node: 'http://localhost:9200'
+})
+
+export { client, config }
+

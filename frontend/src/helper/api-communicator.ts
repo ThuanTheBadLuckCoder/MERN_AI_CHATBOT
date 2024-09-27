@@ -39,8 +39,8 @@ export const sendChatRequest = async (message: string) => {
   return data;
 };
 
-export const sendLinkRequest = async (link: string) => {
-  const res = await axios.post("/link/new", { link });
+export const sendLinkRequest = async (link: string, index: string) => {
+  const res = await axios.post("/link/new", { link, index });
   if (res.status !== 200) {
     throw new Error("Unable to send chat");
   }
@@ -56,6 +56,15 @@ export const getUserChats = async () => {
   const data = await res.data;
   return data;
 };
+
+export const getAllIndices = async () => {
+  const res = await axios.get("/link/all-indices");
+  if (res.status !== 200) {
+    throw new Error("Unable to get index");
+  }
+  const data = await res.data;
+  return data;
+}
 
 export const deleteUserChats = async () => {
   const res = await axios.delete("/chat/delete");
