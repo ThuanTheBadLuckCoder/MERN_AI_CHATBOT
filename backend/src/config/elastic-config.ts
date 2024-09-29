@@ -29,12 +29,12 @@ if (process.env.ELASTIC_API_KEY) {
     };
 }
 
-const clientArgs: ElasticClientArgs = {
-    client: new Client(config),
-    indexName: process.env.ELASTIC_INDEX ?? "uncategorized_vectorstore",
-};
+// const clientArgs: ElasticClientArgs = {
+//     client: new Client(config),
+//     indexName: process.env.ELASTIC_INDEX ?? "uncategorized_vectorstore",
+// };
 
-const vectorStore = new ElasticVectorSearch(embeddings, clientArgs);
+// const vectorStore = new ElasticVectorSearch(embeddings, clientArgs);
 
 const client = new Client({
     node: 'http://localhost:9200'

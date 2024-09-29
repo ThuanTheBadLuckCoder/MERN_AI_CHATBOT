@@ -11,7 +11,8 @@ import { Client, type ClientOptions  } from "@elastic/elasticsearch";
 const textSplitter = new RecursiveCharacterTextSplitter({
     chunkSize: 1000,
     chunkOverlap: 200,
-})
+});
+
 
 export const addVectorStore = async ( req: Request, res: Response, next: NextFunction ) => {
     const { link, index } = req.body;
@@ -35,7 +36,12 @@ export const addVectorStore = async ( req: Request, res: Response, next: NextFun
     const vectorStore = new ElasticVectorSearch(embeddings, clientArgs);
 
     const result = await vectorStore.addDocuments(documents);
-    console.log(result);
+    try {
+        console.log("Sucessful add vector to Elasticsearch: ", result);
+        
+    } catch (error) {
+        console.log(error);
+    }
 }
 
 export const deleteVectorStore = async ( req: Request, res: Response, next: NextFunction ) => {
@@ -45,7 +51,7 @@ export const deleteVectorStore = async ( req: Request, res: Response, next: Next
 }
 
 export const queryVectorStore = async (req: Request, res: Response, next: NextFunction, message: string) => {
-    const index = "uncategorized_vectorstore";
+    const index = "*";
     const filter = [
         {
             operator: "match",

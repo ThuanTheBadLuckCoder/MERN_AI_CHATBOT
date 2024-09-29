@@ -7,6 +7,7 @@ import Chat from "./pages/Chat";
 import NotFound from "./pages/NotFound";
 import { useAuth } from "./context/AuthContext";
 import Admin from "./pages/Admin";
+// import Test from "./pages/Test";
 import Footer from "./components/footer/Footer";
 
 function App() {
@@ -26,6 +27,9 @@ function App() {
         {auth?.isLoggedIn && auth.user?.email == admin && (
           <Route path="/admin" element={<Admin />} />
         )}
+        {/* {auth?.isLoggedIn && auth.user?.email == admin && (
+        <Route path="/testpage" element={<Test /> } />
+        )} */}
         
         <Route path="*" element={<NotFound />} />
       </Routes>

@@ -4,31 +4,34 @@ import { AIMessage, HumanMessage } from "@langchain/core/messages";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { RunnablePassthrough, RunnableSequence, } from "@langchain/core/runnables";
 import { queryVectorStore } from "./webloader-controllers.js";
-let messageHistories = {};
-const filterMessages = (input) => input.chat_history.slice(-10);
+// let messageHistories: Record<string, InMemoryChatMessageHistory> = {};
 export const generateChatCompletion = async (req, res, next) => {
     const { message } = req.body;
     try {
         const user = await User.findById(res.locals.jwtData.id);
+        const context = await queryVectorStore(req, res, next, message);
+        const filterMessages = (input) => input.chat_history.slice(-10);
         if (!user) {
             return res.status(401).json({ message: "User not registered OR Token malfunctioned" });
         }
-        const context = await queryVectorStore(req, res, next, message);
         const prompt = ChatPromptTemplate.fromMessages([
             [
                 "system",
-                `You are a ChatBOT. You have to base on the given context to answer
-        the question: ${context}. If the context didn't give any information 
-        relative to user topic please DO NOT ANSWER THE QUESTION!`,
+                `You are a ChatBOT. You must BASED ON the given context to answer
+        the question: {given_context}. If the context does not provide any information
+        relevant to the user's topic or there is no context, 
+        please just say "I DON'T KNOW!!" DO NOT ANSWER THE QUESTION and DO NOT MAKE UP ANSWERS!!!`,
             ],
             ["placeholder", "{chat_history}"],
             ["human", message],
         ]);
+        console.log("context: ", context);
         console.log("prompt: ", prompt);
         // const chain = prompt.pipe(model);
         const chain = RunnableSequence.from([
             RunnablePassthrough.assign({
                 chat_history: filterMessages,
+                given_context: async () => context,
             }),
             prompt,
             model,
@@ -56,6 +59,7 @@ export const generateChatCompletion = async (req, res, next) => {
         const response = await chain.invoke({
             chat_history: chatHistory,
             input: `${message}`,
+            given_context: context,
         });
         // const response2 = await ragChain.invoke({
         //   chat_history: chatHistory,

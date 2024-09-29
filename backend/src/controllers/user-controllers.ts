@@ -19,11 +19,7 @@ export const getAllUsers = async (
   }
 };
 
-export const userSignup = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+export const userSignup = async ( req: Request, res: Response, next: NextFunction ) => {
   try {
     //user signup
     const { name, email, password } = req.body;

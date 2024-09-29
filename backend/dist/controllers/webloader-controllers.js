@@ -27,7 +27,12 @@ export const addVectorStore = async (req, res, next) => {
     };
     const vectorStore = new ElasticVectorSearch(embeddings, clientArgs);
     const result = await vectorStore.addDocuments(documents);
-    console.log(result);
+    try {
+        console.log("Sucessful add vector to Elasticsearch: ", result);
+    }
+    catch (error) {
+        console.log(error);
+    }
 };
 export const deleteVectorStore = async (req, res, next) => {
     const string = "thisisarandomkeycreatebyRandomUUID";
@@ -35,7 +40,7 @@ export const deleteVectorStore = async (req, res, next) => {
     // await vectorStore.delete({ ids: [`${id}`] });
 };
 export const queryVectorStore = async (req, res, next, message) => {
-    const index = "uncategorized_vectorstore";
+    const index = "*";
     const filter = [
         {
             operator: "match",

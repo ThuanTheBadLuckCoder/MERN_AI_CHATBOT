@@ -54,3 +54,25 @@ html,body {
 .css-1awogxv-MuiButtonBase-root-MuiMenuItem-root:hover {
   background-color: rgb(125 125 125) !important;
 }
+
+.customIndexSelector, .customIndexSelector .MuiSvgIcon-root {
+  color: white !important;
+  /* line-height: 0 !important; */
+
+}
+
+.containerFileName {
+  width: 100%;
+  border-radius: 8px;
+  background-color: rgb(17, 27, 39);
+  display: flex;
+}
+
+
+.customFileName {
+  width: 1271.42px;
+
+}
+.css-1sh91j5-MuiButton-startIcon {
+  margin-right: 0px !important; 
+}

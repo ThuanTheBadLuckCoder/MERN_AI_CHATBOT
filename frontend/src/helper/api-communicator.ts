@@ -42,8 +42,18 @@ export const sendChatRequest = async (message: string) => {
 export const sendLinkRequest = async (link: string, index: string) => {
   const res = await axios.post("/link/new", { link, index });
   if (res.status !== 200) {
-    throw new Error("Unable to send chat");
+    throw new Error("Unable to link chat");
   }
+  const data = await res.data;
+  return data;
+};
+
+export const sendFileRequest = async (name: string, content: Object, index: string) => {
+  const res = await axios.post("/file/new", {name, content, index});
+
+  if (res.status !== 200) {
+    throw new Error("Unable to send file");
+  } 
   const data = await res.data;
   return data;
 }

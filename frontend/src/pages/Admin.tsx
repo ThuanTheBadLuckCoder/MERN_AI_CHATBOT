@@ -3,57 +3,52 @@ import { Box, Avatar, Typography, Button, IconButton, Select, SelectChangeEvent,
 import { useAuth } from "../context/AuthContext";
 import { IoMdSend } from "react-icons/io";
 import { useNavigate } from "react-router-dom";
-import {
-  getAllIndices,
-  sendLinkRequest,
-} from "../helper/api-communicator";
+import { getAllIndices, sendLinkRequest, sendFileRequest } from "../helper/api-communicator";
 import toast from "react-hot-toast";
-import ChatItem from "../components/chat/ChatItem";
-import Chat from "./Chat";
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import { VisuallyHiddenInput } from "../components/shared/VisuallyHiddenInput";
+import { Tester } from "./Test";
+import InputFile from "../components/upload/InputFile";
+
 type Indexies = {
   index: string;
   content: string;
 };
+
 type Link = {
   link: string;
-}
+};
+
 const Admin = () => {
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const auth = useAuth();
   const [indices, setIndices] = useState<Indexies[]>([]);
-  const [chosenIndices, setChosenIndices] = useState<string>("")
+  const [chosenIndices, setChosenIndices] = useState<string>("");
+  const [chosenFile, setChosenFile] = useState(null);
   const [linkMessages, setLinkMessages] = useState<Link[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [inputLink, setInputLink] = useState<string>("");
   const [isLinkValid, setIsLinkValid] = useState(false);
-
+  
   const handleSubmitLink = async () => {
-    if (isLinkValid && indices) {
+    if (isLinkValid && chosenIndices) {
       const link = inputRef.current?.value.trim() as string;
-      const chosenIndex = chosenIndices;
-      console.log("chosenIndex: ", chosenIndex);
-      if (!link && !indices) {
-        return;
-      }
-      if (inputRef && inputRef.current) {
-        inputRef.current.value = "";
-        setInputLink("");
-      }
-      const newLink: Link = { link };
-      setLinkMessages((prev) => [...prev, newLink]);
-      const linkData = await sendLinkRequest(link, chosenIndex);
-      setLinkMessages([...linkData.links]);
+      if (!link) return;
 
+      setLinkMessages((prev) => [...prev, { link }]);
+      const linkData = await sendLinkRequest(link, chosenIndices);
+      setLinkMessages([...linkData.links]);
+      setInputLink(""); // Clear the input after submission
+      if (inputRef.current) inputRef.current.value = ""; // Reset ref
     }
-  }
+  };
 
   useLayoutEffect(() => {
     if (auth?.isLoggedIn && auth.user) {
       toast.loading("Loading Indices", { id: "loadindices" });
       getAllIndices()
         .then((data) => {
-          console.log("Raw indices data: ", data); // Log the entire data structure for inspection
           setIndices([...data.indices]);
           toast.success("Successfully loaded indices", { id: "loadindices" });
         })
@@ -63,52 +58,70 @@ const Admin = () => {
         });
     }
   }, [auth]);
-  
+
   useEffect(() => {
     if (!auth?.user) {
       return navigate("/login");
     }
   }, [auth]);
 
-
   const handleInputChangeLink = (event: React.ChangeEvent<HTMLInputElement>) => {
     const valueFinal = event.target.value;
     setInputLink(valueFinal);
     setIsLinkValid(isValidURL(valueFinal));
-  }
+  };
 
   const handleKeyPressLink = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter" && isLinkValid) {
-      event.preventDefault(); // Prevents the default behavior (like form submission)
+    if (event.key === "Enter" && isLinkValid && chosenIndices) {
+      event.preventDefault(); // Prevents the default behavior
       handleSubmitLink();
     }
-  }
+  };
 
-  const onChangeSelectLink = (event: SelectChangeEvent<unknown>, child: React.ReactNode) => {
+  const onChangeSelectLink = (event: SelectChangeEvent<unknown>) => {
     const value = event.target.value as string;
     setChosenIndices(value);
-    
   };
-  // console.log(`selected: ${chosenIndices}`);
   
+
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]; // Check if there's a file
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
+
+
+  const handleSubmitFile = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const fakeIndex = "uncategorized_vectorstore";
+    setChosenIndices(fakeIndex);
+    if (!selectedFile) {
+      alert("Please select a file first!");
+      return;
+    }
+    Tester(selectedFile); 
+    // console.log(selectedFile);
+
+    // Send the file to the API route
+    // await sendFileRequest(selectedFile, chosenIndices)
+  };
+
 
   function isValidURL(string: string) {
     try {
       const url = new URL(string);
-      return url.protocol === "http:" || url.protocol === "https:"; // Chỉ chấp nhận http/https
+      return url.protocol === "http:" || url.protocol === "https:";
     } catch (err) {
       return false;
     }
   }
 
-
   return (
-    <Box sx={{ display: "flex", flex: 1, width: "100%", height: "100%", mt: 3, gap: 3, }}>
-      <Box sx={{ display: { md: "flex", xs: "none", sm: "none" }, flex: 0.2, flexDirection: "column", }}>
-        <Box sx={{
-          display: "flex", width: "100%", height: "60vh", bgcolor: "rgb(17,29,39)",
-          borderRadius: 5, flexDirection: "column", mx: 3,
-        }} >
+    <Box sx={{ display: "flex", flex: 1, width: "100%", height: "100%", mt: 3, gap: 3 }}>
+      <Box sx={{ display: { md: "flex", xs: "none", sm: "none" }, flex: 0.2, flexDirection: "column" }}>
+        <Box sx={{ display: "flex", width: "100%", height: "60vh", bgcolor: "rgb(17,29,39)", borderRadius: 5, flexDirection: "column", mx: 3 }}>
           <Avatar
             sx={{
               mx: "auto",
@@ -125,62 +138,63 @@ const Admin = () => {
           </Typography>
 
           <Typography sx={{ mx: "auto", fontFamily: "work sans", p: 3 }}>
-            You are at the Admin Panel to giving more information for ChatBOT
+            You are at the Admin Panel to give more information for ChatBOT
           </Typography>
         </Box>
       </Box>
-      <Box sx={{ display: "flex", flex: { md: 0.8, xs: 1, sm: 1 }, flexDirection: "column", px: 3, }} >
-        <Typography
-          sx={{
-            fontSize: "40px",
-            color: "white",
-            mb: 2,
-            mx: "auto",
-            fontWeight: "600",
-          }}
-        >
+      <Box sx={{ display: "flex", flex: { md: 0.8, xs: 1, sm: 1 }, flexDirection: "column", px: 3 }}>
+        <Typography sx={{ fontSize: "40px", color: "white", mb: 2, mx: "auto", fontWeight: "600" }}>
           Model - GPT 3.5 Turbo
         </Typography>
 
-        <Typography sx={{
-          fontSize: "20px", color: "white", mb: 2,
-          mx: "auto", fontWeight: "600",
-        }}>
-          Web Base Loader
+        <Typography sx={{ fontSize: "20px", color: "white", mb: 2, mx: "auto", fontWeight: "600" }}>
+          Web Loader
         </Typography>
-        <div style={{ width: "100%", borderRadius: 8, backgroundColor: "rgb(17,27,39)", display: "flex" }}>
-          {" "}
-          <input ref={inputRef} type="text" value={inputLink}
-            onChange={handleInputChangeLink} onKeyDown={handleKeyPressLink}
-            style={{
-              width: "100%", backgroundColor: "transparent", padding: "30px", border: "none",
-              outline: "none", color: "white", fontSize: "20px",
-            }} />
-          <Select
-            displayEmpty
-            defaultValue=""
-            onChange={onChangeSelectLink}
-          >
-            <MenuItem value="" disabled>
-              Select a Index
-            </MenuItem>
 
+        <div style={{ width: "100%", borderRadius: 8, backgroundColor: "rgb(17,27,39)", display: "flex" }}>
+          <input
+            ref={inputRef}
+            type="text"
+            value={inputLink}
+            onChange={handleInputChangeLink}
+            onKeyDown={handleKeyPressLink}
+            style={{
+              width: "100%",
+              backgroundColor: "transparent",
+              padding: "30px",
+              border: "none",
+              outline: "none",
+              color: "white",
+              fontSize: "20px",
+            }}
+          />
+          <Select displayEmpty defaultValue="" onChange={onChangeSelectLink} className="customIndexSelector">
+            <MenuItem value="" disabled>
+              Select an Index
+            </MenuItem>
             {indices.map((indexData, idx) => (
-              <MenuItem key={idx} value={indexData.index || idx}>
+              <MenuItem key={idx} value={indexData.index}>
                 {indexData.index || "Unnamed Index"}
               </MenuItem>
             ))}
-
-
           </Select>
-          <IconButton onClick={handleSubmitLink} sx={{ color: "white", mx: 1 }} disabled={!inputLink.trim()}>
+          <IconButton onClick={handleSubmitLink} sx={{ color: "white", mx: 1 }} disabled={!inputLink.trim() || !isLinkValid || !chosenIndices}>
             <IoMdSend />
           </IconButton>
-
         </div>
 
-      </Box>
+        <Typography sx={{ fontSize: "20px", color: "white", mb: 2, mx: "auto", mt: 2, fontWeight: "600" }}>
+          File Loader
+        </Typography>
 
+        <InputFile />
+
+        {/* <form onSubmit={handleSubmitFile}>
+          <input type="file" onChange={handleFileChange} />
+          <button type="submit">Upload</button>
+        </form> */}
+        
+      </Box>
     </Box>
   );
 };
