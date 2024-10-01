@@ -76,3 +76,10 @@ html,body {
 .css-1sh91j5-MuiButton-startIcon {
   margin-right: 0px !important; 
 }
+
+input.customInputFile {
+}
+
+input#file-upload-button {
+  
+}

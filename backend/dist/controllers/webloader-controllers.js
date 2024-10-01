@@ -10,28 +10,35 @@ const textSplitter = new RecursiveCharacterTextSplitter({
     chunkOverlap: 200,
 });
 export const addVectorStore = async (req, res, next) => {
-    const { link, index } = req.body;
-    console.log("link: ", link);
-    console.log("indexChosen: ", index);
-    const cheerioLoader = new CheerioWebBaseLoader(`${link}`);
-    const loadedDocs = await cheerioLoader.load();
-    const splits = await textSplitter.splitDocuments(loadedDocs);
-    const documents = splits.map((split) => ({
-        pageContent: split.pageContent,
-        metadata: { source: `${link}` },
-        id: randomUUID(),
-    }));
-    const clientArgs = {
-        client: new Client(config),
-        indexName: process.env.ELASTIC_INDEX ?? `${index}`,
-    };
-    const vectorStore = new ElasticVectorSearch(embeddings, clientArgs);
-    const result = await vectorStore.addDocuments(documents);
     try {
-        console.log("Sucessful add vector to Elasticsearch: ", result);
+        const { link, index } = req.body;
+        console.log("link: ", link);
+        console.log("indexChosen: ", index);
+        const cheerioLoader = new CheerioWebBaseLoader(`${link}`);
+        const loadedDocs = await cheerioLoader.load();
+        console.log("loadedDocs: ", loadedDocs);
+        const splits = await textSplitter.splitDocuments(loadedDocs);
+        const documents = splits.map((split) => ({
+            pageContent: split.pageContent,
+            metadata: { source: `${link}` },
+            id: randomUUID(),
+        }));
+        const clientArgs = {
+            client: new Client(config),
+            indexName: process.env.ELASTIC_INDEX ?? `${index}`,
+        };
+        const vectorStore = new ElasticVectorSearch(embeddings, clientArgs);
+        const result = await vectorStore.addDocuments(documents);
+        // console.log("Sucessful add vector to Elasticsearch: ", result);
+        return res
+            .status(200)
+            .json({ message: "OK" });
     }
     catch (error) {
         console.log(error);
+        return res
+            .status(500)
+            .json({ error: "ERROR", cause: error.message });
     }
 };
 export const deleteVectorStore = async (req, res, next) => {
@@ -41,11 +48,12 @@ export const deleteVectorStore = async (req, res, next) => {
 };
 export const queryVectorStore = async (req, res, next, message) => {
     const index = "*";
+    console.log("messageQueryVectorStore: ", message);
     const filter = [
         {
             operator: "match",
             field: "source",
-            value: "https://example.com",
+            value: "1.Large_Language_Models.docx",
         },
     ];
     const clientArgs = {
@@ -55,6 +63,8 @@ export const queryVectorStore = async (req, res, next, message) => {
     const vectorStore = new ElasticVectorSearch(embeddings, clientArgs);
     const similaritySearchResults = await vectorStore.similaritySearch(`${message}`, 1, filter);
     const context = similaritySearchResults.map((result) => result.pageContent);
+    console.log("Context: ", context);
+    console.log("similaritySearchResults: ", similaritySearchResults);
     return context;
 };
 export const getAllIndexies = async (req, res, next) => {

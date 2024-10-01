@@ -23,7 +23,7 @@ export const generateChatCompletion = async (
   next: NextFunction
 ) => {
   const { message } = req.body;
-  
+  console.log("message: ", message);
   try {
     const user = await User.findById(res.locals.jwtData.id);
     const context = await queryVectorStore(req, res, next, message);
@@ -41,10 +41,9 @@ export const generateChatCompletion = async (
     const prompt = ChatPromptTemplate.fromMessages([
       [
         "system",
-        `You are a ChatBOT. You must BASED ON the given context to answer
-        the question: {given_context}. If the context does not provide any information
-        relevant to the user's topic or there is no context, 
-        please just say "I DON'T KNOW!!" DO NOT ANSWER THE QUESTION and DO NOT MAKE UP ANSWERS!!!`,
+        `You are a ChatBOT. You must answer BASED ON the given context: {given_context}.
+        If there is no context, 
+        please just say "I DON'T KNOW!!"`,
       ],
       ["placeholder", "{chat_history}"],
       ["human", message],
@@ -52,8 +51,7 @@ export const generateChatCompletion = async (
 
     console.log("context: ", context);
     
-    console.log("prompt: ", prompt);
-
+    
     // const chain = prompt.pipe(model);
     const chain = RunnableSequence.from<ChainInput>([
       RunnablePassthrough.assign({
@@ -64,6 +62,7 @@ export const generateChatCompletion = async (
       model,
     ]);
     
+    console.log("prompt: ", chain);
 
     const chatHistory = user.chats
       .filter((message) => message.role === 'user' || message.role === 'assistant') // Lọc các tin nhắn có role là 'user' hoặc 'assistant'

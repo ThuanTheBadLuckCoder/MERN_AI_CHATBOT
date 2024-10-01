@@ -6,7 +6,7 @@ import { randomUUID } from "crypto";
 import { client, config, embeddings } from "../config/elastic-config.js";
 import User from "../models/User.js";
 import { ElasticClientArgs, ElasticVectorSearch } from "@langchain/community/vectorstores/elasticsearch";
-import { Client, type ClientOptions  } from "@elastic/elasticsearch";
+import { Client, type ClientOptions } from "@elastic/elasticsearch";
 
 const textSplitter = new RecursiveCharacterTextSplitter({
     chunkSize: 1000,
@@ -14,37 +14,43 @@ const textSplitter = new RecursiveCharacterTextSplitter({
 });
 
 
-export const addVectorStore = async ( req: Request, res: Response, next: NextFunction ) => {
-    const { link, index } = req.body;
-    console.log("link: ", link);
-    console.log("indexChosen: ", index);
-    const cheerioLoader = new CheerioWebBaseLoader(`${link}`);
-    const loadedDocs = await cheerioLoader.load();
-    
-    const splits = await textSplitter.splitDocuments(loadedDocs);
-    
-    const documents: Document[] = splits.map((split) => ({
-        pageContent: split.pageContent,
-        metadata: { source: `${link}`},
-        id: randomUUID(),
-    }));
+export const addVectorStore = async (req: Request, res: Response, next: NextFunction) => {
 
-    const clientArgs: ElasticClientArgs = {
-        client: new Client(config),
-        indexName: process.env.ELASTIC_INDEX ?? `${index}`,
-    }
-    const vectorStore = new ElasticVectorSearch(embeddings, clientArgs);
-
-    const result = await vectorStore.addDocuments(documents);
     try {
-        console.log("Sucessful add vector to Elasticsearch: ", result);
-        
+        const { link, index } = req.body;
+        console.log("link: ", link);
+        console.log("indexChosen: ", index);
+        const cheerioLoader = new CheerioWebBaseLoader(`${link}`);
+        const loadedDocs = await cheerioLoader.load();
+        console.log("loadedDocs: ", loadedDocs);
+        const splits = await textSplitter.splitDocuments(loadedDocs);
+
+        const documents: Document[] = splits.map((split) => ({
+            pageContent: split.pageContent,
+            metadata: { source: `${link}` },
+            id: randomUUID(),
+        }));
+
+        const clientArgs: ElasticClientArgs = {
+            client: new Client(config),
+            indexName: process.env.ELASTIC_INDEX ?? `${index}`,
+        }
+        const vectorStore = new ElasticVectorSearch(embeddings, clientArgs);
+
+        const result = await vectorStore.addDocuments(documents);
+        // console.log("Sucessful add vector to Elasticsearch: ", result);
+        return res
+            .status(200)
+            .json({ message: "OK" });
     } catch (error) {
         console.log(error);
+        return res
+            .status(500)
+            .json({ error: "ERROR", cause: error.message });
     }
 }
 
-export const deleteVectorStore = async ( req: Request, res: Response, next: NextFunction ) => {
+export const deleteVectorStore = async (req: Request, res: Response, next: NextFunction) => {
     const string = "thisisarandomkeycreatebyRandomUUID"
     let id = `${string}-${string}-${string}-${string}-${string}`;
     // await vectorStore.delete({ ids: [`${id}`] });
@@ -52,12 +58,13 @@ export const deleteVectorStore = async ( req: Request, res: Response, next: Next
 
 export const queryVectorStore = async (req: Request, res: Response, next: NextFunction, message: string) => {
     const index = "*";
+    console.log("messageQueryVectorStore: ", message);
     const filter = [
         {
             operator: "match",
             field: "source",
-            value: "https://example.com",
-            
+            value: "1.Large_Language_Models.docx",
+
         },
     ];
     const clientArgs: ElasticClientArgs = {
@@ -70,10 +77,11 @@ export const queryVectorStore = async (req: Request, res: Response, next: NextFu
         `${message}`,
         1,
         filter
-      );
+    );
 
     const context = similaritySearchResults.map((result) => result.pageContent);
-
+    console.log("Context: ", context);
+    console.log("similaritySearchResults: ", similaritySearchResults);
     return context;
 }
 
@@ -91,9 +99,9 @@ export const getAllIndexies = async (req: Request, res: Response, next: NextFunc
             format: 'json',
             h: 'index'
         });
-        return res.status(200).json({ message: "OK", indices: indices});
-      } catch (error) {
+        return res.status(200).json({ message: "OK", indices: indices });
+    } catch (error) {
         console.log(error);
         return res.status(200).json({ message: "ERROR", cause: error.message });
-      }
+    }
 }

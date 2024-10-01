@@ -8,8 +8,8 @@ import toast from "react-hot-toast";
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { VisuallyHiddenInput } from "../components/shared/VisuallyHiddenInput";
 import { Tester } from "./Test";
-import InputFile from "../components/upload/InputFile";
-
+import InputFileJSON from "../components/upload/InputFileJSON";
+import InputFileDOCX from "../components/upload/InputFileDOCX";
 type Indexies = {
   index: string;
   content: string;
@@ -30,7 +30,7 @@ const Admin = () => {
   const [inputValue, setInputValue] = useState("");
   const [inputLink, setInputLink] = useState<string>("");
   const [isLinkValid, setIsLinkValid] = useState(false);
-  
+
   const handleSubmitLink = async () => {
     if (isLinkValid && chosenIndices) {
       const link = inputRef.current?.value.trim() as string;
@@ -82,7 +82,7 @@ const Admin = () => {
     const value = event.target.value as string;
     setChosenIndices(value);
   };
-  
+
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -101,7 +101,7 @@ const Admin = () => {
       alert("Please select a file first!");
       return;
     }
-    Tester(selectedFile); 
+    Tester(selectedFile);
     // console.log(selectedFile);
 
     // Send the file to the API route
@@ -150,6 +150,16 @@ const Admin = () => {
         <Typography sx={{ fontSize: "20px", color: "white", mb: 2, mx: "auto", fontWeight: "600" }}>
           Web Loader
         </Typography>
+        <Select displayEmpty defaultValue="" onChange={onChangeSelectLink} className="customIndexSelector">
+          <MenuItem value="" disabled>
+            Select an Index
+          </MenuItem>
+          {indices.map((indexData, idx) => (
+            <MenuItem key={idx} value={indexData.index}>
+              {indexData.index || "Unnamed Index"}
+            </MenuItem>
+          ))}
+        </Select>
 
         <div style={{ width: "100%", borderRadius: 8, backgroundColor: "rgb(17,27,39)", display: "flex" }}>
           <input
@@ -168,16 +178,6 @@ const Admin = () => {
               fontSize: "20px",
             }}
           />
-          <Select displayEmpty defaultValue="" onChange={onChangeSelectLink} className="customIndexSelector">
-            <MenuItem value="" disabled>
-              Select an Index
-            </MenuItem>
-            {indices.map((indexData, idx) => (
-              <MenuItem key={idx} value={indexData.index}>
-                {indexData.index || "Unnamed Index"}
-              </MenuItem>
-            ))}
-          </Select>
           <IconButton onClick={handleSubmitLink} sx={{ color: "white", mx: 1 }} disabled={!inputLink.trim() || !isLinkValid || !chosenIndices}>
             <IoMdSend />
           </IconButton>
@@ -186,14 +186,34 @@ const Admin = () => {
         <Typography sx={{ fontSize: "20px", color: "white", mb: 2, mx: "auto", mt: 2, fontWeight: "600" }}>
           File Loader
         </Typography>
+        <Select displayEmpty defaultValue="" onChange={onChangeSelectLink} className="customIndexSelector">
+          <MenuItem value="" disabled>
+            Select an Index
+          </MenuItem>
+          {indices.map((indexData, idx) => (
+            <MenuItem key={idx} value={indexData.index}>
+              {indexData.index || "Unnamed Index"}
+            </MenuItem>
+          ))}
+        </Select>
+        <div style={{ width: "100%", borderRadius: 8, display: "flex", justifyContent: "space-between" }}>
+          <div style={{ width: "45%", borderRadius: 8, display: "flex"}}>
+            <InputFileJSON chosenIndices={chosenIndices}/>
 
-        <InputFile />
+          </div>
+
+          <div style={{ width: "45%", borderRadius: 8, display: "flex"}}>
+            <InputFileDOCX chosenIndices={chosenIndices} />
+
+          </div>
+
+        </div>
 
         {/* <form onSubmit={handleSubmitFile}>
           <input type="file" onChange={handleFileChange} />
           <button type="submit">Upload</button>
         </form> */}
-        
+
       </Box>
     </Box>
   );
