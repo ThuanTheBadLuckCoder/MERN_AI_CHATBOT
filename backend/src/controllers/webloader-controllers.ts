@@ -18,11 +18,11 @@ export const addVectorStore = async (req: Request, res: Response, next: NextFunc
 
     try {
         const { link, index } = req.body;
-        console.log("link: ", link);
-        console.log("indexChosen: ", index);
+        // console.log("link: ", link);
+        // console.log("indexChosen: ", index);
         const cheerioLoader = new CheerioWebBaseLoader(`${link}`);
         const loadedDocs = await cheerioLoader.load();
-        console.log("loadedDocs: ", loadedDocs);
+        // console.log("loadedDocs: ", loadedDocs);
         const splits = await textSplitter.splitDocuments(loadedDocs);
 
         const documents: Document[] = splits.map((split) => ({
@@ -58,12 +58,12 @@ export const deleteVectorStore = async (req: Request, res: Response, next: NextF
 
 export const queryVectorStore = async (req: Request, res: Response, next: NextFunction, message: string) => {
     const index = "*";
-    console.log("messageQueryVectorStore: ", message);
+    // console.log("messageQueryVectorStore: ", message);
     const filter = [
         {
-            operator: "match",
+            operator: "wildcard",
             field: "source",
-            value: "1.Large_Language_Models.docx",
+            value: "*",
 
         },
     ];
@@ -80,8 +80,8 @@ export const queryVectorStore = async (req: Request, res: Response, next: NextFu
     );
 
     const context = similaritySearchResults.map((result) => result.pageContent);
-    console.log("Context: ", context);
-    console.log("similaritySearchResults: ", similaritySearchResults);
+    // console.log("Context: ", context);
+    // console.log("similaritySearchResults: ", similaritySearchResults);
     return context;
 }
 

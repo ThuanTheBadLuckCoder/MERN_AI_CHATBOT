@@ -53,7 +53,10 @@ export default function InputFileDOCX({ chosenIndices }: InputFileDOCXProps) {
 
             reader.readAsArrayBuffer(file); // Read the file as text
         } else {
-            console.error("Please upload a valid DOCX file.");
+            // console.error("Please upload a valid DOCX file.");
+            toast.error("This is NOT a DOCX file");
+            setSelectedFile(null);
+            console.error("Please upload a valid DOCX file.", selectedFile);
         }
     }
     const handleSubmitFile = async () => {
@@ -72,14 +75,15 @@ export default function InputFileDOCX({ chosenIndices }: InputFileDOCXProps) {
 
 
     return (
-        <div style={{ width: "100%", borderRadius: 8, backgroundColor: "rgb(17,27,39)", display: "flex" }}>
+        <div style={{ width: "100%", borderRadius: 8, backgroundColor: "rgb(17,27,39)", display: "flex", flexDirection: "column", padding: "20px", gap: "10px" }}>
+            <p>DOCX</p>
             <div>
-                <p>DOCX</p>
-                <Button component="label" variant="contained" startIcon={<CloudUploadIcon />}>
+                <div style={{ width: "100%", borderRadius: 8, backgroundColor: "rgb(17,27,39)", display: "flex", flexDirection: "row", justifyContent: "space-between", height: "60px"}}>
+                <Button component="label" variant="contained" startIcon={<CloudUploadIcon />} sx={{gap: "10px"}}>
                     Upload files
                     <VisuallyHiddenInput type="file" onChange={handleFileChange} multiple={false} />
                 </Button>
-                {selectedFile && <p>Selected file: {selectedFile.name}</p>}
+                {selectedFile && <p className="custom-fileName">Selected file: {selectedFile.name}</p>}
                 <IconButton 
                     onClick={handleSubmitFile} 
                     sx={{ color: "white", mx: 1 }} 
@@ -87,6 +91,8 @@ export default function InputFileDOCX({ chosenIndices }: InputFileDOCXProps) {
                 >
                     <IoMdSend />
                 </IconButton>
+                </div>
+                
             </div>
 
         </div>

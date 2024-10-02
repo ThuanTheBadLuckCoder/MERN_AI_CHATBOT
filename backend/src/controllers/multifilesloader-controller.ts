@@ -17,8 +17,8 @@ const textSplitter = new RecursiveCharacterTextSplitter({
 export const saveToDatabase = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { name, content, index } = req.body;
-        // console.log("file: ", name);
-        // console.log("index: ", content);
+        console.log("file: ", name);
+        console.log("index: ", content);
         // const objectText = JSON.stringify(content);
 
         const loadedDocs = [
@@ -29,7 +29,7 @@ export const saveToDatabase = async (req: Request, res: Response, next: NextFunc
                 },
             }
         ];
-        // console.log("loadedDocs: ", loadedDocs);
+        console.log("loadedDocs: ", loadedDocs);
 
         const splits = await textSplitter.splitDocuments(loadedDocs);
         // console.log("splits: ", splits);

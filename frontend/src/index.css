@@ -1,7 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@100..900&display=swap');
 
 
-html,body {
+html,
+body {
   margin: 0;
   padding: 0;
   background: #05101c;
@@ -42,6 +43,7 @@ html,body {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(359deg);
   }
@@ -54,11 +56,33 @@ html,body {
 .css-1awogxv-MuiButtonBase-root-MuiMenuItem-root:hover {
   background-color: rgb(125 125 125) !important;
 }
+.custom-select-file-type .customIndexSelector {
+  width: 59%
+}
+.customFileTypeSelector {
+  width: 40%;
+}
+.customFileTypeSelector, .customIndexSelector {
+  margin-bottom: 10px;
+}
+.custom-select-file-type {
+  display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-content: center;
+    justify-content: space-between;
+    align-items: center;
+}
 
-.customIndexSelector, .customIndexSelector .MuiSvgIcon-root {
+.customIndexSelector,
+.customIndexSelector .MuiSvgIcon-root {
   color: white !important;
   /* line-height: 0 !important; */
 
+}
+
+.customFileTypeSelector, .customFileTypeSelector .MuiSvgIcon-root {
+  color: white !important;
 }
 
 .containerFileName {
@@ -73,13 +97,82 @@ html,body {
   width: 1271.42px;
 
 }
+
 .css-1sh91j5-MuiButton-startIcon {
-  margin-right: 0px !important; 
+  margin-right: 0px !important;
+}
+.css-1qc4xje-MuiButtonBase-root-MuiButton-root {
+  font-size: 20px !important; 
 }
 
-input.customInputFile {
+input.customInputFile {}
+
+input#file-upload-button {}
+
+
+.custom-scrollbar {
+  display: flex;
+
 }
 
-input#file-upload-button {
-  
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #888;
+  border-radius: 10px;
+  border: 3px solid #f1f1f1;
+}
+
+/* Toàn bộ thanh cuộn */
+::-webkit-scrollbar {
+  width: 15px;
+  /* Chiều rộng của thanh cuộn */
+  padding: 10px
+}
+
+/* Phần nền của thanh cuộn */
+::-webkit-scrollbar-track {
+  background: #ffffff00;
+  /* Màu nền của track */
+  border-radius: 10px;
+  /* Bo góc cho thanh cuộn */
+}
+
+/* Thanh trượt (phần bạn kéo) */
+::-webkit-scrollbar-thumb {
+  background-color: #ffffff00;
+  /* Màu của thanh trượt */
+  border-radius: 10px;
+  /* Bo góc cho thanh trượt */
+  border: 5px solid #ffffff00;
+  /* Tạo khoảng cách giữa thanh trượt và track */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #ffffff2b;
+  /* Màu khi hover */
+}
+
+
+#main::webkit-scrollbar-thum {
+  display: none !important;
+
+}
+
+p {
+  display: flex;
+  margin-block-start: 0 !important;
+  margin-block-end: 0 !important;
+  margin-inline-start: 0px;
+  margin-inline-end: 0px;
+  unicode-bidi: isolate;
+  flex-direction: column;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.css-1sh91j5-MuiButton-startIcon>*:nth-of-type(1) {
+  font-size: 25px !important;
+}
+
+.custom-fileName {
+  font-size: 20px;
 }

@@ -42,8 +42,8 @@ export const generateChatCompletion = async (
       [
         "system",
         `You are a ChatBOT. You must answer BASED ON the given context: {given_context}.
-        If there is no context, 
-        please just say "I DON'T KNOW!!"`,
+        DO NOT ANSWER the Question and You have to say "I DON'T KNOW!!" if there is no info or null context, 
+        `,
       ],
       ["placeholder", "{chat_history}"],
       ["human", message],

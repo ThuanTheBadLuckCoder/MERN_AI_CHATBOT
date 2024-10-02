@@ -1,7 +1,7 @@
 import { ChangeEvent, FormEvent, useState } from 'react';
 import { sendFileRequest } from '../../helper/api-communicator';
 import toast from 'react-hot-toast';
-import { Button, IconButton, MenuItem, Select, SelectChangeEvent } from '@mui/material';
+import { Button, IconButton, MenuItem, responsiveFontSizes, Select, SelectChangeEvent } from '@mui/material';
 import { IoMdSend } from 'react-icons/io';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { styled } from '@mui/material/styles';
@@ -45,7 +45,9 @@ export default function InputFileJSON({ chosenIndices }: InputFileJSONProps) {
 
       reader.readAsText(file); // Read the file as text
     } else {
-      console.error("Please upload a valid JSON file.");
+      toast.error("This is NOT a JSON file");
+      setSelectedFile(null);
+      console.error("Please upload a valid JSON file.", selectedFile);
     }
   }
   const handleSubmitFile = async () => {
@@ -58,30 +60,29 @@ export default function InputFileJSON({ chosenIndices }: InputFileJSONProps) {
       const response = await sendFileRequest(selectedFile.name, fileContent, chosenIndices)
       if (response) {
         toast.success("Successful send FILE to Server!!!");
-      } 
+      }
     }
-    
+
   };
 
 
   return (
-    <div style={{ width: "100%", borderRadius: 8, backgroundColor: "rgb(17,27,39)", display: "flex" }}>
-      
-      <div>
-                <p>JSON</p>
-                <Button component="label" variant="contained" startIcon={<CloudUploadIcon />}>
-                    Upload files
-                    <VisuallyHiddenInput type="file" onChange={handleFileChange} multiple={false} />
-                </Button>
-                {selectedFile && <p>Selected file: {selectedFile.name}</p>}
-                <IconButton 
-                    onClick={handleSubmitFile} 
-                    sx={{ color: "white", mx: 1 }} 
-                    disabled={!chosenIndices || !selectedFile || !fileContent}
-                >
-                    <IoMdSend />
-                </IconButton>
-            </div>
+    <div style={{ width: "100%", borderRadius: 8, backgroundColor: "rgb(17,27,39)", display: "flex", flexDirection: "column", padding: "20px", gap: "10px" }}>
+      <p>JSON</p>
+      <div style={{ width: "100%", borderRadius: 8, backgroundColor: "rgb(17,27,39)", display: "flex", flexDirection: "row", justifyContent: "space-between", height: "60px"}}>
+        <Button component="label" variant="contained" startIcon={<CloudUploadIcon />} sx={{gap: "10px"}}>
+          Upload files
+          <VisuallyHiddenInput type="file" onChange={handleFileChange} multiple={false} />
+        </Button>
+        {selectedFile && <p className="custom-fileName">Selected file: {selectedFile.name}</p>}
+        <IconButton
+          onClick={handleSubmitFile}
+          sx={{ color: "white", mx: 1 }}
+          disabled={!chosenIndices || !selectedFile || !fileContent}
+        >
+          <IoMdSend />
+        </IconButton>
+      </div>
     </div>
   );
 }

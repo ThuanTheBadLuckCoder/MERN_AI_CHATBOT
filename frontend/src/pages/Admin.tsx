@@ -10,6 +10,7 @@ import { VisuallyHiddenInput } from "../components/shared/VisuallyHiddenInput";
 import { Tester } from "./Test";
 import InputFileJSON from "../components/upload/InputFileJSON";
 import InputFileDOCX from "../components/upload/InputFileDOCX";
+import InputFilePDF from "../components/upload/InputFilePDF"
 type Indexies = {
   index: string;
   content: string;
@@ -30,6 +31,8 @@ const Admin = () => {
   const [inputValue, setInputValue] = useState("");
   const [inputLink, setInputLink] = useState<string>("");
   const [isLinkValid, setIsLinkValid] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFileType, setSelectedFileType] = useState('');
 
   const handleSubmitLink = async () => {
     if (isLinkValid && chosenIndices) {
@@ -83,8 +86,12 @@ const Admin = () => {
     setChosenIndices(value);
   };
 
+  const onChangeSelectFileType = (event: SelectChangeEvent<unknown>) => {
+    const value = event.target.value as string;
+    setSelectedFileType(value);
+  }
 
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]; // Check if there's a file
     if (file) {
@@ -108,6 +115,7 @@ const Admin = () => {
     // await sendFileRequest(selectedFile, chosenIndices)
   };
 
+  
 
   function isValidURL(string: string) {
     try {
@@ -186,6 +194,7 @@ const Admin = () => {
         <Typography sx={{ fontSize: "20px", color: "white", mb: 2, mx: "auto", mt: 2, fontWeight: "600" }}>
           File Loader
         </Typography>
+        <div className="custom-select-file-type">
         <Select displayEmpty defaultValue="" onChange={onChangeSelectLink} className="customIndexSelector">
           <MenuItem value="" disabled>
             Select an Index
@@ -196,14 +205,21 @@ const Admin = () => {
             </MenuItem>
           ))}
         </Select>
-        <div style={{ width: "100%", borderRadius: 8, display: "flex", justifyContent: "space-between" }}>
-          <div style={{ width: "45%", borderRadius: 8, display: "flex"}}>
-            <InputFileJSON chosenIndices={chosenIndices}/>
-
-          </div>
-
-          <div style={{ width: "45%", borderRadius: 8, display: "flex"}}>
-            <InputFileDOCX chosenIndices={chosenIndices} />
+        <Select displayEmpty defaultValue="" onChange={onChangeSelectFileType} className="customFileTypeSelector">
+          <MenuItem value="" disabled>
+            Select an File Type
+          </MenuItem>
+          <MenuItem value="json">JSON</MenuItem>
+          <MenuItem value="docx">DOCX</MenuItem>
+          <MenuItem value="pdf">PDF</MenuItem>
+        </Select>
+        </div>
+        
+        <div style={{ width: "100%", borderRadius: 8, display: "flex", justifyContent: "space-between", gap: "10px", flexDirection: "column" }}>
+          <div style={{ width: "100%", borderRadius: 8, display: "flex"}}>
+          {selectedFileType === "json" && <InputFileJSON chosenIndices={chosenIndices}/>}
+          {selectedFileType === "docx" && <InputFileDOCX chosenIndices={chosenIndices} />}
+          {selectedFileType === "pdf"  && <InputFilePDF chosenIndices={chosenIndices} />}
 
           </div>
 
