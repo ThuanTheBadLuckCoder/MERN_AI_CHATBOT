@@ -56,6 +56,16 @@ export const sendFileRequest = async (name: string, content: Object, index: stri
   } 
   const data = await res.data;
   return data;
+};
+
+export const createNewIndex = async (indexName: string) => {
+  const res = await axios.post("index/new", { indexName });
+
+  if (res.status !== 200) {
+    throw new Error("Unable to Create a new Index");
+  } 
+  const data = await res.data;
+  return data;
 }
 
 export const getUserChats = async () => {

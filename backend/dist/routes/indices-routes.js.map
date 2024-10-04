@@ -1,0 +1,1 @@
+{"version":3,"file":"indices-routes.js","sourceRoot":"","sources":["../../src/routes/indices-routes.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,MAAM,EAAE,MAAM,SAAS,CAAC;AACjC,OAAO,EAAE,iBAAiB,EAAE,MAAM,yCAAyC,CAAC;AAG5E,eAAe;AACf,MAAM,WAAW,GAAG,MAAM,EAAE,CAAC;AAC7B,WAAW,CAAC,IAAI,CAAC,MAAM,EAAE,iBAAiB,CAAC,CAAC;AAE5C,eAAe,WAAW,CAAC"}

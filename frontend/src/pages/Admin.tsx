@@ -3,7 +3,7 @@ import { Box, Avatar, Typography, Button, IconButton, Select, SelectChangeEvent,
 import { useAuth } from "../context/AuthContext";
 import { IoMdSend } from "react-icons/io";
 import { useNavigate } from "react-router-dom";
-import { getAllIndices, sendLinkRequest, sendFileRequest } from "../helper/api-communicator";
+import { getAllIndices, sendLinkRequest, sendFileRequest, createNewIndex } from "../helper/api-communicator";
 import toast from "react-hot-toast";
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { VisuallyHiddenInput } from "../components/shared/VisuallyHiddenInput";
@@ -30,7 +30,9 @@ const Admin = () => {
   const [linkMessages, setLinkMessages] = useState<Link[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [inputLink, setInputLink] = useState<string>("");
+  const [inputIndex, setInputIndex] = useState<string>("");
   const [isLinkValid, setIsLinkValid] = useState(false);
+  const [isIndexValid, setIsIndexValid] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedFileType, setSelectedFileType] = useState('');
 
@@ -45,6 +47,22 @@ const Admin = () => {
       setInputLink(""); // Clear the input after submission
       if (inputRef.current) inputRef.current.value = ""; // Reset ref
     }
+  };
+
+  const handleSubmitIndex = async () => {
+    // if (isIndexValid) {
+      const index = inputRef.current?.value.trim() as string;
+      if (!index) return;
+      try {
+        await createNewIndex(inputIndex)
+        toast.success("Successful Create New Index");
+      } catch (error) {
+        toast.error("Can't Create New Index with error" );
+
+      }
+      setInputIndex(""); // Clear the input after submission
+      if (inputRef.current) inputRef.current.value = ""; // Reset ref
+    // }
   };
 
   useLayoutEffect(() => {
@@ -74,10 +92,18 @@ const Admin = () => {
     setIsLinkValid(isValidURL(valueFinal));
   };
 
+  const handleInputChangeIndex = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    setInputIndex(value);
+    setIsIndexValid(validateIndex(value));
+  };
+
   const handleKeyPressLink = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter" && isLinkValid && chosenIndices) {
       event.preventDefault(); // Prevents the default behavior
       handleSubmitLink();
+    } else if (event.key === "Enter") {
+      toast.error("The Link is not Valid");
     }
   };
 
@@ -91,30 +117,14 @@ const Admin = () => {
     setSelectedFileType(value);
   }
 
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]; // Check if there's a file
-    if (file) {
-      setSelectedFile(file);
+  function validateIndex(input: string): boolean {
+    // Kiểm tra nếu input là chữ thường
+    if (input !== input.toLowerCase()) {
+      toast.error("Index must be lower case");
+      return false;
     }
-  };
-
-
-  const handleSubmitFile = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const fakeIndex = "uncategorized_vectorstore";
-    setChosenIndices(fakeIndex);
-    if (!selectedFile) {
-      alert("Please select a file first!");
-      return;
-    }
-    Tester(selectedFile);
-    // console.log(selectedFile);
-
-    // Send the file to the API route
-    // await sendFileRequest(selectedFile, chosenIndices)
-  };
-
+    return true;
+  }
   
 
   function isValidURL(string: string) {
@@ -195,33 +205,61 @@ const Admin = () => {
           File Loader
         </Typography>
         <div className="custom-select-file-type">
-        <Select displayEmpty defaultValue="" onChange={onChangeSelectLink} className="customIndexSelector">
-          <MenuItem value="" disabled>
-            Select an Index
-          </MenuItem>
-          {indices.map((indexData, idx) => (
-            <MenuItem key={idx} value={indexData.index}>
-              {indexData.index || "Unnamed Index"}
+          <Select displayEmpty defaultValue="" onChange={onChangeSelectLink} className="customIndexSelector">
+            <MenuItem value="" disabled>
+              Select an Index
             </MenuItem>
-          ))}
-        </Select>
-        <Select displayEmpty defaultValue="" onChange={onChangeSelectFileType} className="customFileTypeSelector">
-          <MenuItem value="" disabled>
-            Select an File Type
-          </MenuItem>
-          <MenuItem value="json">JSON</MenuItem>
-          <MenuItem value="docx">DOCX</MenuItem>
-          <MenuItem value="pdf">PDF</MenuItem>
-        </Select>
+            {indices.map((indexData, idx) => (
+              <MenuItem key={idx} value={indexData.index}>
+                {indexData.index || "Unnamed Index"}
+              </MenuItem>
+            ))}
+          </Select>
+          <Select displayEmpty defaultValue="" onChange={onChangeSelectFileType} className="customFileTypeSelector">
+            <MenuItem value="" disabled>
+              Select an File Type
+            </MenuItem>
+            <MenuItem value="json">JSON</MenuItem>
+            <MenuItem value="docx">DOCX</MenuItem>
+            <MenuItem value="pdf">PDF</MenuItem>
+          </Select>
         </div>
-        
+
         <div style={{ width: "100%", borderRadius: 8, display: "flex", justifyContent: "space-between", gap: "10px", flexDirection: "column" }}>
-          <div style={{ width: "100%", borderRadius: 8, display: "flex"}}>
-          {selectedFileType === "json" && <InputFileJSON chosenIndices={chosenIndices}/>}
-          {selectedFileType === "docx" && <InputFileDOCX chosenIndices={chosenIndices} />}
-          {selectedFileType === "pdf"  && <InputFilePDF chosenIndices={chosenIndices} />}
+          <div style={{ width: "100%", borderRadius: 8, display: "flex" }}>
+            {selectedFileType === "json" && <InputFileJSON chosenIndices={chosenIndices} />}
+            {selectedFileType === "docx" && <InputFileDOCX chosenIndices={chosenIndices} />}
+            {selectedFileType === "pdf" && <InputFilePDF chosenIndices={chosenIndices} />}
 
           </div>
+
+        </div>
+
+        <div>
+          <Typography sx={{ fontSize: "20px", color: "white", mb: 2, mx: "auto", mt: 2, fontWeight: "600" }}>
+            Create New Index
+          </Typography>
+
+          <div style={{ width: "100%", borderRadius: 8, backgroundColor: "rgb(17,27,39)", display: "flex" }}>
+          <input
+            ref={inputRef}
+            type="text"
+            value={inputIndex}
+            onChange={handleInputChangeIndex}
+            style={{
+              width: "100%",
+              backgroundColor: "transparent",
+              padding: "30px",
+              border: "none",
+              outline: "none",
+              color: "white",
+              fontSize: "20px",
+            }}
+          />
+          <IconButton onClick={handleSubmitIndex} sx={{ color: "white", mx: 1 }} disabled={!inputIndex}>
+            <IoMdSend />
+          </IconButton>
+        </div>
 
         </div>
 

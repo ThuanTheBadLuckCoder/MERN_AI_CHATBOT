@@ -102,6 +102,49 @@ export const getAllIndexies = async (req: Request, res: Response, next: NextFunc
         return res.status(200).json({ message: "OK", indices: indices });
     } catch (error) {
         console.log(error);
-        return res.status(200).json({ message: "ERROR", cause: error.message });
+        return res.status(500).json({ message: "ERROR", cause: error.message });
+    }
+}
+
+export const createNewIndexies = async (req: Request, res: Response, next: NextFunction) => {
+    //Define index parameters
+    const { indexName, settings, mappings } = req.body;
+    try {
+        if (!indexName) {
+            return res.status(400).json({ message: "Index name is required." });
+        }
+
+        // Define index parameters
+        const indexParams = {
+            index: indexName,
+            body: {
+                settings: settings || {
+                    // Example settings; can be customized
+                    analysis: {
+                        analyzer: {
+                            content_analyzer: {
+                                type: "standard",
+                            },
+                        },
+                    },
+                },
+                mappings: mappings || {
+                    // Example mappings; customize as needed
+                    properties: {
+                        pageContent: { type: "text", analyzer: "content_analyzer" },
+                        metadata: {
+                            properties: {
+                                source: { type: "keyword" },
+                            },
+                        },
+                    },
+                },
+            },
+        };
+
+        const response = await client.indices.create(indexParams);
+        return res.status(200).json({ message: "Index created successfully.", response });
+    } catch (error) {
+        return res.status(500).json({ message: "ERROR", cause: error.message })
     }
 }

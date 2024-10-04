@@ -38,16 +38,26 @@ export const generateChatCompletion = async (
       return res.status(401).json({ message: "User not registered OR Token malfunctioned" });
     }
 
-    const prompt = ChatPromptTemplate.fromMessages([
-      [
-        "system",
-        `You are a ChatBOT. You must answer BASED ON the given context: {given_context}.
-        DO NOT ANSWER the Question and You have to say "I DON'T KNOW!!" if there is no info or null context, 
-        `,
-      ],
-      ["placeholder", "{chat_history}"],
-      ["human", message],
-    ]);
+    let prompt: ChatPromptTemplate<any, any>
+
+    if (!context) {
+      prompt = ChatPromptTemplate.fromMessages([
+        "system", "Say I don't know"
+      ])
+    } else {
+      prompt = ChatPromptTemplate.fromMessages([
+        [
+          "system",
+          `You must answer BASED ON the given context: {given_context}.
+          Check for spelling errors, if it is incorrect based on context, 
+          based on the context return ask the user 
+          if this is what the user meant?`,
+        ],
+        ["placeholder", "{chat_history}"],
+        ["human", message],
+      ]);
+    }
+    
 
     console.log("context: ", context);
     
