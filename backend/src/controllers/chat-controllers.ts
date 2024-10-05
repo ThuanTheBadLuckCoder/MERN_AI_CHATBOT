@@ -48,7 +48,8 @@ export const generateChatCompletion = async (
       prompt = ChatPromptTemplate.fromMessages([
         [
           "system",
-          `You must answer BASED ON the given context: {given_context}.
+          `You are a ChatBot that ONLY supports IT users. You can reply to greetings as usual. 
+          You must answer BASED ON the given context: {given_context}.
           Check for spelling errors, if it is incorrect based on context, 
           based on the context return ask the user 
           if this is what the user meant?`,
@@ -57,12 +58,6 @@ export const generateChatCompletion = async (
         ["human", message],
       ]);
     }
-    
-
-    console.log("context: ", context);
-    
-    
-    // const chain = prompt.pipe(model);
     const chain = RunnableSequence.from<ChainInput>([
       RunnablePassthrough.assign({
         chat_history: filterMessages,
@@ -71,8 +66,6 @@ export const generateChatCompletion = async (
       prompt,
       model,
     ]);
-    
-    console.log("prompt: ", chain);
 
     const chatHistory = user.chats
       .filter((message) => message.role === 'user' || message.role === 'assistant') // Lọc các tin nhắn có role là 'user' hoặc 'assistant'
@@ -83,7 +76,11 @@ export const generateChatCompletion = async (
           return new AIMessage({ content: message.content });
         }
       });
-    // console.log(chatHistory);
+    
+    console.log("chatHistory: ", chatHistory);
+    console.log("filterMessage: ", filterMessages);
+
+
     // grab chats of user
     const chats = user.chats.map(({ role, content }) => ({
       role,
@@ -92,28 +89,13 @@ export const generateChatCompletion = async (
     chats.push({ content: message, role: "user" });
     user.chats.push({ content: message, role: "user" });
 
-    // push chat response from openAI
-    
-    // console.log("chain2: ", chain2);
-
     const response = await chain.invoke({
       chat_history: chatHistory,
       input: `${message}`,
       given_context: context,
     });
-
-    // const response2 = await ragChain.invoke({
-    //   chat_history: chatHistory,
-    //   context: await retriever.invoke(`${message}`),
-    //   question: `${message}`
-    // })
-    // const stream = await chain.stream({
-    //   chat_history: chatHistory,
-    //   input: `${message}`
-    // })
-    // for await (const chunk of stream) {
-    //   console.log("|", chunk.content);
-    // }
+    
+    console.log("response: ", response);
 
     user.chats.push({ content: response.content, role: "assistant" })
     await user.save();
