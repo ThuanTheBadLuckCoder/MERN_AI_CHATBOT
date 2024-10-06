@@ -1,14 +1,14 @@
-import type { Document } from "@langchain/core/documents";
-import { vectorStore } from "../elastic-vectorstore.js";
+// import type { Document } from "@langchain/core/documents";
+// import { vectorStore } from "../elastic-vectorstore.js";
 
-const linkSources = "https://thuanthebadluckcoder.github.io/Messi.html"
-const document: Document = {
-  pageContent: "Tester",
-  metadata: { source: `${linkSources}`}
-}
+// const linkSources = "https://thuanthebadluckcoder.github.io/Messi.html"
+// const document: Document = {
+//   pageContent: "Tester",
+//   metadata: { source: `${linkSources}`}
+// }
 
-const documents = [document];
+// const documents = [document];
 
-const addFunctionCompelete = await vectorStore.addDocuments(documents, { ids: ["5"] });
+// const addFunctionCompelete = await vectorStore.addDocuments(documents, { ids: ["5"] });
 
-export { addFunctionCompelete }
+// export { addFunctionCompelete }

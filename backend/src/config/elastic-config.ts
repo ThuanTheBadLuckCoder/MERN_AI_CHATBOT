@@ -7,6 +7,7 @@ import { OpenAIEmbeddings } from "@langchain/openai";
 import { Client, type ClientOptions  } from "@elastic/elasticsearch";
 import * as fs from "node:fs";
 
+
 export const embeddings = new OpenAIEmbeddings({
     apiKey: process.env.OPEN_AI_SECRET,
     batchSize: 512,

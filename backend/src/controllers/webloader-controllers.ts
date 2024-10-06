@@ -8,6 +8,7 @@ import User from "../models/User.js";
 import { ElasticClientArgs, ElasticVectorSearch } from "@langchain/community/vectorstores/elasticsearch";
 import { Client, type ClientOptions } from "@elastic/elasticsearch";
 
+
 const textSplitter = new RecursiveCharacterTextSplitter({
     chunkSize: 1000,
     chunkOverlap: 200,

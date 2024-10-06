@@ -13,6 +13,7 @@ import {
 } from "@langchain/core/runnables";
 import { retriever } from "./components/model-io/web-loader.js";
 import { queryVectorStore } from "./webloader-controllers.js";
+import { executor } from "./components/agents/custom-agent.js";
 
 
 // let messageHistories: Record<string, InMemoryChatMessageHistory> = {};
@@ -37,7 +38,7 @@ export const generateChatCompletion = async (
     if (!user) {
       return res.status(401).json({ message: "User not registered OR Token malfunctioned" });
     }
-
+    // need to custom (Agents)
     let prompt: ChatPromptTemplate<any, any>
 
     if (!context) {
@@ -89,15 +90,15 @@ export const generateChatCompletion = async (
     chats.push({ content: message, role: "user" });
     user.chats.push({ content: message, role: "user" });
 
-    const response = await chain.invoke({
-      chat_history: chatHistory,
-      input: `${message}`,
-      given_context: context,
-    });
     
-    console.log("response: ", response);
 
-    user.chats.push({ content: response.content, role: "assistant" })
+    const input = message;
+    const responseAgent = await executor.invoke({
+      input,
+    });
+    console.log("responseAgent: ", );
+
+    user.chats.push({ content: responseAgent.output, role: "assistant" })
     await user.save();
     return res.status(200).json({ chats: user.chats });
   } catch (error) {

@@ -1,16 +1,74 @@
 import { DynamicTool } from "@langchain/core/tools";
 import { model } from "../../../config/openai-config.js";
 import { ChatPromptTemplate, MessagesPlaceholder, } from "@langchain/core/prompts";
-model;
-const customTool = new DynamicTool({
-    name: "get_word_length", description: "Returns the length of a word.",
-    func: async (input) => input.length.toString(),
+import { convertToOpenAIFunction } from "@langchain/core/utils/function_calling";
+import { RunnableSequence } from "@langchain/core/runnables";
+import { AgentExecutor } from "langchain/agents";
+import { formatToOpenAIFunctionMessages } from "langchain/agents/format_scratchpad";
+import { OpenAIFunctionsAgentOutputParser } from "langchain/agents/openai/output_parser";
+import { ElasticVectorSearch } from "@langchain/community/vectorstores/elasticsearch";
+import { Client } from "@elastic/elasticsearch";
+import { config, embeddings } from "../../../config/elastic-config.js";
+import { z } from "zod";
+const clientArgs = {
+    client: new Client(config),
+    indexName: process.env.ELASTIC_INDEX ?? `*`,
+};
+const elasticVectorSearch = new ElasticVectorSearch(embeddings, clientArgs);
+const elasticSearchTool = new DynamicTool({
+    name: 'elastic_search_tool',
+    description: 'This tool retrieves documents using ElasticSearch vector search',
+    func: async (input) => {
+        // Validate the input using Zod schema (expecting input to be a string)
+        const schema = z.string();
+        const filter = [
+            {
+                operator: "wildcard",
+                field: "source",
+                value: "*",
+            },
+        ];
+        const validationResult = schema.safeParse(input);
+        if (!validationResult.success) {
+            throw new Error("Invalid input: " + validationResult.error.message);
+        }
+        // Use input directly as the query string
+        const similaritySearchResults = await elasticVectorSearch.similaritySearch(input, 1, filter); // Example search for top 5 similar documents
+        const context = similaritySearchResults.map((result) => result.pageContent);
+        return context.length > 0 ? context : null;
+    }
 });
-const tools = [customTool];
+const tools = [elasticSearchTool];
 const prompt = ChatPromptTemplate.fromMessages([
-    ["system", "You are very powerful assistant, but don't know current events"],
+    ["system",
+        `You are a ChatBot that ONLY supports IT users. You can reply to greetings as usual. 
+          You must answer BASED ON the given context: {context}.
+          Check for spelling errors, if it is incorrect based on context, 
+          based on the context return ask the user 
+          if this is what the user meant?`],
     ["human", "{input}"],
     new MessagesPlaceholder("agent_scratchpad"),
 ]);
-export { tools };
+// Model with OpenAI functions
+const modelWithFunctions = model.bind({
+    functions: tools.map((tool) => convertToOpenAIFunction(tool)),
+});
+const runnableAgent = RunnableSequence.from([
+    {
+        input: (i) => i.input,
+        agent_scratchpad: (i) => formatToOpenAIFunctionMessages(i.steps),
+        context: async (i) => {
+            const contextResults = await elasticSearchTool.func(i.input);
+            return contextResults ? contextResults.join("\n") : null;
+        },
+    },
+    prompt,
+    modelWithFunctions,
+    new OpenAIFunctionsAgentOutputParser(),
+]);
+const executor = AgentExecutor.fromAgentAndTools({
+    agent: runnableAgent,
+    tools,
+});
+export { executor };
 //# sourceMappingURL=custom-agent.js.map

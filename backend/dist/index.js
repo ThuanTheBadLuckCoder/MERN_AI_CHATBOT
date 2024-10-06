@@ -6,9 +6,7 @@ connectToDatabase()
     .then(() => {
     app.listen(PORT, () => console.log(`Server Open & Connected to Database at ${PORT}`));
 }).catch((err) => console.log(err));
-import { tools } from './controllers/components/agents/custom-agent.js';
 try {
-    console.log("tools: ", tools);
 }
 catch (error) {
     console.log(error);
