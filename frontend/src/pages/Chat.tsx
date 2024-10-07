@@ -99,7 +99,7 @@ const Chat = () => {
         flexDirection: "column",
       }}>
         <Box sx={{
-          display: "flex", width: "100%", height: "94.8vh", bgcolor: "rgb(17,29,39)",
+          display: "flex", width: "100%", height: "92.6vh", bgcolor: "rgb(17,29,39)",
           borderRadius: 5, flexDirection: "column", mx: 3, paddingTop: "10px", paddingBottom: "10px;",
           justifyContent: "space-between"
         }}>
