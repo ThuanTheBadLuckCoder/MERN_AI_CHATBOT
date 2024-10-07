@@ -1,5 +1,5 @@
 import Header from "./components/Header";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -9,14 +9,26 @@ import { useAuth } from "./context/AuthContext";
 import Admin from "./pages/Admin";
 // import Test from "./pages/Test";
 import Footer from "./components/footer/Footer";
+import { useEffect, useState } from "react";
 
 function App() {
   const auth = useAuth();
   const admin = "admin@gmail.com";
-  // console.log(auth.user?.email);
+
+  const [isShowHeader, setIsShowHeader] = useState(true);
+  const location = useLocation();
+
+  useEffect(() => {
+    // Hide Header if the current path is "*", which is the NotFound page
+    if (location.pathname === "*" || location.pathname === "/chat") {
+      setIsShowHeader(false);
+    } else {
+      setIsShowHeader(true); // Show Header for other routes
+    }
+  }, [location.pathname]);
   return (
     <main>
-      <Header />
+      {isShowHeader && <Header />}
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />

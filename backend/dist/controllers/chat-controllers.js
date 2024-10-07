@@ -2,7 +2,6 @@ import User from "../models/User.js";
 import { model } from "../config/openai-config.js";
 import { AIMessage, HumanMessage } from "@langchain/core/messages";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
-import { RunnablePassthrough, RunnableSequence, } from "@langchain/core/runnables";
 import { queryVectorStore } from "./webloader-controllers.js";
 import { executor } from "./components/agents/custom-agent.js";
 // let messageHistories: Record<string, InMemoryChatMessageHistory> = {};
@@ -12,7 +11,7 @@ export const generateChatCompletion = async (req, res, next) => {
     try {
         const user = await User.findById(res.locals.jwtData.id);
         const context = await queryVectorStore(req, res, next, message);
-        const filterMessages = (input) => input.chat_history.slice(-10);
+        const filterMessages = (input) => input.chat_history.slice(-1);
         if (!user) {
             return res.status(401).json({ message: "User not registered OR Token malfunctioned" });
         }
@@ -37,14 +36,14 @@ export const generateChatCompletion = async (req, res, next) => {
                 ["human", message],
             ]);
         }
-        const chain = RunnableSequence.from([
-            RunnablePassthrough.assign({
-                chat_history: filterMessages,
-                given_context: async () => context,
-            }),
-            prompt,
-            model,
-        ]);
+        // const chain = RunnableSequence.from<ChainInput>([
+        //   RunnablePassthrough.assign({
+        //     chat_history: filterMessages,
+        //     given_context: async () => context,
+        //   }),
+        //   prompt,
+        //   model,
+        // ]);
         const chatHistory = user.chats
             .filter((message) => message.role === 'user' || message.role === 'assistant') // Lọc các tin nhắn có role là 'user' hoặc 'assistant'
             .map((message) => {
@@ -65,10 +64,13 @@ export const generateChatCompletion = async (req, res, next) => {
         chats.push({ content: message, role: "user" });
         user.chats.push({ content: message, role: "user" });
         const input = message;
+        // const chatHistoryAgent: BaseMessage[] = [];
         const responseAgent = await executor.invoke({
             input,
+            chat_history: chatHistory,
+            model,
         });
-        console.log("responseAgent: ");
+        console.log(responseAgent);
         user.chats.push({ content: responseAgent.output, role: "assistant" });
         await user.save();
         return res.status(200).json({ chats: user.chats });

@@ -4,38 +4,38 @@ import Toolbar from "@mui/material/Toolbar";
 import Logo from "./shared/Logo";
 import { useAuth } from "../context/AuthContext";
 import NavigationLink from "./shared/NavigationLink";
+import chat from "../../public/chat.svg"
+import admin from "../../public/adminpanel.svg"
+import logout from "../../public/logout.svg"
 
-const Header = () => {
+
+const LeftNavi = () => {
   const auth = useAuth();
   return (
     <AppBar
       sx={{ bgcolor: "transparent", position: "static", boxShadow: "none" }}
     >
-      <Toolbar sx={{ display: "flex" }}>
-        <Logo />
-        <div className="header">
+      <Toolbar sx={{ display: "flex", width: "100%" }}>
+        <div className="leftNaviContainer">
           {auth?.isLoggedIn ? (
             <>
-            {auth?.isAdmin && (
+              {auth?.isAdmin && (
+                <NavigationLink
+                  bg="#1D2025"
+                  to="/admin"
+                  text="Admin Panel"
+                  textColor="black"
+                  icon={<img src={admin} alt="Admin icon" style={{ width: '20px', height: '20px' }} />}
+                  class="admin"
+                />
+              )}
               <NavigationLink
-              bg="#ffcc00"
-              to="/admin"
-              text="Admin Panel"
-              textColor="black"
-            />
-            )}
-              <NavigationLink
-                bg="#00fffc"
+                bg="#1D2025"
                 to="/chat"
-                text="Go To Chat"
+                text="Chat"
                 textColor="black"
-              />
-              <NavigationLink
-                bg="#51538f"
-                textColor="white"
-                to="/"
-                text="logout"
-                onClick={auth.logout}
+                icon={<img src={chat} alt="Chat icon" style={{ width: '20px', height: '20px' }} />}
+                class="chat"
               />
             </>
           ) : (
@@ -60,4 +60,4 @@ const Header = () => {
   );
 };
 
-export default Header;
+export default LeftNavi;

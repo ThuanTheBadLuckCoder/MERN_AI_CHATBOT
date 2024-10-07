@@ -33,7 +33,7 @@ export const generateChatCompletion = async (
       input: string;
       given_context: string[];
     };
-    const filterMessages = (input: ChainInput) => input.chat_history.slice(-10);
+    const filterMessages = (input: ChainInput) => input.chat_history.slice(-1);
 
     if (!user) {
       return res.status(401).json({ message: "User not registered OR Token malfunctioned" });
@@ -59,14 +59,14 @@ export const generateChatCompletion = async (
         ["human", message],
       ]);
     }
-    const chain = RunnableSequence.from<ChainInput>([
-      RunnablePassthrough.assign({
-        chat_history: filterMessages,
-        given_context: async () => context,
-      }),
-      prompt,
-      model,
-    ]);
+    // const chain = RunnableSequence.from<ChainInput>([
+    //   RunnablePassthrough.assign({
+    //     chat_history: filterMessages,
+    //     given_context: async () => context,
+    //   }),
+    //   prompt,
+    //   model,
+    // ]);
 
     const chatHistory = user.chats
       .filter((message) => message.role === 'user' || message.role === 'assistant') // Lọc các tin nhắn có role là 'user' hoặc 'assistant'
@@ -93,10 +93,13 @@ export const generateChatCompletion = async (
     
 
     const input = message;
+    // const chatHistoryAgent: BaseMessage[] = [];
     const responseAgent = await executor.invoke({
       input,
+      chat_history: chatHistory,
+      model,
     });
-    console.log("responseAgent: ", );
+    console.log(responseAgent);
 
     user.chats.push({ content: responseAgent.output, role: "assistant" })
     await user.save();

@@ -44,7 +44,9 @@ const ChatItem = ({
         gap: 2,
         borderRadius: 2,
         my: 1,
+        flexDirection: "row"
       }}
+      className="assistant"
     >
       <Avatar sx={{ ml: "0" }}>
         <img src="openai.png" alt="openai" width={"30px"} />
@@ -74,7 +76,9 @@ const ChatItem = ({
         bgcolor: "#004d56",
         gap: 2,
         borderRadius: 2,
+        flexDirection: "row-reverse"
       }}
+      className="user"
     >
       <Avatar sx={{ ml: "0", bgcolor: "black", color: "white" }}>
   {auth?.user?.name ? (

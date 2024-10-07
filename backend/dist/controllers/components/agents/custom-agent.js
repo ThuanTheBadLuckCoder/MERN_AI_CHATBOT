@@ -10,6 +10,8 @@ import { ElasticVectorSearch } from "@langchain/community/vectorstores/elasticse
 import { Client } from "@elastic/elasticsearch";
 import { config, embeddings } from "../../../config/elastic-config.js";
 import { z } from "zod";
+const MEMORY_KEY = "chat_history";
+const chatHistory = [];
 const clientArgs = {
     client: new Client(config),
     indexName: process.env.ELASTIC_INDEX ?? `*`,
@@ -46,6 +48,7 @@ const prompt = ChatPromptTemplate.fromMessages([
           Check for spelling errors, if it is incorrect based on context, 
           based on the context return ask the user 
           if this is what the user meant?`],
+    new MessagesPlaceholder(MEMORY_KEY),
     ["human", "{input}"],
     new MessagesPlaceholder("agent_scratchpad"),
 ]);
@@ -59,8 +62,10 @@ const runnableAgent = RunnableSequence.from([
         agent_scratchpad: (i) => formatToOpenAIFunctionMessages(i.steps),
         context: async (i) => {
             const contextResults = await elasticSearchTool.func(i.input);
+            console.log("contextResults: ", contextResults);
             return contextResults ? contextResults.join("\n") : null;
         },
+        chat_history: (i) => i.chat_history,
     },
     prompt,
     modelWithFunctions,

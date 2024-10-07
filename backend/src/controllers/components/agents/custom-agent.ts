@@ -12,6 +12,9 @@ import { Client, type ClientOptions } from "@elastic/elasticsearch";
 import { client, config, embeddings } from "../../../config/elastic-config.js";
 import { z } from "zod";
 
+const MEMORY_KEY = "chat_history";
+const chatHistory: BaseMessage[] = [];
+
 const clientArgs: ElasticClientArgs = {
     client: new Client(config),
     indexName: process.env.ELASTIC_INDEX ?? `*`,
@@ -56,6 +59,7 @@ const prompt = ChatPromptTemplate.fromMessages([
           Check for spelling errors, if it is incorrect based on context, 
           based on the context return ask the user 
           if this is what the user meant?`],
+    new MessagesPlaceholder(MEMORY_KEY),
     ["human", "{input}"],
     new MessagesPlaceholder("agent_scratchpad"),
 ]);
@@ -72,14 +76,17 @@ const runnableAgent = RunnableSequence.from([
             formatToOpenAIFunctionMessages(i.steps),
         context: async (i: { input: string; steps: AgentStep[] }) => {  // Add 'i' as an argument here
             const contextResults = await elasticSearchTool.func(i.input);
+            console.log("contextResults: ", contextResults);
             return contextResults ? contextResults.join("\n") : null;
         },
+        chat_history: (i: { input: string; steps: AgentStep[], chat_history: BaseMessage[] }) => i.chat_history,
     },
     prompt,
     modelWithFunctions,
     new OpenAIFunctionsAgentOutputParser(),
 ]);
   
+
   const executor = AgentExecutor.fromAgentAndTools({
     agent: runnableAgent,
     tools,

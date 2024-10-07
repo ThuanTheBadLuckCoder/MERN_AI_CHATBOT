@@ -8,6 +8,16 @@ body {
   background: #05101c;
   color: white;
   font-family: "Roboto Slab", serif;
+
+
+}
+
+html,
+body,
+#root,
+main {
+  height: 100%;
+  overflow: hidden;
 }
 
 .image-inverted {
@@ -56,22 +66,27 @@ body {
 .css-1awogxv-MuiButtonBase-root-MuiMenuItem-root:hover {
   background-color: rgb(125 125 125) !important;
 }
+
 .custom-select-file-type .customIndexSelector {
   width: 59%
 }
+
 .customFileTypeSelector {
   width: 40%;
 }
-.customFileTypeSelector, .customIndexSelector {
+
+.customFileTypeSelector,
+.customIndexSelector {
   margin-bottom: 10px;
 }
+
 .custom-select-file-type {
   display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-content: center;
-    justify-content: space-between;
-    align-items: center;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-content: center;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .customIndexSelector,
@@ -81,7 +96,8 @@ body {
 
 }
 
-.customFileTypeSelector, .customFileTypeSelector .MuiSvgIcon-root {
+.customFileTypeSelector,
+.customFileTypeSelector .MuiSvgIcon-root {
   color: white !important;
 }
 
@@ -101,8 +117,9 @@ body {
 .css-1sh91j5-MuiButton-startIcon {
   margin-right: 0px !important;
 }
+
 .css-1qc4xje-MuiButtonBase-root-MuiButton-root {
-  font-size: 20px !important; 
+  font-size: 20px !important;
 }
 
 input.customInputFile {}
@@ -175,4 +192,165 @@ p {
 
 .custom-fileName {
   font-size: 20px;
+}
+
+.user .MuiBox-root.css-0 {
+  background-color: #004d56;
+  padding: 20px;
+  border-radius: 20px;
+
+}
+
+.assistant .MuiBox-root.css-0 {
+  background-color: #004d5612;
+  padding: 20px;
+  border-radius: 20px;
+  width: 75%;
+}
+
+.css-dallb3,
+.css-kx3h6j {
+  background-color: #ffffff00 !important;
+}
+
+.leftNaviContainer {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  align-content: space-between;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.nav-link {
+  width: 100%;
+
+}
+
+.leftNaviContainer .nav-link div {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  background-color: #1D2025;
+  border-radius: 16px;
+  color: #fff;
+}
+
+.leftNaviContainer .nav-link div p {
+  font-family: 'Figtree', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+  text-align: left;
+}
+
+.leftNaviContainer a:-webkit-any-link {
+  color: -webkit-link;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.leftNaviContainer {
+  width: 100%;
+  gap: 20px;
+
+}
+
+.leftNaviContainer .nav-link {
+  width: 100%;
+  height: 48px;
+
+}
+
+.leftNaviContainer a.nav-link {
+  background-image: linear-gradient(#00000000, #00000000);
+  padding: 1px;
+  border-radius: 16px;
+}
+
+.leftNaviContainer a.nav-link:hover {
+  background-image: linear-gradient(#01F58C, #A3EE6B) !important;
+  padding: 1px;
+  border-radius: 16px;
+}
+
+.chat .leftNaviContainer a.nav-link.chat,
+.admin .leftNaviContainer a.nav-link.admin {
+  background-image: linear-gradient(#01F58C, #A3EE6B) !important;
+  padding: 1px;
+  border-radius: 16px;
+}
+
+.leftNaviContainer a.nav-link.chat .leftNaviContainer a.nav-link::before {
+  background-color: #004d56 !important;
+}
+
+.leftNaviContainer .nav-link span {
+  margin-left: 10px;
+
+}
+
+
+.header a {
+  color: #000 !important;
+  display: flex;
+
+}
+
+.header {
+  display: flex;
+}
+
+.nav-container {
+  width: 100%;
+
+}
+
+.css-1l99aaj {
+  justify-content: space-between !important;
+}
+
+.clear-model {
+  display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.customFont {
+  font-family: 'Figtree', sans-serif !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  line-height: 24px !important;
+  text-align: left !important;
+}
+
+.userInfo {
+  display: flex;
+  width: fit-content;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-content: center;
+  /* justify-content: space-between; */
+  align-items: center;
+  padding-left: 24px;
+  padding-right: 24px;
+  gap: 20px;
+}
+
+.leftNavi_userInfo {
+  display: flex;
+  gap: 20px;
+  flex-direction: column;
+  margin-top: 10px;
+  
+}
+
+.clearButton {
+  display: flex;
+  
 }

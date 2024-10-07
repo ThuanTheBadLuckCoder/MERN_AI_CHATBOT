@@ -1,15 +1,11 @@
-import {
-    ElasticVectorSearch,
-    type ElasticClientArgs,
-} from "@langchain/community/vectorstores/elasticsearch";
+import { ElasticVectorSearch, type ElasticClientArgs, } from "@langchain/community/vectorstores/elasticsearch";
 import { OpenAIEmbeddings } from "@langchain/openai";
-
 import { Client, type ClientOptions  } from "@elastic/elasticsearch";
 import * as fs from "node:fs";
 
 
 export const embeddings = new OpenAIEmbeddings({
-    apiKey: process.env.OPEN_AI_SECRET,
+    apiKey: process.env.OPENAI_API_KEY,
     batchSize: 512,
     model: "text-embedding-3-small",
 });

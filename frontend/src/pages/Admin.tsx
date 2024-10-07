@@ -11,6 +11,7 @@ import { Tester } from "./Test";
 import InputFileJSON from "../components/upload/InputFileJSON";
 import InputFileDOCX from "../components/upload/InputFileDOCX";
 import InputFilePDF from "../components/upload/InputFilePDF"
+import LeftNavi from "../components/LeftNavi";
 type Indexies = {
   index: string;
   content: string;
@@ -151,6 +152,10 @@ const Admin = () => {
           >
             {auth?.user?.name ? `${auth.user.name[0]}${auth.user.name.split(" ")[1]?.[0] ?? ''}` : 'A'}
           </Avatar>
+          <div className="admin">
+            <LeftNavi />
+
+          </div>
           <Typography sx={{ mx: "auto", fontFamily: "work sans", my: 1, p: 0 }}>
             Hi, {auth?.user?.name}
           </Typography>
