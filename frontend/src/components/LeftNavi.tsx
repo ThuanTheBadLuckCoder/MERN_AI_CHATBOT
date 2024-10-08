@@ -6,7 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import NavigationLink from "./shared/NavigationLink";
 import chat from "../../public/chat.svg"
 import admin from "../../public/adminpanel.svg"
-import logout from "../../public/logout.svg"
+import logo from "../../public/codfe_logo.svg"
 
 
 const LeftNavi = () => {
@@ -19,6 +19,13 @@ const LeftNavi = () => {
         <div className="leftNaviContainer">
           {auth?.isLoggedIn ? (
             <>
+            <NavigationLink
+                  bg="#1D2025"
+                  to="/"
+                  text="Model: Codfe Bot"
+                  textColor="black"
+                  icon={<img src={logo} alt="Chat icon" style={{ width: '20px', height: '20px' }} />}
+                />
               {auth?.isAdmin && (
                 <NavigationLink
                   bg="#1D2025"
@@ -40,6 +47,13 @@ const LeftNavi = () => {
             </>
           ) : (
             <>
+              <NavigationLink
+                  bg="#00fffc"
+                  to="/"
+                  text=""
+                  textColor="black"
+                  icon={<img src={logo} alt="Chat icon" style={{ width: '20px', height: '20px' }} />}
+                />
               <NavigationLink
                 bg="#00fffc"
                 to="/login"
