@@ -16,7 +16,7 @@ const LogOut = () => {
       sx={{ bgcolor: "transparent", position: "static", boxShadow: "none" }}
     >
       <Toolbar sx={{ display: "flex", width: "100%" }}>
-        <div className="leftNaviContainer">
+        <div className="logOutContainer">
           {auth?.isLoggedIn ? (
             <>
               <NavigationLink

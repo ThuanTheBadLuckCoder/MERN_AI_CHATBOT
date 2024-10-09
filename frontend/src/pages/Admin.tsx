@@ -12,6 +12,7 @@ import InputFileJSON from "../components/upload/InputFileJSON";
 import InputFileDOCX from "../components/upload/InputFileDOCX";
 import InputFilePDF from "../components/upload/InputFilePDF"
 import LeftNavi from "../components/LeftNavi";
+import LogOut from "../components/LogOut";
 type Indexies = {
   index: string;
   content: string;
@@ -140,71 +141,84 @@ const Admin = () => {
   return (
     <Box sx={{ display: "flex", flex: 1, width: "100%", height: "100%", mt: 3, gap: 3 }}>
       <Box sx={{ display: { md: "flex", xs: "none", sm: "none" }, flex: 0.2, flexDirection: "column" }}>
-        <Box sx={{ display: "flex", width: "100%", height: "60vh", bgcolor: "rgb(17,29,39)", borderRadius: 5, flexDirection: "column", mx: 3 }}>
-          <Avatar
-            sx={{
-              mx: "auto",
-              my: 2,
-              bgcolor: "white",
-              color: "black",
-              fontWeight: 700,
-            }}
-          >
-            {auth?.user?.name ? `${auth.user.name[0]}${auth.user.name.split(" ")[1]?.[0] ?? ''}` : 'A'}
-          </Avatar>
-          <div className="admin">
-            <LeftNavi />
+      <Box sx={{
+          display: "flex", width: "100%", height: "92vh", bgcolor: "unset",
+          borderRadius: 5, flexDirection: "column", mx: 1, paddingTop: "10px", paddingBottom: "10px;",
+          justifyContent: "space-between"
+        }}>
+          <div className="leftNavi_userInfo">
+            <div className="userInfo">
+              <Avatar sx={{ bgcolor: "white", color: "black", fontWeight: 700, }}>
+                {auth?.user?.name ? `${auth.user.name[0]}${auth.user.name.split(" ")[1]?.[0] ?? ''}` : 'A'}
+
+              </Avatar>
+              <p className="customFont">
+                Hi, {auth?.user?.name}
+              </p>
+
+            </div>
+            <div className="admin">
+              <LeftNavi />
+            </div>
 
           </div>
-          <Typography sx={{ mx: "auto", fontFamily: "work sans", my: 1, p: 0 }}>
-            Hi, {auth?.user?.name}
-          </Typography>
+          <div className="clear_logout">
+            <div className="clearButton">
+              
+            </div>
+            <LogOut />
 
-          <Typography sx={{ mx: "auto", fontFamily: "work sans", p: 3 }}>
-            You are at the Admin Panel to give more information for ChatBOT
-          </Typography>
+          </div>
         </Box>
       </Box>
       <Box sx={{ display: "flex", flex: { md: 0.8, xs: 1, sm: 1 }, flexDirection: "column", px: 3 }}>
         <Typography sx={{ fontSize: "40px", color: "white", mb: 2, mx: "auto", fontWeight: "600" }}>
           Model - GPT 3.5 Turbo
         </Typography>
-
-        <Typography sx={{ fontSize: "20px", color: "white", mb: 2, mx: "auto", fontWeight: "600" }}>
-          Web Loader
-        </Typography>
-        <Select displayEmpty defaultValue="" onChange={onChangeSelectLink} className="customIndexSelector">
-          <MenuItem value="" disabled>
-            Select an Index
-          </MenuItem>
-          {indices.map((indexData, idx) => (
-            <MenuItem key={idx} value={indexData.index}>
-              {indexData.index || "Unnamed Index"}
+        <div className="webLoaderContainer">
+          <Typography sx={{ fontSize: "20px", color: "white", mb: 2, mx: "auto", fontWeight: "600" }}>
+            Web Loader
+          </Typography>
+          <Select displayEmpty defaultValue="" onChange={onChangeSelectLink} className="customIndexSelector">
+            <MenuItem value="" disabled>
+              Select an Index
             </MenuItem>
-          ))}
-        </Select>
+            {indices.map((indexData, idx) => (
+              <MenuItem key={idx} value={indexData.index}>
+                {indexData.index || "Unnamed Index"}
+              </MenuItem>
+            ))}
+          </Select>
+          <div style={{ width: "100%", backgroundColor: "unset", display: "flex",
+            border: "1px solid #515357", borderRadius: "100px",
+           }}>
+            <input
+              ref={inputRef}
+              type="text"
+              value={inputLink}
+              onChange={handleInputChangeLink}
+              onKeyDown={handleKeyPressLink}
+              style={{
+                width: "100%",
+                backgroundColor: "transparent",
+                padding: "0px 20px 0px 20px",
+                border: "none",
+                outline: "none",
+                color: "white",
+                fontSize: "20px",
+                height: "54px",
+                
+              }}
+              placeholder="Input a link here..."
+              className="inputLinkAdmin"
+            />
+            <IconButton onClick={handleSubmitLink} sx={{ color: "white", mx: 1 }} disabled={!inputLink.trim() || !isLinkValid || !chosenIndices}>
+              <IoMdSend />
+            </IconButton>
+          </div>
 
-        <div style={{ width: "100%", borderRadius: 8, backgroundColor: "rgb(17,27,39)", display: "flex" }}>
-          <input
-            ref={inputRef}
-            type="text"
-            value={inputLink}
-            onChange={handleInputChangeLink}
-            onKeyDown={handleKeyPressLink}
-            style={{
-              width: "100%",
-              backgroundColor: "transparent",
-              padding: "30px",
-              border: "none",
-              outline: "none",
-              color: "white",
-              fontSize: "20px",
-            }}
-          />
-          <IconButton onClick={handleSubmitLink} sx={{ color: "white", mx: 1 }} disabled={!inputLink.trim() || !isLinkValid || !chosenIndices}>
-            <IoMdSend />
-          </IconButton>
         </div>
+
 
         <Typography sx={{ fontSize: "20px", color: "white", mb: 2, mx: "auto", mt: 2, fontWeight: "600" }}>
           File Loader

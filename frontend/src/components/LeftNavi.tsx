@@ -22,9 +22,9 @@ const LeftNavi = () => {
             <NavigationLink
                   bg="#1D2025"
                   to="/"
-                  text="Model: Codfe Bot"
+                  text="Home"
                   textColor="black"
-                  icon={<img src={logo} alt="Chat icon" style={{ width: '20px', height: '20px' }} />}
+                  icon={<img src={logo} alt="Logo icon" style={{ width: '20px', height: '20px' }} />}
                 />
               {auth?.isAdmin && (
                 <NavigationLink

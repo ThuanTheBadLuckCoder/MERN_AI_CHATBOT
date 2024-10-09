@@ -20,7 +20,7 @@ function App() {
 
   useEffect(() => {
     // Hide Header if the current path is "*", which is the NotFound page
-    if (location.pathname === "*" || location.pathname === "/chat") {
+    if (location.pathname === "*" || location.pathname === "/chat" || location.pathname === "/admin") {
       setIsShowHeader(false);
     } else {
       setIsShowHeader(true); // Show Header for other routes
