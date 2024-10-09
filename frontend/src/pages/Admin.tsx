@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Box, Avatar, Typography, Button, IconButton, Select, SelectChangeEvent, MenuItem } from "@mui/material";
+import { Box, Avatar, Typography, Button, IconButton, Select, SelectChangeEvent, MenuItem, InputLabel, FormControl, FormHelperText } from "@mui/material";
 import { useAuth } from "../context/AuthContext";
 import { IoMdSend } from "react-icons/io";
 import { useNavigate } from "react-router-dom";
@@ -53,17 +53,17 @@ const Admin = () => {
 
   const handleSubmitIndex = async () => {
     // if (isIndexValid) {
-      const index = inputRef.current?.value.trim() as string;
-      if (!index) return;
-      try {
-        await createNewIndex(inputIndex)
-        toast.success("Successful Create New Index");
-      } catch (error) {
-        toast.error("Can't Create New Index with error" );
+    const index = inputRef.current?.value.trim() as string;
+    if (!index) return;
+    try {
+      await createNewIndex(inputIndex)
+      toast.success("Successful Create New Index");
+    } catch (error) {
+      toast.error("Can't Create New Index with error");
 
-      }
-      setInputIndex(""); // Clear the input after submission
-      if (inputRef.current) inputRef.current.value = ""; // Reset ref
+    }
+    setInputIndex(""); // Clear the input after submission
+    if (inputRef.current) inputRef.current.value = ""; // Reset ref
     // }
   };
 
@@ -127,7 +127,7 @@ const Admin = () => {
     }
     return true;
   }
-  
+
 
   function isValidURL(string: string) {
     try {
@@ -141,7 +141,7 @@ const Admin = () => {
   return (
     <Box sx={{ display: "flex", flex: 1, width: "100%", height: "100%", mt: 3, gap: 3 }}>
       <Box sx={{ display: { md: "flex", xs: "none", sm: "none" }, flex: 0.2, flexDirection: "column" }}>
-      <Box sx={{
+        <Box sx={{
           display: "flex", width: "100%", height: "92vh", bgcolor: "unset",
           borderRadius: 5, flexDirection: "column", mx: 1, paddingTop: "10px", paddingBottom: "10px;",
           justifyContent: "space-between"
@@ -164,7 +164,7 @@ const Admin = () => {
           </div>
           <div className="clear_logout">
             <div className="clearButton">
-              
+
             </div>
             <LogOut />
 
@@ -179,19 +179,27 @@ const Admin = () => {
           <Typography sx={{ fontSize: "20px", color: "white", mb: 2, mx: "auto", fontWeight: "600" }}>
             Web Loader
           </Typography>
-          <Select displayEmpty defaultValue="" onChange={onChangeSelectLink} className="customIndexSelector">
-            <MenuItem value="" disabled>
-              Select an Index
-            </MenuItem>
-            {indices.map((indexData, idx) => (
-              <MenuItem key={idx} value={indexData.index}>
-                {indexData.index || "Unnamed Index"}
-              </MenuItem>
-            ))}
-          </Select>
-          <div style={{ width: "100%", backgroundColor: "unset", display: "flex",
+          
+          <FormControl sx={{ m: 1, minWidth: 120 }}>
+            <InputLabel id="demo-simple-select-autowidth-label">Index</InputLabel>
+            <Select onChange={onChangeSelectLink} className="customIndexSelector"
+              labelId="demo-simple-select-autowidth-label"
+              id="demo-simple-select-autowidth"
+              autoWidth
+              label="Index">
+
+              {indices.map((indexData, idx) => (
+                <MenuItem key={idx} value={indexData.index}>
+                  {indexData.index || "Unnamed Index"}
+                </MenuItem>
+              ))}
+            </Select>
+
+          </FormControl>
+          <div style={{
+            width: "100%", backgroundColor: "unset", display: "flex",
             border: "1px solid #515357", borderRadius: "100px",
-           }}>
+          }} className="inputLinkAdmin">
             <input
               ref={inputRef}
               type="text"
@@ -207,10 +215,10 @@ const Admin = () => {
                 color: "white",
                 fontSize: "20px",
                 height: "54px",
-                
+
               }}
               placeholder="Input a link here..."
-              className="inputLinkAdmin"
+              
             />
             <IconButton onClick={handleSubmitLink} sx={{ color: "white", mx: 1 }} disabled={!inputLink.trim() || !isLinkValid || !chosenIndices}>
               <IoMdSend />
@@ -260,25 +268,25 @@ const Admin = () => {
           </Typography>
 
           <div style={{ width: "100%", borderRadius: 8, backgroundColor: "rgb(17,27,39)", display: "flex" }}>
-          <input
-            ref={inputRef}
-            type="text"
-            value={inputIndex}
-            onChange={handleInputChangeIndex}
-            style={{
-              width: "100%",
-              backgroundColor: "transparent",
-              padding: "30px",
-              border: "none",
-              outline: "none",
-              color: "white",
-              fontSize: "20px",
-            }}
-          />
-          <IconButton onClick={handleSubmitIndex} sx={{ color: "white", mx: 1 }} disabled={!inputIndex}>
-            <IoMdSend />
-          </IconButton>
-        </div>
+            <input
+              ref={inputRef}
+              type="text"
+              value={inputIndex}
+              onChange={handleInputChangeIndex}
+              style={{
+                width: "100%",
+                backgroundColor: "transparent",
+                padding: "30px",
+                border: "none",
+                outline: "none",
+                color: "white",
+                fontSize: "20px",
+              }}
+            />
+            <IconButton onClick={handleSubmitIndex} sx={{ color: "white", mx: 1 }} disabled={!inputIndex}>
+              <IoMdSend />
+            </IconButton>
+          </div>
 
         </div>
 

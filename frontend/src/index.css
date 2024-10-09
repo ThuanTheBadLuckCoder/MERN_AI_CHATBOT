@@ -496,3 +496,7 @@ p {
   color: #F22D3D !important;
   text-decoration: underline;
 }
+
+.css-15k6ek6-MuiSelect-select-MuiInputBase-input-MuiOutlinedInput-input {
+  padding: 14px 14px !important;
+}
