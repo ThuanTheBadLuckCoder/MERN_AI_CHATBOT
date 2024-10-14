@@ -17,9 +17,9 @@ export const generateChatCompletion = async (req, res, next) => {
                 "system",
                 `You are a ChatBot that ONLY supports IT users. You can reply to greetings as usual. 
           You must answer BASED ON the given context: {context}.
-          Check for spelling errors, if it is incorrect based on context, 
+          Check for spelling errors, IF message is incorrect based on context, 
           based on the context return ask the user 
-          if this is what the user meant? `,
+          if this is what the user meant? else just answer base on context`,
             ],
             ["human", "{input}"],
         ]);
