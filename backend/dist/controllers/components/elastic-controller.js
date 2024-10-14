@@ -24,7 +24,7 @@ export const queryVectorStore = async (req, res, next, message) => {
     return context;
 };
 export const queryGeminiVectorStore = async (req, res, next, message) => {
-    const index = "gemini_tester";
+    const index = "*";
     // console.log("messageQueryVectorStore: ", message);
     const filter = [
         {
@@ -38,10 +38,10 @@ export const queryGeminiVectorStore = async (req, res, next, message) => {
         indexName: process.env.ELASTIC_INDEX ?? `${index}`,
     };
     const vectorStore = new ElasticVectorSearch(embeddingsGemini, clientArgs);
-    const similaritySearchResults = await vectorStore.similaritySearch(`${message}`, 1, filter);
+    const similaritySearchResults = await vectorStore.similaritySearch(`${message}`, 2, filter);
+    console.log("similaritySearchResults: ", similaritySearchResults);
     const context = similaritySearchResults.map((result) => result.pageContent);
     // console.log("Context: ", context);
-    // console.log("similaritySearchResults: ", similaritySearchResults);
     return context;
 };
 export const getAllIndexies = async (req, res, next) => {

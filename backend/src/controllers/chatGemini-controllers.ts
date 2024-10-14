@@ -14,8 +14,8 @@ export const generateChatCompletion = async (
 ) => {
   const { message } = req.body;
   
-  const contextGemini = await queryGeminiVectorStore(req, res, next, message);
-  console.log("given_context: ", contextGemini);
+  const context = await queryVectorStore(req, res, next, message);
+  console.log("given_context: ", context);
   try {
     const user = await User.findById(res.locals.jwtData.id);
 
@@ -26,15 +26,18 @@ export const generateChatCompletion = async (
     const prompt = ChatPromptTemplate.fromMessages([
       [
         "system",
-        `You are a helpful assistant that your answer have 
-        to base on {context} to answer the question.`,
+        `You are a ChatBot that ONLY supports IT users. You can reply to greetings as usual. 
+          You must answer BASED ON the given context: {context}.
+          Check for spelling errors, if it is incorrect based on context, 
+          based on the context return ask the user 
+          if this is what the user meant? `, 
       ],
       ["human", "{input}"],
     ]);
 
     const chain = prompt.pipe(model);
     const response = await chain.invoke({
-      context: `${contextGemini}`,
+      context: `${context}`,
       input: `${message}`
     })
     

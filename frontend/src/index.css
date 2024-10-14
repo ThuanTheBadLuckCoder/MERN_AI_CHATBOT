@@ -269,22 +269,25 @@ p {
 }
 
 .leftNaviContainer a.nav-link {
-  background-image: linear-gradient(#00000000, #00000000);
-  padding: 1px;
+  /* background-image: linear-gradient(#00000000, #00000000); */
+  /* padding: 1px; */
   border-radius: 16px;
+  overflow: hidden;
 }
 
 .leftNaviContainer a.nav-link:hover {
-  background-image: linear-gradient(#01F58C, #A3EE6B) !important;
-  padding: 1px;
+  /* background-image: linear-gradient(#01F58C, #A3EE6B) !important; */
+  /* padding: 1px; */
   border-radius: 16px;
+  border: 1px solid #01F58C !important;
 }
 
 .chat .leftNaviContainer a.nav-link.chat,
 .admin .leftNaviContainer a.nav-link.admin {
-  background-image: linear-gradient(#01F58C, #A3EE6B) !important;
-  padding: 1px;
-  border-radius: 16px;
+  /* background-image: linear-gradient(#01F58C, #A3EE6B) !important; */
+  border: 1px solid #01F58C !important;
+  /* padding: 1px; */
+  /* border-radius: 16px; */
   display: flex;
 
 }
@@ -392,7 +395,6 @@ p {
 .admin, .undefined {
   display: flex;
   flex-direction: column;
-  gap: 20px;
 }
 
 .deleteChatSpan {
@@ -472,8 +474,7 @@ p {
 
 .logOutContainer .nav-link.logout {
   border-radius: 100px;
-  background-color: #00000000 !important;
-  
+  border: 1px solid #00000000 !important;  
   text-decoration: unset;
 } 
 
@@ -506,4 +507,15 @@ p {
   background-color: unset !important;
   border-radius: 0 !important;
   border: unset !important;
+}
+.ChatGPT_container {
+  height: 100%;
+  width: 100%;
+}
+
+
+@media only screen and (max-width: 1024px) {
+  .nav-container p {
+    display: none;
+  }
 }

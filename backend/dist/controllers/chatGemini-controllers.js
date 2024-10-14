@@ -1,12 +1,12 @@
 import User from "../models/User.js";
 import { model } from "../config/gemini-config.js";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
-import { queryGeminiVectorStore } from "./components/elastic-controller.js";
+import { queryVectorStore } from "./components/elastic-controller.js";
 // let messageHistories: Record<string, InMemoryChatMessageHistory> = {};
 export const generateChatCompletion = async (req, res, next) => {
     const { message } = req.body;
-    const contextGemini = await queryGeminiVectorStore(req, res, next, message);
-    console.log("given_context: ", contextGemini);
+    const context = await queryVectorStore(req, res, next, message);
+    console.log("given_context: ", context);
     try {
         const user = await User.findById(res.locals.jwtData.id);
         if (!user) {
@@ -15,14 +15,17 @@ export const generateChatCompletion = async (req, res, next) => {
         const prompt = ChatPromptTemplate.fromMessages([
             [
                 "system",
-                `You are a helpful assistant that your answer have 
-        to base on {context} to answer the question.`,
+                `You are a ChatBot that ONLY supports IT users. You can reply to greetings as usual. 
+          You must answer BASED ON the given context: {context}.
+          Check for spelling errors, if it is incorrect based on context, 
+          based on the context return ask the user 
+          if this is what the user meant? `,
             ],
             ["human", "{input}"],
         ]);
         const chain = prompt.pipe(model);
         const response = await chain.invoke({
-            context: `${contextGemini}`,
+            context: `${context}`,
             input: `${message}`
         });
         // grab chats of user

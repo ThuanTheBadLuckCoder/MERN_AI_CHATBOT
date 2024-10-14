@@ -80,13 +80,13 @@ const ChatGemini = () => {
     };
 
     return (
-        <>
+        <div className="ChatGPT_container">
             <ChatBox chatMessages={chatMessages} chatBoxRef={chatBoxRef}
                 handleSubmit={handleSubmit} handleDeleteChats={handleDeleteChats}
                 inputRef={inputRef} inputValue={inputValue} handleInputChange={handleInputChange}
                 handleKeyPress={handleKeyPress}
             />
-        </>
+        </div>
     )
 }
 

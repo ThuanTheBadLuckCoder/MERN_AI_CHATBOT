@@ -34,7 +34,6 @@ const elasticSearchTool = new DynamicTool({
                 operator: "wildcard",
                 field: "source",
                 value: "*",
-    
             },
         ];
 
