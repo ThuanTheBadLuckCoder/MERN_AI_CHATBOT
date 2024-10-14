@@ -26,7 +26,7 @@ const LeftNavi = () => {
                   textColor="black"
                   icon={<img src={logo} alt="Logo icon" style={{ width: '20px', height: '20px' }} />}
                 />
-              {auth?.isAdmin && (
+              {auth.user?.isAdmin && (
                 <NavigationLink
                   bg="#1D2025"
                   to="/admin"

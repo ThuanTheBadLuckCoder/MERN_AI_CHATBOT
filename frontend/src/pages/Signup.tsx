@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { IoIosLogIn } from "react-icons/io";
-import { Box, Typography, Button } from "@mui/material";
+import { Box, Typography, Button, Checkbox } from "@mui/material";
 import CustomizedInput from "../components/shared/CustomizeInput";
 import { toast } from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
@@ -14,9 +14,10 @@ const Signup = () => {
     const name = formData.get("name") as string;
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
+    const isAdmin = false;
     try {
       toast.loading("Signing Up", { id: "signup" });
-      await auth?.signup(name, email, password);
+      await auth?.signup(name, email, password, isAdmin);
       toast.success("Signed Up Successfully", { id: "signup" });
     } catch (error) {
       console.log(error);

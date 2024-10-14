@@ -49,7 +49,7 @@ const ChatItem = ({
       className="assistant"
     >
       <Avatar sx={{ ml: "0" }}>
-        <img src="openai.png" alt="openai" width={"30px"} />
+        <img src="codfe_logo.svg" alt="openai" width={"40px"} />
       </Avatar>
       <Box>
         {!messageBlocks && (

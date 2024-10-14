@@ -12,7 +12,7 @@ import {
   RunnableSequence,
 } from "@langchain/core/runnables";
 import { retriever } from "./components/model-io/web-loader.js";
-import { queryVectorStore } from "./webloader-controllers.js";
+import { queryGeminiVectorStore, queryVectorStore } from "./components/elastic-controller.js";
 import { executor } from "./components/agents/custom-agent.js";
 
 

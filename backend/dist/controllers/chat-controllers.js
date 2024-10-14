@@ -2,7 +2,7 @@ import User from "../models/User.js";
 import { model } from "../config/openai-config.js";
 import { AIMessage, HumanMessage } from "@langchain/core/messages";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
-import { queryVectorStore } from "./webloader-controllers.js";
+import { queryVectorStore } from "./components/elastic-controller.js";
 import { executor } from "./components/agents/custom-agent.js";
 // let messageHistories: Record<string, InMemoryChatMessageHistory> = {};
 export const generateChatCompletion = async (req, res, next) => {

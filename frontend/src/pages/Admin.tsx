@@ -40,12 +40,12 @@ const Admin = () => {
 
   const handleSubmitLink = async () => {
     if (isLinkValid && chosenIndices) {
-      const link = inputRef.current?.value.trim() as string;
-      if (!link) return;
+      
+      console.log("link: ", inputLink);
+      if (!inputLink) return;
 
-      setLinkMessages((prev) => [...prev, { link }]);
-      const linkData = await sendLinkRequest(link, chosenIndices);
-      setLinkMessages([...linkData.links]);
+      const linkData = await sendLinkRequest(inputLink, chosenIndices);
+      console.log("linkData", linkData);
       setInputLink(""); // Clear the input after submission
       if (inputRef.current) inputRef.current.value = ""; // Reset ref
     }
@@ -289,11 +289,6 @@ const Admin = () => {
           </div>
 
         </div>
-
-        {/* <form onSubmit={handleSubmitFile}>
-          <input type="file" onChange={handleFileChange} />
-          <button type="submit">Upload</button>
-        </form> */}
 
       </Box>
     </Box>

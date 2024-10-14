@@ -13,7 +13,6 @@ import { useEffect, useState } from "react";
 
 function App() {
   const auth = useAuth();
-  const admin = "admin@gmail.com";
 
   const [isShowHeader, setIsShowHeader] = useState(true);
   const location = useLocation();
@@ -36,7 +35,7 @@ function App() {
         {auth?.isLoggedIn && auth.user && (
           <Route path="/chat" element={<Chat />} />
         )}
-        {auth?.isLoggedIn && auth.user?.email == admin && (
+        {auth?.isLoggedIn && auth.user?.isAdmin == true && (
           <Route path="/admin" element={<Admin />} />
         )}
         {/* {auth?.isLoggedIn && auth.user?.email == admin && (

@@ -15,7 +15,8 @@
   "dependencies": {
     "@elastic/elasticsearch": "^8.15.0",
     "@langchain/community": "^0.3.1",
-    "@langchain/core": "^0.3.3",
+    "@langchain/core": "^0.3.9",
+    "@langchain/google-genai": "^0.1.0",
     "@langchain/mongodb": "^0.1.0",
     "@langchain/openai": "^0.3.0",
     "axios": "^1.7.7",

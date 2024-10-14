@@ -9,7 +9,7 @@ import { OpenAIFunctionsAgentOutputParser } from "langchain/agents/openai/output
 import { BaseMessage, HumanMessage } from "@langchain/core/messages";
 import { ElasticClientArgs, ElasticVectorSearch } from "@langchain/community/vectorstores/elasticsearch";
 import { Client, type ClientOptions } from "@elastic/elasticsearch";
-import { client, config, embeddings } from "../../../config/elastic-config.js";
+import { client, config, embeddingsOpenAI } from "../../../config/elastic-config.js";
 import { z } from "zod";
 
 const MEMORY_KEY = "chat_history";
@@ -20,7 +20,7 @@ const clientArgs: ElasticClientArgs = {
     indexName: process.env.ELASTIC_INDEX ?? `*`,
 }
 
-const elasticVectorSearch = new ElasticVectorSearch(embeddings, clientArgs);
+const elasticVectorSearch = new ElasticVectorSearch(embeddingsOpenAI, clientArgs);
 
 const elasticSearchTool = new DynamicTool({
     name: 'elastic_search_tool',

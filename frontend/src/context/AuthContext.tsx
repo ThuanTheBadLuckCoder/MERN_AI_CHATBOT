@@ -15,13 +15,13 @@ import {
   type User = {
     name: string;
     email: string;
+    isAdmin: boolean;
   };
   type UserAuth = {
     isLoggedIn: boolean;
-    isAdmin: boolean;
     user: User | null;
-    login: (email: string, password: string) => Promise<void>;
-    signup: (name: string, email: string, password: string) => Promise<void>;
+    login: (email: string, password: string, isAdmin: boolean ) => Promise<void>;
+    signup: (name: string, email: string, password: string, isAdmin: boolean) => Promise<void>;
     logout: () => Promise<void>;
   };
   const AuthContext = createContext<UserAuth | null>(null);
@@ -29,43 +29,36 @@ import {
   export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [isAdmin, setIsAdmin] = useState(false);
   
     useEffect(() => {
       // fetch if the user's cookies are valid then skip login
       async function checkStatus() {
         const data = await checkAuthStatus();
         if (data) {
-          setUser({ email: data.email, name: data.name });
+          // console.log(data);
+          setUser({ email: data.email, name: data.name, isAdmin: data.isAdmin });
           setIsLoggedIn(true);
-          if(data.email == "admin@gmail.com") {
-            setIsAdmin(true);
-          }
         }
       }
       checkStatus();
     }, []);
-    const login = async (email: string, password: string) => {
-      const data = await loginUser(email, password);
+    const login = async (email: string, password: string, isAdmin: boolean) => {
+      const data = await loginUser(email, password, isAdmin);
       if (data) {
-        setUser({ email: data.email, name: data.name });
+        setUser({ email: data.email, name: data.name, isAdmin: data.isAdmin });
         setIsLoggedIn(true);
-        if(data.email == "admin@gmail.com") {
-          setIsAdmin(true);
-        }
       }
     };
-    const signup = async (name: string, email: string, password: string) => {
-      const data = await signupUser(name, email, password);
+    const signup = async (name: string, email: string, password: string, isAdmin: boolean) => {
+      const data = await signupUser(name, email, password, isAdmin);
       if (data) {
-        setUser({ email: data.email, name: data.name });
+        setUser({ email: data.email, name: data.name, isAdmin: false });
         setIsLoggedIn(true);
       }
     };
     const logout = async () => {
       await logoutUser();
       setIsLoggedIn(false);
-      setIsAdmin(false);
       setUser(null);
       window.location.reload();
     };
@@ -73,7 +66,6 @@ import {
     const value = {
       user,
       isLoggedIn,
-      isAdmin,
       login,
       logout,
       signup,

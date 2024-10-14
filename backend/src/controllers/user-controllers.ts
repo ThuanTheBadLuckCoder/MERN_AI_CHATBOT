@@ -22,11 +22,11 @@ export const getAllUsers = async (
 export const userSignup = async ( req: Request, res: Response, next: NextFunction ) => {
   try {
     //user signup
-    const { name, email, password } = req.body;
+    const { name, email, password, isAdmin } = req.body;
     const existingUser = await User.findOne({ email });
     if (existingUser) return res.status(401).send("User already registered");
     const hashedPassword = await hash(password, 10);
-    const user = new User({ name, email, password: hashedPassword });
+    const user = new User({ name, email, password: hashedPassword, isAdmin: isAdmin });
     await user.save();
 
     // create token and store cookie
@@ -50,7 +50,7 @@ export const userSignup = async ( req: Request, res: Response, next: NextFunctio
 
     return res
       .status(201)
-      .json({ message: "OK", name: user.name, email: user.email });
+      .json({ message: "OK", name: user.name, email: user.email, isAdmin: user.isAdmin });
   } catch (error) {
     console.log(error);
     return res.status(200).json({ message: "ERROR", cause: error.message });
@@ -96,7 +96,7 @@ export const userLogin = async (
 
     return res
       .status(200)
-      .json({ message: "OK", name: user.name, email: user.email });
+      .json({ message: "OK", name: user.name, email: user.email, isAdmin: user.isAdmin });
   } catch (error) {
     console.log(error);
     return res.status(200).json({ message: "ERROR", cause: error.message });
@@ -119,7 +119,7 @@ export const verifyUser = async (
     }
     return res
       .status(200)
-      .json({ message: "OK", name: user.name, email: user.email });
+      .json({ message: "OK", name: user.name, email: user.email, isAdmin: user.isAdmin });
   } catch (error) {
     console.log(error);
     return res.status(200).json({ message: "ERROR", cause: error.message });

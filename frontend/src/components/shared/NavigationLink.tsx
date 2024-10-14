@@ -15,7 +15,7 @@ const NavigationLink = (props: Props) => {
     onClick={props.onClick}
     className={`nav-link ${props.class}`}
     to={props.to}
-    style={{ background: props.bg, color: props.textColor }}
+    style={{ background: props.bg, color: props.textColor, margin: "10px 0" }}
     >
       <div className="nav-container">
       {props.icon && <span style={{ marginRight: '8px', display: 'flex',

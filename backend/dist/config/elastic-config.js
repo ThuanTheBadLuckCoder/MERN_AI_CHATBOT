@@ -1,9 +1,16 @@
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { Client } from "@elastic/elasticsearch";
-export const embeddings = new OpenAIEmbeddings({
+import { TaskType } from "@google/generative-ai";
+import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+export const embeddingsOpenAI = new OpenAIEmbeddings({
     apiKey: process.env.OPENAI_API_KEY,
     batchSize: 512,
     model: "text-embedding-3-small",
+});
+export const embeddingsGemini = new GoogleGenerativeAIEmbeddings({
+    model: "text-embedding-004", // 768 dimensions
+    taskType: TaskType.RETRIEVAL_DOCUMENT,
+    title: "Document title",
 });
 const config = {
     node: process.env.ELASTIC_URL ?? "http://127.0.0.1:9200/"

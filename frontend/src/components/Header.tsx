@@ -16,20 +16,21 @@ const Header = () => {
         <div className="header">
           {auth?.isLoggedIn ? (
             <>
-            {auth?.isAdmin && (
+            {auth.user?.isAdmin && (
               <NavigationLink
               bg="#ffcc00"
               to="/admin"
               text="Admin Panel"
-              textColor="black"
+              textColor="white"
             />
             )}
               <NavigationLink
                 bg="#00fffc"
                 to="/chat"
                 text="Go To Chat"
-                textColor="black"
+                textColor="white"
               />
+              
               <NavigationLink
                 bg="#51538f"
                 textColor="white"

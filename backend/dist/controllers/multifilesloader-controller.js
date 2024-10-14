@@ -1,14 +1,13 @@
-import File from "../models/File.js";
 import { ElasticVectorSearch } from "@langchain/community/vectorstores/elasticsearch";
 import { Client } from "@elastic/elasticsearch";
-import { config, embeddings } from "../config/elastic-config.js";
+import { config, embeddingsOpenAI } from "../config/elastic-config.js";
 import { randomUUID } from "crypto";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 const textSplitter = new RecursiveCharacterTextSplitter({
     chunkSize: 1000,
     chunkOverlap: 200,
 });
-export const saveToDatabase = async (req, res, next) => {
+export const EmbeddingsVectorStore = async (req, res, next) => {
     try {
         const { name, content, index } = req.body;
         console.log("file: ", name);
@@ -35,7 +34,7 @@ export const saveToDatabase = async (req, res, next) => {
             client: new Client(config),
             indexName: process.env.ELASTIC_INDEX ?? `${index}`,
         };
-        const vectorStore = new ElasticVectorSearch(embeddings, clientArgs);
+        const vectorStore = new ElasticVectorSearch(embeddingsOpenAI, clientArgs);
         const result = await vectorStore.addDocuments(documents);
         try {
             console.log("Sucessful add vector to Elasticsearch: ", result);
@@ -50,16 +49,6 @@ export const saveToDatabase = async (req, res, next) => {
     catch (error) {
         console.log(error);
         return res.status(500).json({ message: "ERROR", cause: error.message });
-    }
-};
-export const getAllFile = async (req, res, next) => {
-    try {
-        const file = await File.find();
-        return res.status(200).json({ message: "OK", file });
-    }
-    catch (error) {
-        console.log(error);
-        return res.status(200).json({ message: "ERROR", cause: error.message });
     }
 };
 //# sourceMappingURL=multifilesloader-controller.js.map

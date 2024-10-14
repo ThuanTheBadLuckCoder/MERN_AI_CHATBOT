@@ -1,6 +1,6 @@
 import axios from "axios";
-export const loginUser = async (email: string, password: string) => {
-  const res = await axios.post("/user/login", { email, password });
+export const loginUser = async (email: string, password: string, isAdmin: boolean) => {
+  const res = await axios.post("/user/login", { email, password, isAdmin });
   if (res.status !== 200) {
     throw new Error("Unable to login");
   }
@@ -8,12 +8,8 @@ export const loginUser = async (email: string, password: string) => {
   return data;
 };
 
-export const signupUser = async (
-  name: string,
-  email: string,
-  password: string
-) => {
-  const res = await axios.post("/user/signup", { name, email, password });
+export const signupUser = async ( name: string, email: string, password: string, isAdmin: boolean, ) => {
+  const res = await axios.post("/user/signup", { name, email, password, isAdmin });
   if (res.status !== 201) {
     throw new Error("Unable to Signup");
   }
@@ -38,6 +34,15 @@ export const sendChatRequest = async (message: string) => {
   const data = await res.data;
   return data;
 };
+
+export const sendChatRequestGemini = async (message: string) => {
+  const res = await axios.post("/chatGemini/new", { message });
+  if (res.status !== 200) {
+    throw new Error("Unable to send chat");
+  }
+  const data = await res.data;
+  return data;
+}
 
 export const sendLinkRequest = async (link: string, index: string) => {
   const res = await axios.post("/link/new", { link, index });
@@ -78,7 +83,7 @@ export const getUserChats = async () => {
 };
 
 export const getAllIndices = async () => {
-  const res = await axios.get("/link/all-indices");
+  const res = await axios.get("/indice/all-indices");
   if (res.status !== 200) {
     throw new Error("Unable to get index");
   }

@@ -8,7 +8,7 @@ import { formatToOpenAIFunctionMessages } from "langchain/agents/format_scratchp
 import { OpenAIFunctionsAgentOutputParser } from "langchain/agents/openai/output_parser";
 import { ElasticVectorSearch } from "@langchain/community/vectorstores/elasticsearch";
 import { Client } from "@elastic/elasticsearch";
-import { config, embeddings } from "../../../config/elastic-config.js";
+import { config, embeddingsOpenAI } from "../../../config/elastic-config.js";
 import { z } from "zod";
 const MEMORY_KEY = "chat_history";
 const chatHistory = [];
@@ -16,7 +16,7 @@ const clientArgs = {
     client: new Client(config),
     indexName: process.env.ELASTIC_INDEX ?? `*`,
 };
-const elasticVectorSearch = new ElasticVectorSearch(embeddings, clientArgs);
+const elasticVectorSearch = new ElasticVectorSearch(embeddingsOpenAI, clientArgs);
 const elasticSearchTool = new DynamicTool({
     name: 'elastic_search_tool',
     description: 'This tool retrieves documents using ElasticSearch vector search',

@@ -1,9 +1,7 @@
 import { Router } from "express";
-import { addVectorStore, getAllIndexies } from "../controllers/webloader-controllers.js";
-import { verifyToken } from "../utils/token-manager.js";
+import { EmbeddingsGeminiVectorStore } from "../controllers/webloader-controllers.js";
 //Protected API
 const linkRoutes = Router();
-linkRoutes.post("/new", addVectorStore);
-linkRoutes.get("/all-indices", verifyToken, getAllIndexies);
+linkRoutes.post("/new", EmbeddingsGeminiVectorStore);
 export default linkRoutes;
 //# sourceMappingURL=link-routes.js.map
