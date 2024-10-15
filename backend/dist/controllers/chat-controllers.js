@@ -54,8 +54,6 @@ export const generateChatCompletion = async (req, res, next) => {
                 return new AIMessage({ content: message.content });
             }
         });
-        console.log("chatHistory: ", chatHistory);
-        console.log("filterMessage: ", filterMessages);
         // grab chats of user
         const chats = user.chats.map(({ role, content }) => ({
             role,
@@ -70,7 +68,6 @@ export const generateChatCompletion = async (req, res, next) => {
             chat_history: chatHistory,
             model,
         });
-        console.log(responseAgent);
         user.chats.push({ content: responseAgent.output, role: "assistant" });
         await user.save();
         return res.status(200).json({ chats: user.chats });

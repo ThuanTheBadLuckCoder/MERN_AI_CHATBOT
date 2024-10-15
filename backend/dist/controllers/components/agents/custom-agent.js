@@ -35,7 +35,7 @@ const elasticSearchTool = new DynamicTool({
             throw new Error("Invalid input: " + validationResult.error.message);
         }
         // Use input directly as the query string
-        const similaritySearchResults = await elasticVectorSearch.similaritySearch(input, 1, filter); // Example search for top 5 similar documents
+        const similaritySearchResults = await elasticVectorSearch.similaritySearch(input, 3, filter); // Example search for top 5 similar documents
         const context = similaritySearchResults.map((result) => result.pageContent);
         return context.length > 0 ? context : null;
     }
@@ -43,7 +43,8 @@ const elasticSearchTool = new DynamicTool({
 const tools = [elasticSearchTool];
 const prompt = ChatPromptTemplate.fromMessages([
     ["system",
-        `You are a ChatBot that ONLY supports IT users. You can reply to greetings as usual. 
+        `You are a ChatBot that ONLY supports IT users, DO NOT ANSWER ANY QUESTION not 
+        RELATED TO INFORMATION TECHNOlOGY, COMPUTER, JUST SAY I DON'T KNOW. You can reply to greetings as usual. 
           You must answer BASED ON the given context: {context}.
           Check for spelling errors, if it is incorrect based on context, 
           based on the context return ask the user 

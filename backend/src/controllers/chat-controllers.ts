@@ -77,9 +77,6 @@ export const generateChatCompletion = async (
           return new AIMessage({ content: message.content });
         }
       });
-    
-    console.log("chatHistory: ", chatHistory);
-    console.log("filterMessage: ", filterMessages);
 
 
     // grab chats of user
@@ -99,7 +96,6 @@ export const generateChatCompletion = async (
       chat_history: chatHistory,
       model,
     });
-    console.log(responseAgent);
 
     user.chats.push({ content: responseAgent.output, role: "assistant" })
     await user.save();

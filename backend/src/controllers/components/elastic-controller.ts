@@ -52,7 +52,7 @@ export const queryGeminiVectorStore = async (req: Request, res: Response, next: 
 
     const similaritySearchResults = await vectorStore.similaritySearch(
         `${message}`,
-        2,
+        1,
         filter
     );
 
