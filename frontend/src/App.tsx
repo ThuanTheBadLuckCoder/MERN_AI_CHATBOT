@@ -10,6 +10,7 @@ import Admin from "./pages/Admin";
 // import Test from "./pages/Test";
 import Footer from "./components/footer/Footer";
 import { useEffect, useState } from "react";
+import LeftNavi from "./components/LeftNavi";
 
 function App() {
   const auth = useAuth();
