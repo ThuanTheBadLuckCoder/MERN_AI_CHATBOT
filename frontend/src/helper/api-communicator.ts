@@ -100,7 +100,7 @@ export const deleteUserChats = async () => {
   return data;
 };
 
-export const logoutUser = async () => {
+export const logoutUser = async () => { 
   const res = await axios.get("/user/logout");
   if (res.status !== 200) {
     throw new Error("Unable to delete chats");

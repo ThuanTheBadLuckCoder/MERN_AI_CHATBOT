@@ -6,9 +6,4 @@ connectToDatabase()
     .then(() => {
     app.listen(PORT, () => console.log(`Server Open & Connected to Database at ${PORT}`));
 }).catch((err) => console.log(err));
-try {
-}
-catch (error) {
-    console.log(error);
-}
 //# sourceMappingURL=index.js.map
