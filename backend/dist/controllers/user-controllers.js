@@ -42,7 +42,7 @@ export const userSignup = async (req, res, next) => {
         });
         return res
             .status(201)
-            .json({ message: "OK", name: user.name, email: user.email });
+            .json({ message: "OK", name: user.name, email: user.email, role: user.role });
     }
     catch (error) {
         console.log(error);
@@ -80,7 +80,7 @@ export const userLogin = async (req, res, next) => {
         });
         return res
             .status(200)
-            .json({ message: "OK", name: user.name, email: user.email });
+            .json({ message: "OK", name: user.name, email: user.email, role: user.role });
     }
     catch (error) {
         console.log(error);
@@ -99,7 +99,7 @@ export const verifyUser = async (req, res, next) => {
         }
         return res
             .status(200)
-            .json({ message: "OK", name: user.name, email: user.email });
+            .json({ message: "OK", name: user.name, email: user.email, role: user.role });
     }
     catch (error) {
         console.log(error);

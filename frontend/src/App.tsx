@@ -15,6 +15,8 @@ import LeftNavi from "./components/LeftNavi";
 function App() {
   const auth = useAuth();
 
+  console.log(auth);
+
   const [isShowHeader, setIsShowHeader] = useState(true);
   const location = useLocation();
 
@@ -36,7 +38,7 @@ function App() {
         {auth?.isLoggedIn && auth.user && (
           <Route path="/chat" element={<Chat />} />
         )}
-        {auth?.isLoggedIn && auth.user?.isAdmin == true && (
+        {auth?.isLoggedIn && auth.user?.role === "Admin" && (
           <Route path="/admin" element={<Admin />} />
         )}
         {/* {auth?.isLoggedIn && auth.user?.email == admin && (

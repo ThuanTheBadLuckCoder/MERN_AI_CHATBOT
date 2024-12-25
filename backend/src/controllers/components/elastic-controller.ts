@@ -85,6 +85,7 @@ export const getAllIndexies = async (req: Request, res: Response, next: NextFunc
 export const createNewIndexies = async (req: Request, res: Response, next: NextFunction) => {
     //Define index parameters
     const { indexName, settings, mappings } = req.body;
+    console.log(indexName, settings, mappings);
     try {
         if (!indexName) {
             return res.status(400).json({ message: "Index name is required." });

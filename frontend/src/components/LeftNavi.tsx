@@ -11,6 +11,7 @@ import logo from "../../public/codfe_logo.svg"
 
 const LeftNavi = () => {
   const auth = useAuth();
+  console.log(auth);
   return (
     <AppBar
       sx={{ bgcolor: "transparent", position: "static", boxShadow: "none" }}
@@ -26,7 +27,7 @@ const LeftNavi = () => {
                   textColor="black"
                   icon={<img src={logo} alt="Logo icon" style={{ width: '20px', height: '20px' }} />}
                 />
-              {auth.user?.isAdmin && (
+              {auth.user?.role === "Admin" && (
                 <NavigationLink
                   bg="#1D2025"
                   to="/admin"

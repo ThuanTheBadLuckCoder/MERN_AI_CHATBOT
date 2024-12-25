@@ -1,6 +1,6 @@
 import axios from "axios";
-export const loginUser = async (email: string, password: string, isAdmin: boolean) => {
-  const res = await axios.post("/user/login", { email, password, isAdmin });
+export const loginUser = async (email: string, password: string) => {
+  const res = await axios.post("/user/login", { email, password });
   if (res.status !== 200) {
     throw new Error("Unable to login");
   }
@@ -8,8 +8,8 @@ export const loginUser = async (email: string, password: string, isAdmin: boolea
   return data;
 };
 
-export const signupUser = async ( name: string, email: string, password: string, isAdmin: boolean, ) => {
-  const res = await axios.post("/user/signup", { name, email, password, isAdmin });
+export const signupUser = async ( name: string, email: string, password: string ) => {
+  const res = await axios.post("/user/signup", { name, email, password });
   if (res.status !== 201) {
     throw new Error("Unable to Signup");
   }
@@ -64,8 +64,7 @@ export const sendFileRequest = async (name: string, content: Object, index: stri
 };
 
 export const createNewIndex = async (indexName: string) => {
-  const res = await axios.post("index/new", { indexName });
-
+  const res = await axios.post("indice/new", { indexName });
   if (res.status !== 200) {
     throw new Error("Unable to Create a new Index");
   } 

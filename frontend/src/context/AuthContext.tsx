@@ -15,13 +15,13 @@ import {
   type User = {
     name: string;
     email: string;
-    isAdmin: boolean;
+    role: string;
   };
   type UserAuth = {
     isLoggedIn: boolean;
     user: User | null;
-    login: (email: string, password: string, isAdmin: boolean ) => Promise<void>;
-    signup: (name: string, email: string, password: string, isAdmin: boolean) => Promise<void>;
+    login: (email: string, password: string ) => Promise<void>;
+    signup: ( name: string, email: string, password: string ) => Promise<void>;
     logout: () => Promise<void>;
   };
   const AuthContext = createContext<UserAuth | null>(null);
@@ -36,23 +36,23 @@ import {
         const data = await checkAuthStatus();
         if (data) {
           // console.log(data);
-          setUser({ email: data.email, name: data.name, isAdmin: data.isAdmin });
+          setUser({ email: data.email, name: data.name, role: data.role });
           setIsLoggedIn(true);
         }
       }
       checkStatus();
     }, []);
-    const login = async (email: string, password: string, isAdmin: boolean) => {
-      const data = await loginUser(email, password, isAdmin);
+    const login = async (email: string, password: string) => {
+      const data = await loginUser(email, password);
       if (data) {
-        setUser({ email: data.email, name: data.name, isAdmin: data.isAdmin });
+        setUser({ email: data.email, name: data.name, role: data.role });
         setIsLoggedIn(true);
       }
     };
-    const signup = async (name: string, email: string, password: string, isAdmin: boolean) => {
-      const data = await signupUser(name, email, password, isAdmin);
+    const signup = async (name: string, email: string, password: string) => {
+      const data = await signupUser(name, email, password);
       if (data) {
-        setUser({ email: data.email, name: data.name, isAdmin: false });
+        setUser({ email: data.email, name: data.name, role: data.role });
         setIsLoggedIn(true);
       }
     };
