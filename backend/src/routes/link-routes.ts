@@ -4,6 +4,6 @@ import { EmbeddingsVectorStore, EmbeddingsGeminiVectorStore } from "../controlle
 
 //Protected API
 const linkRoutes = Router();
-linkRoutes.post("/new", EmbeddingsGeminiVectorStore);
+linkRoutes.post("/new", EmbeddingsVectorStore);
 
 export default linkRoutes;
