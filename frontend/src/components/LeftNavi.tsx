@@ -14,7 +14,7 @@ const LeftNavi = () => {
   const auth = useAuth();
   console.log(auth);
   return (
-    <div>
+    <div className="h-dvh fixed">
       <div>
         <div>
           {auth?.isLoggedIn ? (

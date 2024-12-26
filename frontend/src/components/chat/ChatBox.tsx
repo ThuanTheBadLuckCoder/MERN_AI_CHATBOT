@@ -40,23 +40,22 @@ function ChatBox({
     }, [chatMessages]);
 
     return (
-        <div className='h-full overflow-y-auto'>
-            <div ref={chatBoxRef} id="chat-history" className="h-96 overflow-y-auto p-1">
+        <div className='flex h-full flex-col p-1 gap-2.5'>
+            <div ref={chatBoxRef} id="chat-history" className="h-95percent overflow-y-auto">
                 {chatMessages.map((chat, index) => (
                     <ChatItem content={chat.content} role={chat.role} key={index} />
                 ))}
                 {/* Add an empty div to act as the scrolling target */}
                 <div ref={endOfMessagesRef} />
             </div>
-            <div id="input-question" className="h-20 absolute bottom-0 left-0 right-0 py-2 w-full flex flex-row gap-2 flex flex-row	">
-                <div className='flex flex-row justify-center size-10 items-center border border-red-500 rounded-md'>
-                    <button onClick={handleDeleteChats}>
-                        <DeleteOutlineIcon className='text-red-500' />
+            <div id="input-question" className="flex flex w-full gap-2.5">
+                <div className='w-12 flex h-12 flex-row	flex-nowrap	justify-center border-red-500 border rounded-md hover:bg-red-300'>
+                    <button onClick={handleDeleteChats} className='size-full'>
+                        <DeleteOutlineIcon className='text-red-500' sx={{fontSize: 24}} />
                     </button>
                 </div>
-                <div className="flex items-center gap-2 w-full">
-                    <div className='mt-2 w-full'>
-                        <div className="flex items-center rounded-md bg-inherit pl-3 outline outline-1 -outline-offset-1 outline-gray-300 has-[input:focus-within]:outline has-[input:focus-within]:outline-2 has-[input:focus-within]:-outline-offset-2 has-[input:focus-within]:outline-indigo-600">
+                <div className="flex w-full border border-green-500 rounded-md overflow-hidden px-4 gap-1.5">
+                    <div className='flex w-full h-full'>
                         <input
                         ref={inputRef}
                         type="text"
@@ -64,9 +63,7 @@ function ChatBox({
                         onChange={handleInputChange}
                         onKeyDown={handleKeyPress}
                         placeholder="Type your question here..."
-                        className="block min-w-0 grow py-1.5 pl-1 pr-3 text-base text-gray-900 placeholder:text-gray-400 focus:outline focus:outline-0 sm:text-sm/6 bg-inherit" />
-                        </div>
-
+                        className="block min-w-0 grow py-1.5 text-base text-gray-900 placeholder:text-gray-400 focus:outline focus:outline-0 sm:text-sm/6 bg-inherit" />
                     </div>
                     
                     <button onClick={handleSubmit} disabled={!inputValue.trim()}>

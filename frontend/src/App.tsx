@@ -28,12 +28,12 @@ function App() {
     }
   }, [location.pathname]);
   return (
-    <main className="w-full">
-      <div className="flex">
-        <div className="flex-none w-64">
+    <main className="w-dvw h-dvh">
+      <div className="flex size-full">
+        <div className="flex-none w-64 relative">
           <LeftNavi />
         </div>
-        <div className="flex-initial w-full">
+        <div className="flex-initial w-full py-2">
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />

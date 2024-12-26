@@ -21,16 +21,16 @@ const Chat = () => {
   }, [auth]);
 
   return (
-    <div id="chat-container" className="h-svh py-2 px-4">
-      <div className="h-full">
-        <div className="h-1division10">
-          <form>
-            <div className="mt-2 grid grid-cols-1">
+    <div id="chat-container" className="size-full">
+      <div className="size-full gap-1.5 overflow-hidden">
+        <div className="sticky top-0 bg-black z-50">
+          <form className="h-full">
+            <div className="grid grid-cols-1 w-1/6">
               <select
                 id="country"
                 name="country"
                 autoComplete="country-name"
-                className="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-1.5 pl-3 pr-8 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                className="col-start-1 row-start-1 w-full appearance-none rounded-md bg-gray-950 py-1.5 pl-3 pr-8 text-base text-white font-bold outline outline-1 -outline-offset-1 outline-green-300 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-green-600 sm:text-sm/6"
                 value={model}
                 onChange={handleChange}
               >
@@ -42,7 +42,7 @@ const Chat = () => {
           </form>
 
         </div>
-        <div className="h-9division10">
+        <div className="h-95percent overflow-y-auto mt-2">
           {model == "GPT" && <ChatGPT />}
           {model == "Gemini" && <ChatGemini />}
 
