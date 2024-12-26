@@ -7,10 +7,9 @@ import Chat from "./pages/Chat";
 import NotFound from "./pages/NotFound";
 import { useAuth } from "./context/AuthContext";
 import Admin from "./pages/Admin";
-// import Test from "./pages/Test";
-import Footer from "./components/footer/Footer";
 import { useEffect, useState } from "react";
 import LeftNavi from "./components/LeftNavi";
+
 
 function App() {
   const auth = useAuth();
@@ -29,8 +28,7 @@ function App() {
     }
   }, [location.pathname]);
   return (
-    <main>
-          {isShowHeader && <Header />}
+    <main className="w-full">
       <div className="flex">
         <div className="flex-none w-64">
           <LeftNavi />

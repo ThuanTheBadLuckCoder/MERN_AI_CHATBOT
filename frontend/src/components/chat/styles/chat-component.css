@@ -1,0 +1,28 @@
+/* ChatItem */
+.assistant {
+    display: flex;
+    flex-direction: row;
+}
+
+.user {
+    display: flex;
+    flex-direction: row-reverse;
+}
+
+.avatar-size {
+    width: 32px;
+    height: 32px;
+}
+.chat-content {
+    width: 50rem;
+}
+
+/* ChatItem */
+.user .content-container {
+    display: flex;
+    flex-direction: row-reverse;
+}
+
+#input-question {
+    
+}

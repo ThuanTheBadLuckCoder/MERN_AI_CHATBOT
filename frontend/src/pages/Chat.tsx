@@ -1,22 +1,19 @@
 import { useEffect, useState } from "react";
-import { Box, Avatar, FormControl, InputLabel, Select, SelectChangeEvent, MenuItem } from "@mui/material";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import LeftNavi from "../components/LeftNavi";
-import LogOut from "../components/LogOut";
 import ChatGPT from "../components/chat/ChatGPT";
 import ChatGemini from "../components/chat/ChatGemini";
-import ModelInfo from "../components/model_info/ModelInfo";
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 const Chat = () => {
   const navigate = useNavigate();
   const auth = useAuth();
 
   const [model, setModel] = useState('Gemini');
-  const handleChange = (event: SelectChangeEvent) => {
+  const handleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setModel(event.target.value as string);
   };
-  
+
   useEffect(() => {
     if (!auth?.user) {
       return navigate("/login");
@@ -24,71 +21,36 @@ const Chat = () => {
   }, [auth]);
 
   return (
-    <Box sx={{
-      display: "flex", width: "100%", height: "100%", flexDirection: "row",
-      flexWrap: 'nowrap', alignItems: 'center'
-    }}>
-      <Box sx={{ width: "25%", display: "flex", height: '100%', flexDirection: 'column',
-        flexWrap: 'nowrap', alignContent: 'center', alignItems: 'center', justifyContent: 'center',
-        
-       }}>
-        <Box sx={{
-          display: "flex", width: "95%", height: "95%", bgcolor: "unset",
-          borderRadius: 5, flexDirection: "column", mx: 1, paddingTop: "10px", paddingBottom: "10px;",
-          justifyContent: "space-between"
-        }}>
-          {/* <div className="leftNavi_userInfo">
-            <div className="userInfo">
-              <Avatar sx={{ bgcolor: "white", color: "black", fontWeight: 700, }}>
-                {auth?.user?.name ? `${auth.user.name[0]}${auth.user.name.split(" ")[1]?.[0] ?? ''}` : 'A'}
-
-              </Avatar>
-              <p className="customFont">
-                Hi, {auth?.user?.name}
-              </p>
-
+    <div id="chat-container" className="h-svh py-2 px-4">
+      <div className="h-full">
+        <div className="h-1division10">
+          <form>
+            <div className="mt-2 grid grid-cols-1">
+              <select
+                id="country"
+                name="country"
+                autoComplete="country-name"
+                className="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-1.5 pl-3 pr-8 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                value={model}
+                onChange={handleChange}
+              >
+                <option value={"GPT"}>GPT</option>
+                <option value={"Gemini"}>Gemini</option>
+              </select>
+              <ExpandMoreIcon sx={{ fontSize: 20 }} className="pointer-events-none col-start-1 row-start-1 mr-2 size-5 self-center justify-self-end text-gray-500 sm:size-4"/>
             </div>
-            <div className="chat">
-              <LeftNavi />
-            </div>
+          </form>
 
-          </div> */}
-          <div className="clear_logout">
-            
-            
-
-          </div>
-        </Box>
-      </Box>
-        <Box sx={{width: "100%", display: "flex", height: '100%',
-          flexDirection: 'column', flexWrap: 'nowrap', justifyContent: 'space-between',
-          alignContent: 'center', alignItems: 'flex-start', backgroundColor: '#1D202566'
-         }}>
-          <FormControl fullWidth variant="standard" className="textWhiteColor"
-          sx={{marginTop: '30px', marginLeft: '30px', display: 'flex', width: '10%'}}>
-                <InputLabel id="demo-simple-select-standard-label">Model</InputLabel>
-                
-                <Select
-                  labelId="demo-simple-select-standard-label"
-                  id="demo-simple-select-standard"
-                  value={model}
-                  label="Model"
-                  onChange={handleChange}
-                  
-                >
-                  <MenuItem value={"GPT"}>GPT</MenuItem>
-                  <MenuItem value={"Gemini"}>Gemini</MenuItem>
-                </Select>
-              </FormControl>
+        </div>
+        <div className="h-9division10">
           {model == "GPT" && <ChatGPT />}
           {model == "Gemini" && <ChatGemini />}
 
-        </Box>
-      
+        </div>
 
-        
-      
-    </Box>
+      </div>
+    </div>
+
   );
 };
 

@@ -80,7 +80,7 @@ const ChatGemini = () => {
     };
 
     return (
-        <div className="ChatGPT_container">
+        <div className="relative h-full">
             <ChatBox chatMessages={chatMessages} chatBoxRef={chatBoxRef}
                 handleSubmit={handleSubmit} handleDeleteChats={handleDeleteChats}
                 inputRef={inputRef} inputValue={inputValue} handleInputChange={handleInputChange}

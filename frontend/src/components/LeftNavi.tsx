@@ -14,11 +14,9 @@ const LeftNavi = () => {
   const auth = useAuth();
   console.log(auth);
   return (
-    <AppBar
-      sx={{ bgcolor: "transparent", position: "static", boxShadow: "none" }}
-    >
-      <Toolbar sx={{ display: "flex", width: "100%" }}>
-        <div className="leftNaviContainer">
+    <div>
+      <div>
+        <div>
           {auth?.isLoggedIn ? (
             <>
             <NavigationLink
@@ -72,8 +70,8 @@ const LeftNavi = () => {
             </>
           )}
         </div>
-      </Toolbar>
-    </AppBar>
+      </div>
+    </div>
   );
 };
 
