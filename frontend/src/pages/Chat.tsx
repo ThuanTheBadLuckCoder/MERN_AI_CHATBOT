@@ -37,7 +37,7 @@ const Chat = () => {
           borderRadius: 5, flexDirection: "column", mx: 1, paddingTop: "10px", paddingBottom: "10px;",
           justifyContent: "space-between"
         }}>
-          <div className="leftNavi_userInfo">
+          {/* <div className="leftNavi_userInfo">
             <div className="userInfo">
               <Avatar sx={{ bgcolor: "white", color: "black", fontWeight: 700, }}>
                 {auth?.user?.name ? `${auth.user.name[0]}${auth.user.name.split(" ")[1]?.[0] ?? ''}` : 'A'}
@@ -52,10 +52,10 @@ const Chat = () => {
               <LeftNavi />
             </div>
 
-          </div>
+          </div> */}
           <div className="clear_logout">
             
-            <LogOut />
+            
 
           </div>
         </Box>

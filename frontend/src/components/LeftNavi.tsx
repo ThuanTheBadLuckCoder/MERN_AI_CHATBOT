@@ -7,6 +7,7 @@ import NavigationLink from "./shared/NavigationLink";
 import chat from "../../public/chat.svg"
 import admin from "../../public/adminpanel.svg"
 import logo from "../../public/codfe_logo.svg"
+import LogOut from "./LogOut";
 
 
 const LeftNavi = () => {
@@ -45,6 +46,7 @@ const LeftNavi = () => {
                 icon={<img src={chat} alt="Chat icon" style={{ width: '20px', height: '20px' }} />}
                 class="chat"
               />
+              <LogOut />
             </>
           ) : (
             <>

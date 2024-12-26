@@ -30,23 +30,29 @@ function App() {
   }, [location.pathname]);
   return (
     <main>
-      {isShowHeader && <Header />}
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        {auth?.isLoggedIn && auth.user && (
-          <Route path="/chat" element={<Chat />} />
-        )}
-        {auth?.isLoggedIn && auth.user?.role === "Admin" && (
-          <Route path="/admin" element={<Admin />} />
-        )}
-        {/* {auth?.isLoggedIn && auth.user?.email == admin && (
-        <Route path="/testpage" element={<Test /> } />
-        )} */}
-        
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+          {isShowHeader && <Header />}
+      <div className="flex">
+        <div className="flex-none w-64">
+          <LeftNavi />
+        </div>
+        <div className="flex-initial w-full">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            {auth?.isLoggedIn && auth.user && (
+              <Route path="/chat" element={<Chat />} />
+            )}
+            {auth?.isLoggedIn && auth.user?.role === "Admin" && (
+              <Route path="/admin" element={<Admin />} />
+            )}
+
+            <Route path="*" element={<NotFound />} />
+          </Routes></div>
+
+      </div>
+
+
     </main>
   );
 }
