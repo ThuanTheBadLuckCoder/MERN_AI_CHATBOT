@@ -3,6 +3,7 @@ import { IconButton } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import SendIcon from '@mui/icons-material/Send';
 import ChatItem from './ChatItem';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import './styles/chat-component.css';
 
 type Message = {
@@ -48,7 +49,8 @@ function ChatBox({
                 {/* Add an empty div to act as the scrolling target */}
                 <div ref={endOfMessagesRef} />
             </div>
-            <div id="input-question" className="flex flex w-full gap-2.5">
+            <div id="input-question" className="flex flex-col w-full gap-0.5">
+                <div className="flex w-full gap-2.5">
                 <div className='w-12 flex h-12 flex-row	flex-nowrap	justify-center border-red-500 border rounded-md hover:bg-red-300'>
                     <button onClick={handleDeleteChats} className='size-full'>
                         <DeleteOutlineIcon className='text-red-500' sx={{fontSize: 24}} />
@@ -63,14 +65,21 @@ function ChatBox({
                         onChange={handleInputChange}
                         onKeyDown={handleKeyPress}
                         placeholder="Type your question here..."
-                        className="block min-w-0 grow py-1.5 text-base text-gray-900 placeholder:text-gray-400 focus:outline focus:outline-0 sm:text-sm/6 bg-inherit" />
+                        className="block min-w-0 grow py-1.5 text-base text-gray-900 placeholder:text-gray-400 focus:outline focus:outline-0 bg-inherit font-sans" />
                     </div>
                     
                     <button onClick={handleSubmit} disabled={!inputValue.trim()}>
                         <SendIcon />
                     </button>
                 </div>
+                </div>
+                <div className='flex gap-1.5 items-center w-full'>
+                    <ErrorOutlineIcon sx={{ fontSize: 14 }}/>
+                    <p className='font-sans text-xs text-gray-500'>Codfe can make mistakes. Check important info.</p>
+
+                </div>
             </div>
+            
         </div>
     );
 }

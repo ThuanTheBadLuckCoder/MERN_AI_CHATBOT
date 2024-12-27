@@ -6,6 +6,7 @@ import { deleteUserChats, getUserChats, sendChatRequestGemini } from '../../help
 import ChatItem from './ChatItem';
 import toast from 'react-hot-toast';
 import ChatBox from './ChatBox';
+
 type Message = {
     role: "user" | "assistant";
     content: string;
