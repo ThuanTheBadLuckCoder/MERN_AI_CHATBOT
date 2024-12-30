@@ -9,6 +9,7 @@ import { useAuth } from "./context/AuthContext";
 import Admin from "./pages/Admin";
 import { useEffect, useState } from "react";
 import LeftNavi from "./components/LeftNavi";
+import './App.css'
 
 
 function App() {
@@ -33,7 +34,7 @@ function App() {
         <div className="flex-none w-64 relative">
           <LeftNavi />
         </div>
-        <div className="flex-initial w-full py-2">
+        <div className="flex-initial w-full py-2 px-1">
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />

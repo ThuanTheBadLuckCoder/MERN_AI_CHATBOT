@@ -21,9 +21,8 @@ const Chat = () => {
   }, [auth]);
 
   return (
-    <div id="chat-container" className="size-full">
-      <div className="size-full gap-1.5 overflow-hidden">
-        <div className="sticky top-0 bg-black z-50">
+    <div id="chat-container" className="size-full overflow-hidden">
+      <div className="h-chat-model">
           <form className="h-full">
             <div className="grid grid-cols-1 w-1/6">
               <select
@@ -32,8 +31,7 @@ const Chat = () => {
                 autoComplete="country-name"
                 className="col-start-1 row-start-1 w-full appearance-none rounded-md bg-gray-950 py-1.5 pl-3 pr-8 text-base text-white font-bold outline outline-1 -outline-offset-1 outline-green-300 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-green-600 sm:text-sm/6"
                 value={model}
-                onChange={handleChange}
-              >
+                onChange={handleChange}>
                 <option value={"GPT"}>GPT</option>
                 <option value={"Gemini"}>Gemini</option>
               </select>
@@ -42,7 +40,9 @@ const Chat = () => {
           </form>
 
         </div>
-        <div className="h-95percent overflow-y-auto mt-2">
+      <div className="w-full h-chat-content gap-1.5 overflow-hidden">
+        
+        <div className="h-full">
           {model == "GPT" && <ChatGPT />}
           {model == "Gemini" && <ChatGemini />}
 

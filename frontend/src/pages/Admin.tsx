@@ -1,18 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Box, Avatar, Typography, Button, IconButton, Select, SelectChangeEvent, MenuItem, InputLabel, FormControl, FormHelperText } from "@mui/material";
+import { Typography, IconButton, Select, SelectChangeEvent, MenuItem, InputLabel, FormControl, FormHelperText } from "@mui/material";
 import { useAuth } from "../context/AuthContext";
 import { IoMdSend } from "react-icons/io";
 import { useNavigate } from "react-router-dom";
-import { getAllIndices, sendLinkRequest, sendFileRequest, createNewIndex } from "../helper/api-communicator";
+import { getAllIndices, sendLinkRequest, createNewIndex } from "../helper/api-communicator";
 import toast from "react-hot-toast";
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import { VisuallyHiddenInput } from "../components/shared/VisuallyHiddenInput";
-import { Tester } from "./Test";
 import InputFileJSON from "../components/upload/InputFileJSON";
 import InputFileDOCX from "../components/upload/InputFileDOCX";
-import InputFilePDF from "../components/upload/InputFilePDF"
-import LeftNavi from "../components/LeftNavi";
-import LogOut from "../components/LogOut";
+import InputFilePDF from "../components/upload/InputFilePDF";
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 type Indexies = {
   index: string;
   content: string;
@@ -40,14 +36,16 @@ const Admin = () => {
 
   const handleSubmitLink = async () => {
     if (isLinkValid && chosenIndices) {
-      
+
       console.log("link: ", inputLink);
       if (!inputLink) return;
-
+      toast.loading("Link is being read", { id: "addLink" });
       const linkData = await sendLinkRequest(inputLink, chosenIndices);
+      
       console.log("linkData", linkData);
       setInputLink(""); // Clear the input after submission
       if (inputRef.current) inputRef.current.value = ""; // Reset ref
+      toast.success("Successfully push Linked to Elasticsearch", { id: "addLink" });
     }
   };
 
@@ -109,12 +107,12 @@ const Admin = () => {
     }
   };
 
-  const onChangeSelectLink = (event: SelectChangeEvent<unknown>) => {
+  const onChangeSelectLink = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const value = event.target.value as string;
     setChosenIndices(value);
   };
 
-  const onChangeSelectFileType = (event: SelectChangeEvent<unknown>) => {
+  const onChangeSelectFileType = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const value = event.target.value as string;
     setSelectedFileType(value);
   }
@@ -128,7 +126,6 @@ const Admin = () => {
     return true;
   }
 
-
   function isValidURL(string: string) {
     try {
       const url = new URL(string);
@@ -139,159 +136,88 @@ const Admin = () => {
   }
 
   return (
-    <Box sx={{ display: "flex", flex: 1, width: "100%", height: "100%", mt: 3, gap: 3 }}>
-      <Box sx={{ display: { md: "flex", xs: "none", sm: "none" }, flex: 0.2, flexDirection: "column" }}>
-        <Box sx={{
-          display: "flex", width: "100%", height: "92vh", bgcolor: "unset",
-          borderRadius: 5, flexDirection: "column", mx: 1, paddingTop: "10px", paddingBottom: "10px;",
-          justifyContent: "space-between"
-        }}>
-          {/* <div className="leftNavi_userInfo">
-            <div className="userInfo">
-              <Avatar sx={{ bgcolor: "white", color: "black", fontWeight: 700, }}>
-                {auth?.user?.name ? `${auth.user.name[0]}${auth.user.name.split(" ")[1]?.[0] ?? ''}` : 'A'}
+    <div className="admin-container flex flex-col">
+      <h1 className="font-serif	text-2xl antialiased font-bold">Retrieval-Augmented Generation</h1>
+      <div className="divide-y divide-gray-100 flex flex-col gap-2">
+        <div className="web-loader-container p-2 border rounded-md border-green-500">
+          <h2 className="underline font-serif text-lg antialiased font-medium">Web Loader</h2>
+          <div className="w-full flex">
+            <form className="w-full flex gap-1.5 items-center h-10">
+              <div className="grid grid-cols-1 w-2/6 h-full">
+                <select onChange={onChangeSelectLink} 
+                className="col-start-1 row-start-1 w-full appearance-none rounded-md bg-gray-950 py-1.5 pl-3 pr-8 text-base text-white font-bold outline outline-1 -outline-offset-1 outline-green-300 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-green-600 sm:text-sm/6">
+                  <option value="" className="">
+                    Select an Index
+                  </option>
+                  {indices.map((indexData, idx) => (
+                    <option key={idx} value={indexData.index}>
+                      {indexData.index || "Unnamed Index"}
+                    </option>
+                  ))}
+                </select>
+                <ExpandMoreIcon sx={{ fontSize: 20 }} className="pointer-events-none col-start-1 row-start-1 mr-2 size-5 self-center justify-self-end text-gray-500 sm:size-4" />
+              </div>
+              <div className="w-4/6 h-full flex border border-green-500 rounded-md overflow-hidden px-4 gap-1.5">
+              <input ref={inputRef} type="text" value={inputLink}
+                onChange={handleInputChangeLink} onKeyDown={handleKeyPressLink}
+                placeholder="Input a link here..." 
+                className="h-full block min-w-0 grow py-1.5 text-base text-white placeholder:text-gray-400 focus:outline focus:outline-0 bg-inherit font-sans" />
+              <button onClick={handleSubmitLink} disabled={!inputLink.trim() || !isLinkValid || !chosenIndices}>
+                <IoMdSend />
+              </button>
+            </div>
+            </form>
+            
+          </div>
+        </div>
+        <div className="file-loader-container">
+          <h2>File Loader</h2>
+          <div>
+            <div className="custom-select-file-type">
+              <select onChange={onChangeSelectLink} className="">
+                <option value="" disabled>
+                  Select an Index
+                </option>
+                {indices.map((indexData, idx) => (
+                  <option key={idx} value={indexData.index}>
+                    {indexData.index || "Unnamed Index"}
+                  </option>
+                ))}
+              </select>
+              <select defaultValue="" onChange={onChangeSelectFileType} className="">
+                <option value="" disabled>
+                  Select an File Type
+                </option>
+                <option value="json">JSON</option>
+                <option value="docx">DOCX</option>
+                <option value="pdf">PDF</option>
+              </select>
+            </div>
 
-              </Avatar>
-              <p className="customFont">
-                Hi, {auth?.user?.name}
-              </p>
+            <div>
+              <div>
+                {selectedFileType === "json" && <InputFileJSON chosenIndices={chosenIndices} />}
+                {selectedFileType === "docx" && <InputFileDOCX chosenIndices={chosenIndices} />}
+                {selectedFileType === "pdf" && <InputFilePDF chosenIndices={chosenIndices} />}
+
+              </div>
 
             </div>
-            <div className="admin">
-              <LeftNavi />
+          </div>
+        </div>
+        <div className="new-index-container">
+          <h2>Create a New Index</h2>
+          <div>
+            <div>
+              <input ref={inputRef} type="text" value={inputIndex} onChange={handleInputChangeIndex} />
+              <IconButton onClick={handleSubmitIndex} sx={{ color: "white", mx: 1 }} disabled={!inputIndex}>
+                <IoMdSend />
+              </IconButton>
             </div>
-
-          </div> */}
-          <div className="clear_logout">
-            <div className="clearButton">
-
-            </div>
-            <LogOut />
-
           </div>
-        </Box>
-      </Box>
-      <Box sx={{ display: "flex", flex: { md: 0.8, xs: 1, sm: 1 }, flexDirection: "column", px: 3 }}>
-        <Typography sx={{ fontSize: "40px", color: "white", mb: 2, mx: "auto", fontWeight: "600" }}>
-          Model - GPT 3.5 Turbo
-        </Typography>
-        <div className="webLoaderContainer">
-          <Typography sx={{ fontSize: "20px", color: "white", mb: 2, mx: "auto", fontWeight: "600" }}>
-            Web Loader
-          </Typography>
-          
-          <FormControl sx={{ m: 1, minWidth: 120 }}>
-            <InputLabel id="demo-simple-select-autowidth-label">Index</InputLabel>
-            <Select onChange={onChangeSelectLink} className="customIndexSelector"
-              labelId="demo-simple-select-autowidth-label"
-              id="demo-simple-select-autowidth"
-              autoWidth
-              label="Index">
-
-              {indices.map((indexData, idx) => (
-                <MenuItem key={idx} value={indexData.index}>
-                  {indexData.index || "Unnamed Index"}
-                </MenuItem>
-              ))}
-            </Select>
-
-          </FormControl>
-          <div style={{
-            width: "100%", backgroundColor: "unset", display: "flex",
-            border: "1px solid #515357", borderRadius: "100px",
-          }} className="inputLinkAdmin">
-            <input
-              ref={inputRef}
-              type="text"
-              value={inputLink}
-              onChange={handleInputChangeLink}
-              onKeyDown={handleKeyPressLink}
-              style={{
-                width: "100%",
-                backgroundColor: "transparent",
-                padding: "0px 20px 0px 20px",
-                border: "none",
-                outline: "none",
-                color: "white",
-                fontSize: "20px",
-                height: "54px",
-
-              }}
-              placeholder="Input a link here..."
-              
-            />
-            <IconButton onClick={handleSubmitLink} sx={{ color: "white", mx: 1 }} disabled={!inputLink.trim() || !isLinkValid || !chosenIndices}>
-              <IoMdSend />
-            </IconButton>
-          </div>
-
         </div>
-
-
-        <Typography sx={{ fontSize: "20px", color: "white", mb: 2, mx: "auto", mt: 2, fontWeight: "600" }}>
-          File Loader
-        </Typography>
-        <div className="custom-select-file-type">
-          <Select displayEmpty defaultValue="" onChange={onChangeSelectLink} className="customIndexSelector">
-            <MenuItem value="" disabled>
-              Select an Index
-            </MenuItem>
-            {indices.map((indexData, idx) => (
-              <MenuItem key={idx} value={indexData.index}>
-                {indexData.index || "Unnamed Index"}
-              </MenuItem>
-            ))}
-          </Select>
-          <Select displayEmpty defaultValue="" onChange={onChangeSelectFileType} className="customFileTypeSelector">
-            <MenuItem value="" disabled>
-              Select an File Type
-            </MenuItem>
-            <MenuItem value="json">JSON</MenuItem>
-            <MenuItem value="docx">DOCX</MenuItem>
-            <MenuItem value="pdf">PDF</MenuItem>
-          </Select>
-        </div>
-
-        <div style={{ width: "100%", borderRadius: 8, display: "flex", justifyContent: "space-between", gap: "10px", flexDirection: "column" }}>
-          <div style={{ width: "100%", borderRadius: 8, display: "flex" }}>
-            {selectedFileType === "json" && <InputFileJSON chosenIndices={chosenIndices} />}
-            {selectedFileType === "docx" && <InputFileDOCX chosenIndices={chosenIndices} />}
-            {selectedFileType === "pdf" && <InputFilePDF chosenIndices={chosenIndices} />}
-
-          </div>
-
-        </div>
-
-        <div>
-          <Typography sx={{ fontSize: "20px", color: "white", mb: 2, mx: "auto", mt: 2, fontWeight: "600" }}>
-            Create New Index
-          </Typography>
-
-          <div style={{ width: "100%", borderRadius: 8, backgroundColor: "rgb(17,27,39)", display: "flex" }}>
-            <input
-              ref={inputRef}
-              type="text"
-              value={inputIndex}
-              onChange={handleInputChangeIndex}
-              style={{
-                width: "100%",
-                backgroundColor: "transparent",
-                padding: "30px",
-                border: "none",
-                outline: "none",
-                color: "white",
-                fontSize: "20px",
-              }}
-            />
-            <IconButton onClick={handleSubmitIndex} sx={{ color: "white", mx: 1 }} disabled={!inputIndex}>
-              <IoMdSend />
-            </IconButton>
-          </div>
-
-        </div>
-
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 };
 

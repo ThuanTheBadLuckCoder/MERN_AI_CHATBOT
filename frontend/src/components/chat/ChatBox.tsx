@@ -41,7 +41,7 @@ function ChatBox({
     }, [chatMessages]);
 
     return (
-        <div className='flex h-full flex-col p-1 gap-2.5'>
+        <div className='flex h-full flex-col p-1 gap-2.5 justify-between'>
             <div ref={chatBoxRef} id="chat-history" className="h-95percent overflow-y-auto">
                 {chatMessages.map((chat, index) => (
                     <ChatItem content={chat.content} role={chat.role} key={index} />
