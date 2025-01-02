@@ -1,11 +1,8 @@
-import { ChangeEvent, FormEvent, useState } from 'react';
+import { useState } from 'react';
 import { sendFileRequest } from '../../helper/api-communicator';
 import toast from 'react-hot-toast';
-import { Button, IconButton, MenuItem, responsiveFontSizes, Select, SelectChangeEvent } from '@mui/material';
-import { IoMdSend } from 'react-icons/io';
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
 import { styled } from '@mui/material/styles';
-
 interface InputFileJSONProps {
   chosenIndices: string;
 }
@@ -64,25 +61,33 @@ export default function InputFileJSON({ chosenIndices }: InputFileJSONProps) {
     }
 
   };
-
-
   return (
-    <div style={{ width: "100%", borderRadius: 8, backgroundColor: "rgb(17,27,39)", display: "flex", flexDirection: "column", padding: "20px", gap: "10px" }}>
-      <p>JSON</p>
-      <div style={{ width: "100%", borderRadius: 8, backgroundColor: "rgb(17,27,39)", display: "flex", flexDirection: "row", justifyContent: "space-between", height: "60px"}}>
-        <Button component="label" variant="contained" startIcon={<CloudUploadIcon />} sx={{gap: "10px"}}>
-          Upload files
-          <VisuallyHiddenInput type="file" onChange={handleFileChange} multiple={false} />
-        </Button>
-        {selectedFile && <p className="custom-fileName">Selected file: {selectedFile.name}</p>}
-        <IconButton
-          onClick={handleSubmitFile}
-          sx={{ color: "white", mx: 1 }}
-          disabled={!chosenIndices || !selectedFile || !fileContent}
-        >
-          <IoMdSend />
-        </IconButton>
+    <div id="json-receiver" className='size-full '>
+      <div className='flex border items-center border-green-500 rounded-md gap-2 h-10 overflow-hidden'>
+        <div id='button-upload-json hover:bg-green-950'>
+          <input type="file" accept=".json" className="hidden" id="file-upload" onChange={handleFileChange} multiple={false} />
+          <label htmlFor="file-upload" className="flex items-center justify-center cursor-pointer size-10">
+            <UploadFileIcon sx={{ fontSize: 20 }} />
+          </label>
+        </div>
+        <div className="w-full flex items-center">
+          {selectedFile ? (
+            <p>Selected file: {selectedFile.name}</p>
+          ) : (
+            <p className='italic text-green-500	text-xs	'>Please select a JSON file</p>
+          )}
+        </div>
+
+
       </div>
+
+      <div className='w-full'>
+        <button>Cancel</button>
+        <button onClick={handleSubmitFile} disabled={!chosenIndices || !selectedFile || !fileContent}>Send</button>
+
+      </div>
+
+
     </div>
   );
 }

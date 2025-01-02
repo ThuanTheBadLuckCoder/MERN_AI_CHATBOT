@@ -41,7 +41,7 @@ export const EmbeddingsVectorStore = async (req: Request, res: Response, next: N
         // console.log("Sucessful add vector to Elasticsearch: ", result);
         return res
             .status(200)
-            .json({ message: "OK" });
+            .json({ message: "OK", result });
     } catch (error) {
         console.log(error);
         return res
