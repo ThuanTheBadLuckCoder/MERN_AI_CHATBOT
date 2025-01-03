@@ -65,3 +65,9 @@ main {
 .no-margin {
   margin: 0 !important;
 }
+
+.go2072408551 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(63 63 70 / var(--tw-bg-opacity, 1));
+  color: #fff;
+}

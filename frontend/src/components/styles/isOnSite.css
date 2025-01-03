@@ -2,3 +2,91 @@
     border-color: rgb(34 197 94 / var(--tw-border-opacity, 1)) !important;
     background-color: rgb(5 46 22 / var(--tw-bg-opacity, 1)) !important;
 }
+
+.logout {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    color: white;
+}
+
+.logout:hover .logout-icon {
+    color: rgb(239 68 68);
+    
+}
+
+.logout-icon {
+    color: white;
+    /* Default color */
+}
+
+#logout-container #nav-container {
+    border: none !important;
+    width: fit-content;
+    height: fit-content
+
+}
+
+#logout-container #nav-container:hover {
+    border: none !important;
+    text-decoration: underline;
+    text-decoration-color: #ef4444;
+}
+
+#logout-container #nav-container:hover {
+    border: 1px solid rgb(69 10 10 / var(--tw-bg-opacity, 1));;
+    background-color: #00000000 !important;
+}
+
+#logout-container a:hover p {
+    color: rgb(239 68 68) !important;
+    
+}
+
+
+.navi-open {
+    width: 250px; /* Width when navigation is open */
+    transition: width 0.3s ease-in-out;
+  }
+  
+  .navi-closed {
+    width: 60px; /* Width when navigation is closed */
+    transition: width 0.3s ease-in-out;
+  }
+  
+  .navi-transitioning {
+    pointer-events: none; /* Prevent interaction during transition */
+  }
+  
+  button img.fixed-size {
+    width: 40px; /* Set a fixed width for the logo */
+    height: 40px; /* Set a fixed height for the logo */
+    object-fit: cover;
+  }
+  
+  .transition-all {
+    transition: all 0.3s ease-in-out;
+  }
+  
+  .opacity-100 {
+    opacity: 1;
+  }
+  
+  .opacity-0 {
+    opacity: 0;
+  }
+  
+  .translate-x-0 {
+    transform: translateX(0);
+  }
+  
+  .-translate-x-4 {
+    transform: translateX(-1rem);
+  }
+  
+  .isOnSite {
+    background-color: rgba(255, 255, 255, 0.1); /* Highlight for active item */
+    transition: background-color 0.3s ease-in-out;
+  }
+  

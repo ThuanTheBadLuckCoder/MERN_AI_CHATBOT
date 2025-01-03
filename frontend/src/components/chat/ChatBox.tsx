@@ -48,7 +48,8 @@ function ChatBox({
                 {/* Add an empty div to act as the scrolling target */}
                 <div ref={endOfMessagesRef} />
             </div>
-            <div id="input-question" className="flex flex-col w-full gap-0.5">
+            <div id="input-question" className="flex flex-col w-full gap-1.5">
+            
                 <div className="flex w-full gap-1.5">
                     <div className='w-12 flex h-12 flex-row	flex-nowrap	justify-center border-red-500 border rounded-md hover:bg-red-300'>
                         <button onClick={handleDeleteChats} className='size-full'>
@@ -71,10 +72,7 @@ function ChatBox({
 
                     </div>
                 </div>
-                <div className='flex gap-1.5 items-center w-full justify-center'>
-                    <ErrorOutlineIcon sx={{ fontSize: 14, color: 'gray' }} />
-                    <p className='font-sans text-xs text-gray-500'>Codfe can make mistakes. Check important info.</p>
-                </div>
+                
             </div>
 
         </div>
