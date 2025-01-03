@@ -80,11 +80,11 @@ const ChatGPT = () => {
     };
 
     return (
-        <div className="relative h-full">
-        <ChatBox chatMessages={chatMessages} chatBoxRef={chatBoxRef}
+        <div id="chat-gpt" className="relative h-full">
+            <ChatBox chatMessages={chatMessages} chatBoxRef={chatBoxRef}
                 handleSubmit={handleSubmit} handleDeleteChats={handleDeleteChats}
                 inputRef={inputRef} inputValue={inputValue} handleInputChange={handleInputChange}
-                handleKeyPress={handleKeyPress} 
+                handleKeyPress={handleKeyPress}
             />
         </div>
     )

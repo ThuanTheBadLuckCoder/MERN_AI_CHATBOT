@@ -90,6 +90,24 @@ export const getAllIndices = async () => {
   return data;
 }
 
+export const getIndexDetails = async (index: string) => {
+  const res = await axios.get(`/indice/details/${index}`);
+  if (res.status !== 200) {
+    throw new Error("Unable to get index");
+  }
+  const data = await res.data;
+  return data;
+};
+
+export const getIndexSources = async (index: string) => {
+  const res = await axios.get(`/indice/sources/${index}`);
+  if (res.status !== 200) {
+    throw new Error("Unable to get index");
+  }
+  const data = await res.data;
+  return data;
+}
+
 export const deleteUserChats = async () => {
   const res = await axios.delete("/chat/delete");
   if (res.status !== 200) {

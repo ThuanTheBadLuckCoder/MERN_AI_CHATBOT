@@ -61,6 +61,7 @@ export const queryGeminiVectorStore = async (req: Request, res: Response, next: 
     // console.log("Context: ", context);
     return context;
 }
+
 export const getAllIndexies = async (req: Request, res: Response, next: NextFunction) => {
     try {
         //user token check
@@ -73,7 +74,8 @@ export const getAllIndexies = async (req: Request, res: Response, next: NextFunc
         }
         const indices = await client.cat.indices({
             format: 'json',
-            h: 'index'
+            h: ['index']
+            
         });
         return res.status(200).json({ message: "OK", indices: indices });
     } catch (error) {
@@ -82,10 +84,10 @@ export const getAllIndexies = async (req: Request, res: Response, next: NextFunc
     }
 }
 
+
 export const createNewIndexies = async (req: Request, res: Response, next: NextFunction) => {
     //Define index parameters
     const { indexName, settings, mappings } = req.body;
-    console.log(indexName, settings, mappings);
     try {
         if (!indexName) {
             return res.status(400).json({ message: "Index name is required." });
@@ -124,4 +126,102 @@ export const createNewIndexies = async (req: Request, res: Response, next: NextF
     } catch (error) {
         return res.status(500).json({ message: "ERROR", cause: error.message })
     }
+};
+
+export const getIndexContents = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { index } = req.params;
+        if (!index) {
+            return res.status(400).json({ message: "Index name is required" });
+        }
+
+        // Fetch documents from the index
+        const response = await client.search({
+            index: index,
+            size: 100, // Number of documents per batch (2147483647 is MAX)
+            query: { match_all: {} }, // Retrieves all documents
+            _source: ['metadata', 'text'] // Fetch only the 'metadata' and 'text' fields
+        });
+
+        const documents = response.hits.hits.map((doc: any) => ({
+            metadata: doc._source.metadata,
+            text: doc._source.text
+        }));
+        
+
+        return res.status(200).json({
+            message: "OK",
+            index: index,
+            documents: documents,
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "ERROR", cause: error.message });
+    }
+};
+
+
+/*
+GET frontend_developer/_search
+{
+  "size": 0,
+  "aggs": {
+    "unique_metadata_sources": {
+      "composite": {
+        "sources": [
+          {
+            "metadata_source": {
+              "terms": {
+                "field": "metadata.source"
+              }
+            }
+          }
+        ],
+        "size": 10000
+      }
+    }
+  }
 }
+*/
+
+export const getIndexSources = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { index } = req.params;
+        if (!index) {
+            return res.status(400).json({ message: "Index name is required" });
+        }
+
+        // Fetch documents from the index
+        const response = await client.search({
+            index: 'frontend_developer', // Replace with your index name
+            size: 0,
+            body: {
+              aggs: {
+                unique_metadata_sources: {
+                  composite: {
+                    sources: [
+                      {
+                        metadata_source: {
+                          terms: {
+                            field: 'metadata.source'
+                          }
+                        }
+                      }
+                    ],
+                    size: 9999
+                  }
+                }
+              }
+            }
+          });
+        
+
+        return res.status(200).json({
+            message: "OK",
+            response: response,
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "ERROR", cause: error.message });
+    }
+};

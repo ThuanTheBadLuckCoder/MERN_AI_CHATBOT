@@ -1,8 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import { IconButton } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import SendIcon from '@mui/icons-material/Send';
 import ChatItem from './ChatItem';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import './styles/chat-component.css';
 
@@ -50,36 +49,34 @@ function ChatBox({
                 <div ref={endOfMessagesRef} />
             </div>
             <div id="input-question" className="flex flex-col w-full gap-0.5">
-                <div className="flex w-full gap-2.5">
-                <div className='w-12 flex h-12 flex-row	flex-nowrap	justify-center border-red-500 border rounded-md hover:bg-red-300'>
-                    <button onClick={handleDeleteChats} className='size-full'>
-                        <DeleteOutlineIcon className='text-red-500' sx={{fontSize: 24}} />
-                    </button>
-                </div>
-                <div className="flex w-full border border-green-500 rounded-md overflow-hidden px-4 gap-1.5">
-                    <div className='flex w-full h-full'>
-                        <input
-                        ref={inputRef}
-                        type="text"
-                        value={inputValue}
-                        onChange={handleInputChange}
-                        onKeyDown={handleKeyPress}
-                        placeholder="Type your question here..."
-                        className="block min-w-0 grow py-1.5 text-base text-gray-900 placeholder:text-gray-400 focus:outline focus:outline-0 bg-inherit font-sans" />
+                <div className="flex w-full gap-1.5">
+                    <div className='w-12 flex h-12 flex-row	flex-nowrap	justify-center border-red-500 border rounded-md hover:bg-red-300'>
+                        <button onClick={handleDeleteChats} className='size-full'>
+                            <DeleteOutlineIcon className='text-red-500' sx={{ fontSize: 24 }} />
+                        </button>
                     </div>
-                    
-                    <button onClick={handleSubmit} disabled={!inputValue.trim()}>
-                        <SendIcon />
-                    </button>
-                </div>
-                </div>
-                <div className='flex gap-1.5 items-center w-full'>
-                    <ErrorOutlineIcon sx={{ fontSize: 14 }}/>
-                    <p className='font-sans text-xs text-gray-500'>Codfe can make mistakes. Check important info.</p>
+                    <div className="flex w-full gap-1.5">
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            value={inputValue}
+                            onChange={handleInputChange}
+                            onKeyDown={handleKeyPress}
+                            placeholder="Type your question here..."
+                            className="flex w-full items-center rounded-md bg-inherit pl-3 outline outline-1 -outline-offset-1 outline-green-900 focus-within:outline focus-within:outline-1 focus-within:-outline-offset-1 focus-within:outline-green-600" />
 
+                        <button onClick={handleSubmit} disabled={!inputValue.trim()} className='disabled:cursor-not-allowed size-12 bg-green-900 border border-green-800 rounded-md'>
+                            <KeyboardArrowUpIcon />
+                        </button>
+
+                    </div>
+                </div>
+                <div className='flex gap-1.5 items-center w-full justify-center'>
+                    <ErrorOutlineIcon sx={{ fontSize: 14, color: 'gray' }} />
+                    <p className='font-sans text-xs text-gray-500'>Codfe can make mistakes. Check important info.</p>
                 </div>
             </div>
-            
+
         </div>
     );
 }

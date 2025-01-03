@@ -1,0 +1,8 @@
+#logout-container #nav-container {
+    border-color: rgb(239 68 68 / var(--tw-border-opacity, 1)) !important;
+    
+}
+
+#logout-container #nav-container:hover{
+    background-color: rgb(69 10 10 / var(--tw-bg-opacity, 1)) !important;
+}

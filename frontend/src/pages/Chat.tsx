@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import ChatGPT from "../components/chat/ChatGPT";
@@ -9,7 +9,28 @@ const Chat = () => {
   const navigate = useNavigate();
   const auth = useAuth();
 
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLUListElement | null>(null);
   const [model, setModel] = useState('Gemini');
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    console.log("model: ", model);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSelectModel = (model: string) => {
+    setModel(model);
+    setDropdownOpen(false);
+  };
+
+
   const handleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setModel(event.target.value as string);
   };
@@ -22,26 +43,41 @@ const Chat = () => {
 
   return (
     <div id="chat-container" className="size-full overflow-hidden">
-      <div className="h-chat-model">
-          <form className="h-full">
-            <div className="grid grid-cols-1 w-1/6">
-              <select
-                id="country"
-                name="country"
-                autoComplete="country-name"
-                className="col-start-1 row-start-1 w-full appearance-none rounded-md bg-gray-950 py-1.5 pl-3 pr-8 text-base text-white font-bold outline outline-1 -outline-offset-1 outline-green-300 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-green-600 sm:text-sm/6"
-                value={model}
-                onChange={handleChange}>
-                <option value={"GPT"}>GPT</option>
-                <option value={"Gemini"}>Gemini</option>
-              </select>
-              <ExpandMoreIcon sx={{ fontSize: 20 }} className="pointer-events-none col-start-1 row-start-1 mr-2 size-5 self-center justify-self-end text-gray-500 sm:size-4"/>
+      <div className="h-chat-model flex">
+        <div className="relative">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              setDropdownOpen(!dropdownOpen);
+            }}
+            className="flex w-full bg-green-950 h-10 text-white font-bold py-2 px-4 border border-green-500 rounded-md overflow-hidden text-left">
+            <div className="w-5/6 flex flex-row justify-between truncate flex-1">
+              {model || "Gemini"}
             </div>
-          </form>
+            <ExpandMoreIcon
+              sx={{ fontSize: 20 }}
+              className="pointer-events-none col-start-1 row-start-1 size-5 self-center justify-self-end text-white sm:size-4"
+            />
+          </button>
+          {dropdownOpen && (
+            <ul
+              ref={dropdownRef}
+              className="absolute z-10 w-full bg-gray-950 border border-green-500 rounded-md max-h-60 overflow-y-auto"
+            >
+              <li key={'GPT'}
+                onClick={() => handleSelectModel("GPT")}
+                className="py-2 px-4 hover:bg-green-800 hover:text-white cursor-pointer truncate">GPT</li>
+              <li key={'Gemini'}
+                onClick={() => handleSelectModel("Gemini")}
+                className="py-2 px-4 hover:bg-green-800 hover:text-white cursor-pointer truncate">Gemini</li>
 
+            </ul>
+          )}
         </div>
+      </div>
       <div className="w-full h-chat-content gap-1.5 overflow-hidden">
-        
+
         <div className="h-full">
           {model == "GPT" && <ChatGPT />}
           {model == "Gemini" && <ChatGemini />}

@@ -130,7 +130,7 @@ const ChatItem = ({
           {role === "assistant" ? (
             <img src="codfe_logo.svg" alt="openai" className="size-full" />
           ) : auth?.user?.name ? (
-            <div className="border rounded-full size-full flex justify-center items-center">
+            <div className="border rounded-full size-full flex justify-center items-center cursor-default">
               {auth.user.name[0]}
               {auth.user.name.split(" ")[1]?.[0]}
             </div>
@@ -156,7 +156,7 @@ const ChatItem = ({
                   </SyntaxHighlighter>
                 </div>
               ) : (
-                <div className="content-container font-sans">
+                <div className="content-container font-serif">
                   <span>{block.content}</span>
                 </div>
               )}

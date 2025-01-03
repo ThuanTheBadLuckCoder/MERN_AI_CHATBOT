@@ -58,7 +58,7 @@ const IndexSelector: React.FC<IndexSelectorProps> = ({ indices, onSelectIndex, s
             <li
               key={idx}
               onClick={() => handleSelectIndex(indexData.index)}
-              className="py-2 px-4 hover:bg-green-500 hover:text-white cursor-pointer truncate"
+              className="py-2 px-4 hover:bg-green-800 hover:text-white cursor-pointer truncate"
             >
               {indexData.index || "Unnamed Index"}
             </li>

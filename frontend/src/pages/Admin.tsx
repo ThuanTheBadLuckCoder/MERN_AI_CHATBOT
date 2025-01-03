@@ -10,6 +10,7 @@ import InputFileDOCX from "../components/upload/InputFileDOCX";
 import InputFilePDF from "../components/upload/InputFilePDF";
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import IndexSelector from "../components/shared/IndexSelector";
+import IndexList from "../components/index/IndexList";
 type Indexies = {
   index: string;
   content: string;
@@ -173,103 +174,106 @@ const Admin = () => {
     }
   };
 
+  const handleFileTypeSelect = (type: string) => {
+    setFileTypeSelectedIndex(type);
+    setDropdownOpen(false);
+  };
+
   return (
-    <div className="admin-container flex flex-col">
+    <div className="admin-container flex flex-col gap-3">
       <h1 className="font-serif	text-2xl antialiased font-bold">Retrieval-Augmented Generation</h1>
       <div className="flex flex-col gap-4">
-        <div id="web-loader-container" className="p-2 border rounded-md border-green-500">
+        <div id="web-loader-container" className="p-2 border rounded-md border-green-500 gap-1.5 flex flex-col">
           <h2 className="underline font-serif text-lg antialiased font-medium">Web Loader</h2>
+          <div className="flex gap-2">
+          <IndexSelector indices={indices} onSelectIndex={setWebSelectedIndex} selectedIndex={webSelectedIndex} />
+          <input
+            ref={inputRef}
+            type="text"
+            value={inputLink}
+            onChange={handleInputChangeLink}
+            onKeyDown={handleKeyPressLink}
+            placeholder="Input a link..."
+            className="flex w-full items-center rounded-md bg-inherit pl-3 outline outline-1 -outline-offset-1 outline-green-600 focus-within:outline focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-green-600"
+          />
+          <button
+            onClick={handleSubmitLink}
+            className="bg-green-500 text-white px-3 py-1 rounded"
+            disabled={!inputLink || !webSelectedIndex}
+          >
+            Submit
+          </button>
+        </div>
+        </div>
+
+        <div id="file-loader-container" className="p-2 border rounded-md border-green-500 gap-1.5 flex flex-col">
+          <h2 className="underline font-serif text-lg antialiased font-medium">File Loader</h2>
+          <div className="flex gap-2">
+          <IndexSelector indices={indices} onSelectIndex={setFileSelectedIndex} selectedIndex={fileSelectedIndex} />
+          <div className="relative">
+            <button
+              onClick={() => setDropdownOpen((prev) => !prev)}
+              className="bg-green-950 border border-green-500 h-full text-white px-3 py-1 rounded w-40 flex justify-between items-center"
+            >
+              {fileTypeSelectedIndex || "Select File Type"}
+              <ExpandMoreIcon />
+            </button>
+            {dropdownOpen && (
+              <ul ref={dropdownRef} className="absolute z-10 w-full bg-gray-950 border border-green-500 rounded-md max-h-60 overflow-y-auto">
+                {fileTypes.map((type) => (
+                  <li
+                    key={type}
+                    onClick={() => handleFileTypeSelect(type)}
+                    className="py-2 px-4 hover:bg-green-800 hover:text-white cursor-pointer truncate"
+                  >
+                    {type}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="w-full">
+            {fileTypeSelectedIndex === "JSON" && <InputFileJSON chosenIndices={fileSelectedIndex} />}
+            {fileTypeSelectedIndex === "DOCX" && <InputFileDOCX chosenIndices={fileSelectedIndex} />}
+            {fileTypeSelectedIndex === "PDF" && <InputFilePDF chosenIndices={fileSelectedIndex} />}
+          </div>
+        </div>
+        </div>
+
+        <div id="new-index-container" className="p-2 border rounded-md border-green-500 gap-1.5 flex flex-col">
+          <h2 className="underline font-serif text-lg antialiased font-medium">Create a New Index</h2>
           <div className="w-full flex flex-col">
-            <form className="w-full flex gap-1.5 items-center h-10" onSubmit={(e) => e.preventDefault()}>
-              <div className="grid grid-cols-1 w-2/6 h-full">
-                <IndexSelector indices={indices} onSelectIndex={setWebSelectedIndex} selectedIndex={webSelectedIndex} />
-              </div>
-              <div className="w-4/6 h-full flex border border-green-500 rounded-md overflow-hidden px-4 gap-1.5">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={inputLink}
-                  onChange={handleInputChangeLink}
-                  onKeyDown={handleKeyPressLink}
-                  placeholder="Input a link here..."
-                  className="h-full block min-w-0 grow py-1.5 text-base text-white placeholder:text-gray-400 focus:outline focus:outline-0 bg-inherit font-sans"
+            <div className="w-full flex gap-1.5 items-center h-10">
+              <div className="flex gap-2 size-full">
+                <input ref={inputRef} type="text" value={inputIndex}
+                  onChange={handleInputChangeIndex}
+                  className="flex w-full items-center rounded-md bg-inherit pl-3 outline outline-1 -outline-offset-1 outline-green-600 focus-within:outline focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-green-600"
+                  placeholder="Enter the name of the Index here..."
                 />
+              </div>
+              <div className="flex gap-1.5 w-fit h-full">
                 <button
                   type="button" // Ensure the button does not trigger form submission
-                  onClick={handleSubmitLink}
-                  disabled={!inputLink.trim() || !selectedIndex}
+                  disabled={!inputIndex}
+                  className="border-2 border-red-500 px-2 py-1 rounded-md hover:bg-red-600 cursor-pointer disabled:cursor-not-allowed "
                 >
-                  <IoMdSend />
+                  Cancel
+                </button>
+                <button
+                  type="button" // Ensure the button does not trigger form submission
+                  onClick={handleSubmitIndex}
+                  disabled={!inputIndex}
+                  className="bg-green-500 px-2 py-1 rounded-md hover:bg-green-600 cursor-pointer disabled:cursor-not-allowed"
+                >
+                  Submit
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
-
-        <div id="file-loader-container" className="p-2 border rounded-md border-green-500">
-          <h2 className="underline font-serif text-lg antialiased font-medium">File Loader</h2>
-          <div className="w-full flex flex-col">
-            <form className="w-full flex gap-1.5 items-center h-16" onSubmit={(e) => e.preventDefault()}>
-              <div className="grid grid-cols-1 w-4/6 h-full">
-                <div className="flex w-full gap-1.5">
-                  <div className="w-1/2">
-                    <IndexSelector indices={indices} onSelectIndex={setFileSelectedIndex} selectedIndex={fileSelectedIndex} />
-                  </div>
-                  <div className="w-1/2">
-                    <div className="relative">
-                      <button type="button" onClick={(e) => {
-                        e.preventDefault();
-                        setDropdownOpen(!dropdownOpen);
-                      }}
-                        className="flex w-full bg-green-950 h-10 text-white font-bold py-2 px-4 border border-green-500 rounded-md overflow-hidden text-left">
-                        <div className="w-5/6 flex flex-row justify-between truncate flex-1">
-                          {fileTypeSelectedIndex || "Select a File type"}
-                        </div>
-                        <ExpandMoreIcon
-                          sx={{ fontSize: 20 }}
-                          className="pointer-events-none col-start-1 row-start-1 size-5 self-center justify-self-end text-white sm:size-4"
-                        />
-                      </button>
-                      {dropdownOpen && (
-                        <ul
-                          ref={dropdownRef}
-                          className="absolute z-10 w-full bg-gray-950 border border-green-500 rounded-md max-h-60 overflow-y-auto"
-                        >
-                          {fileTypes.map((type, idx) => (
-                            <li
-                              key={idx}
-                              onClick={() => onChangeSelectFileType(type)}
-                              className="py-2 px-4 hover:bg-green-500 hover:text-white cursor-pointer truncate">
-                              {type || "Unnamed Index"}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="w-2/6 h-full flex overflow-hidden px-4 gap-1.5">
-                  <div className="w-full">
-                    {fileTypeSelectedIndex === "JSON" && <InputFileJSON chosenIndices={chosenIndices} />}
-                    {fileTypeSelectedIndex === "DOCX" && <InputFileDOCX chosenIndices={chosenIndices} />}
-                    {fileTypeSelectedIndex === "PDF" && <InputFilePDF chosenIndices={chosenIndices} />}
-                  </div>
-              </div>
-            </form>
-          </div>
-        </div>
-
-        <div id="new-index-container">
-          <h2>Create a New Index</h2>
-          <div>
-            <div>
-              <input ref={inputRef} type="text" value={inputIndex} onChange={handleInputChangeIndex} />
-              <IconButton onClick={handleSubmitIndex} sx={{ color: "white", mx: 1 }} disabled={!inputIndex}>
-                <IoMdSend />
-              </IconButton>
             </div>
           </div>
+        </div>
+
+        <div id="index-list-container" className="p-2 border rounded-md border-green-500 gap-1.5 flex flex-col">
+          <IndexList />
         </div>
       </div>
 

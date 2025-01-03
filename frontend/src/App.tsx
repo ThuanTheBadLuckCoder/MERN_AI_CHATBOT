@@ -1,40 +1,36 @@
-import Header from "./components/Header";
+import React, { useState, useEffect } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
+import { useAuth } from "./context/AuthContext";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Chat from "./pages/Chat";
 import NotFound from "./pages/NotFound";
-import { useAuth } from "./context/AuthContext";
 import Admin from "./pages/Admin";
-import { useEffect, useState } from "react";
 import LeftNavi from "./components/LeftNavi";
-import './App.css'
-
+import './App.css';
 
 function App() {
   const auth = useAuth();
-
-  console.log(auth);
-
   const [isShowHeader, setIsShowHeader] = useState(true);
+  const [isNavOpen, setIsNavOpen] = useState(true);
   const location = useLocation();
 
   useEffect(() => {
-    // Hide Header if the current path is "*", which is the NotFound page
     if (location.pathname === "*" || location.pathname === "/chat" || location.pathname === "/admin") {
       setIsShowHeader(false);
     } else {
-      setIsShowHeader(true); // Show Header for other routes
+      setIsShowHeader(true);
     }
   }, [location.pathname]);
+
   return (
-    <main className="w-dvw h-dvh">
+    <main className="w-screen h-screen overflow-hidden">
       <div className="flex size-full">
-        <div className="flex-none w-64 relative">
-          <LeftNavi />
+        <div className={`transition-all duration-300 ${isNavOpen ? 'w-64' : 'w-16'}`}>
+          <LeftNavi isOpen={isNavOpen} setIsOpen={setIsNavOpen} />
         </div>
-        <div className="flex-initial w-full py-2 px-1">
+        <div className="flex-1 overflow-auto p-2 w-full">
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
@@ -45,13 +41,10 @@ function App() {
             {auth?.isLoggedIn && auth.user?.role === "Admin" && (
               <Route path="/admin" element={<Admin />} />
             )}
-
             <Route path="*" element={<NotFound />} />
-          </Routes></div>
-
+          </Routes>
+        </div>
       </div>
-
-
     </main>
   );
 }
