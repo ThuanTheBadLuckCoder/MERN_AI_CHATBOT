@@ -45,11 +45,13 @@ const ChatGPT = () => {
                     toast.error("Loading Failed", { id: "loadchats" });
                 });
         }
+        console.log("chatMessages: ", chatMessages);
     }, [auth]);
     useEffect(() => {
         if (!auth?.user) {
             return navigate("/login");
         }
+        
     }, [auth]);
 
     const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -78,7 +80,7 @@ const ChatGPT = () => {
             toast.error("Deleting chats failed", { id: "deletechats" });
         }
     };
-
+    
     return (
         <div id="chat-gpt" className="relative h-full">
             <ChatBox chatMessages={chatMessages} chatBoxRef={chatBoxRef}

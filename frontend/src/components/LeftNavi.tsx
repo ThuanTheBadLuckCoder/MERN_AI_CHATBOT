@@ -31,7 +31,7 @@ const LeftNavi: React.FC<LeftNaviProps> = ({ isOpen, setIsOpen }) => {
 
   return (
     <div
-      className={`flex flex-col flex-nowrap bg-zinc-900 size-full ${
+      className={`flex flex-col flex-nowrap bg-black size-full ${
         isOpen ? "navi-open" : "navi-closed"
       } ${isTransitioning ? "navi-transitioning" : ""}`}
     >
@@ -59,8 +59,6 @@ const LeftNavi: React.FC<LeftNaviProps> = ({ isOpen, setIsOpen }) => {
           <div className="w-full flex">
           {isOpen ? <><h1 className="font-serif text-2xl italic font-bold	cursor-not-allowed">Codfe</h1></> : <></>}
           </div>
-          
-          
         </div>
         
         {isOpen && (

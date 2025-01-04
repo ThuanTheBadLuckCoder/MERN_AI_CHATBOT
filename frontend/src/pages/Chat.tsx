@@ -52,9 +52,7 @@ const Chat = () => {
         setDropdownOpen(false);
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
-    console.log("model: ", model);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
@@ -75,8 +73,8 @@ const Chat = () => {
   }, [auth]);
 
   return (
-    <div id="chat-container" className="size-full overflow-hidden">
-      <div className="h-chat-model flex flex-row justify-between items-start">
+    <div id="chat-container" className="size-full overflow-hidden p-2 bg-zinc-900 rounded-3xl">
+      <div className="h-chat-model flex flex-row justify-between items-start px-2 py-1">
         <div className="relative h-fit w-fit	">
           <button
             type="button"
@@ -110,7 +108,7 @@ const Chat = () => {
           )}
         </div>
         <div className='flex gap-1.5 items-center w-full h-10 justify-center'>
-          <p className='font-sans text-xs text-gray-500 '>The Dangers Are Real</p>
+          <p className='font-serif text-xs text-gray-500 '>The Dangers Are Real</p>
           <CustomTooltip title="Code can make mistakes. Check important info." arrow>
             <ErrorOutlineIcon sx={{ fontSize: 14, color: 'gray' }} className="cursor-help" />
           </CustomTooltip>

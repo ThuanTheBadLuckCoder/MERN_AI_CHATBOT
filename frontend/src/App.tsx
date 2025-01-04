@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import Home from "./pages/Home";
@@ -12,24 +12,21 @@ import './App.css';
 
 function App() {
   const auth = useAuth();
-  const [isShowHeader, setIsShowHeader] = useState(true);
   const [isNavOpen, setIsNavOpen] = useState(true);
-  const location = useLocation();
+  const location = useLocation(); // Get the current location
 
-  useEffect(() => {
-    if (location.pathname === "*" || location.pathname === "/chat" || location.pathname === "/admin") {
-      setIsShowHeader(false);
-    } else {
-      setIsShowHeader(true);
-    }
-  }, [location.pathname]);
+  // Check if the current route is '/' or '/notfound'
+  const isLeftNaviVisible = location.pathname !== "/" && location.pathname !== "/notfound";
 
   return (
     <main className="w-screen h-screen overflow-hidden">
       <div className="flex size-full">
-        <div className={`transition-all duration-300 ${isNavOpen ? 'w-64' : 'w-16'}`}>
-          <LeftNavi isOpen={isNavOpen} setIsOpen={setIsNavOpen} />
-        </div>
+        {/* Conditionally render LeftNavi based on the current route */}
+        {isLeftNaviVisible && (
+          <div className={`transition-all duration-300 ${isNavOpen ? 'w-64' : 'w-16'}`}>
+            <LeftNavi isOpen={isNavOpen} setIsOpen={setIsNavOpen} />
+          </div>
+        )}
         <div className="flex-1 overflow-auto p-2 w-full">
           <Routes>
             <Route path="/" element={<Home />} />
