@@ -23,7 +23,7 @@ This chatbot is designed to provide contextual and accurate responses by leverag
 
 ### Version 2.0
 - **Contextual Understanding:** Uses dRAGon technology to tailor responses based on user-provided documents, avoiding generic or irrelevant answers.
-- **Document Integration:** Users can upload and work with documents in formats such as `.docx`, `.pdf`, `.json` or many others.
+- **Basic search capabilities:** The system retrieves the data most relevant to the user's query from the data sets stored in the system's databases.
 - **Fast Document Search:** Incorporates Elasticsearch for rapid retrieval of relevant information to assist LLMs in forming precise responses.
 
 ### Version 3.0
