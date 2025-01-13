@@ -1,6 +1,6 @@
 # Codfe :robot: :speech_balloon: - THE APPLICATIONS OF LARGE LANGUAGE MODELS IN DEVELOPING AN INTEGRATED VIRTUAL ASSISTANT SYSTEM TO ENHANCE PROGRAMMER SUPPORT
 
-**Version:** - 3.5 -
+**Version:** - 3.0 -
 
 **Developer:** Doan Tran Thuan - ITITIU20316 (Fullstack)
 
@@ -31,7 +31,7 @@ This chatbot is designed to provide contextual and accurate responses by leverag
 - **Extended Model Support:** Adds new LLMs like Llama and Gemini to increase versatility.
 - **Improved Accessibility:** Supports a wide range of users for diverse use cases and industries.
 
-### Version 3.5
+### Version 3.5 (beta)
 - **Enhanced UI/UX:** Redesigned interface for better usability and aesthetic appeal.
 - **New Features:** Includes Search Mode and Chat-Only Mode, accommodating various user preferences and scenarios.
 - **Universal Usability:** Tailored to meet a broad spectrum of user needs and applications.
