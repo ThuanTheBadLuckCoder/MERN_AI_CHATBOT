@@ -17,11 +17,13 @@ export const userSignup = async (req, res, next) => {
     try {
         //user signup
         const { name, email, password } = req.body;
+        console.log(name, email, password);
+        const role = "User";
         const existingUser = await User.findOne({ email });
         if (existingUser)
             return res.status(401).send("User already registered");
         const hashedPassword = await hash(password, 10);
-        const user = new User({ name, email, password: hashedPassword });
+        const user = new User({ name, email, password: hashedPassword, role });
         await user.save();
         // create token and store cookie
         res.clearCookie(COOKIE_NAME, {
@@ -46,13 +48,14 @@ export const userSignup = async (req, res, next) => {
     }
     catch (error) {
         console.log(error);
-        return res.status(200).json({ message: "ERROR", cause: error.message });
+        return res.status(401).json({ message: "ERROR", cause: error.message });
     }
 };
 export const userLogin = async (req, res, next) => {
     try {
         //user login
-        const { email, password } = req.body;
+        const { email, password, remember } = req.body;
+        console.log(remember);
         const user = await User.findOne({ email });
         if (!user) {
             return res.status(401).send("User not registered");
@@ -68,13 +71,22 @@ export const userLogin = async (req, res, next) => {
             signed: true,
             path: "/",
         });
-        const token = createToken(user._id.toString(), user.email, "7d");
+        // Set token expiration based on remember flag
+        const tokenExpiration = remember ? "7d" : "1d"; // 7 days if remembered, 1 day if not
+        const token = createToken(user._id.toString(), user.email, tokenExpiration);
+        // Set cookie expiration based on remember flag
         const expires = new Date();
-        expires.setDate(expires.getDate() + 7);
+        if (remember) {
+            expires.setDate(expires.getDate() + 7); // Add 7 days if remembered
+        }
+        else {
+            // Cookie expires at end of session if not remembered
+            expires.setDate(expires.getDate() + 1); // Add 1 day if not remembered
+        }
         res.cookie(COOKIE_NAME, token, {
             path: "/",
             domain: "localhost",
-            expires,
+            expires: remember ? expires : undefined, // If not remembered, cookie becomes a session cookie
             httpOnly: true,
             signed: true,
         });

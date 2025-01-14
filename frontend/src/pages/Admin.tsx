@@ -3,7 +3,7 @@ import { IconButton } from "@mui/material";
 import { useAuth } from "../context/AuthContext";
 import { IoMdSend } from "react-icons/io";
 import { useNavigate } from "react-router-dom";
-import { getAllIndices, sendLinkRequest, createNewIndex } from "../helper/api-communicator";
+import { getAllIndices, sendLinkRequest, createNewIndex, isExistedLink } from "../helper/api-communicator";
 import toast from "react-hot-toast";
 import InputFileJSON from "../components/upload/InputFileJSON";
 import InputFileDOCX from "../components/upload/InputFileDOCX";
@@ -11,6 +11,9 @@ import InputFilePDF from "../components/upload/InputFilePDF";
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import IndexSelector from "../components/shared/IndexSelector";
 import IndexList from "../components/index/IndexList";
+import bg from '../../public/main_bg.png'
+
+
 type Indexies = {
   index: string;
   content: string;
@@ -37,28 +40,38 @@ const Admin = () => {
   const [fileSelectedIndex, setFileSelectedIndex] = useState<string>("");
   const [fileTypeSelectedIndex, setFileTypeSelectedIndex] = useState<string>("");
   const fileTypes: string[] = ["JSON", "DOCX", "PDF"];
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+
+
   const handleSubmitLink = async () => {
-    if (!inputLink || !selectedIndex) {
-      toast.error("Please provide both a link and select an index");
+    if (!webSelectedIndex) {
+      toast.error("Please select an index");
       return;
     }
-
+  
+    if (!inputLink) {
+      toast.error("Please enter a link");
+      return;
+    }
+  
     try {
+      const exists = await isExistedLink(inputLink);
+      if (!exists) {
+        toast.error("The URL is not accessible or doesn't exist", { id: "urlCheck" });
+        return;
+      }
       toast.loading("Processing link...", { id: "linkSubmission" });
-      const linkData = await sendLinkRequest(inputLink, selectedIndex);
-      console.log(linkData);
-      // Clear inputs on success
+      const linkData = await sendLinkRequest(inputLink, webSelectedIndex);
       setInputLink("");
-      if (inputRef.current) inputRef.current.value = "";
-
+      inputRef.current && (inputRef.current.value = "");
       toast.success("Successfully added link to Elasticsearch", { id: "linkSubmission" });
+      console.log("Link processed:", linkData);
     } catch (error) {
       console.error("Error submitting link:", error);
       toast.error("Failed to process link. Please try again.", { id: "linkSubmission" });
     }
-
   };
-
+  
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -111,11 +124,6 @@ const Admin = () => {
   const handleInputChangeLink = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value.trim();
     setInputLink(value);
-
-
-    if (value && !isValidURL(value)) {
-      toast.error("Please enter a valid URL (must start with http:// or https://)");
-    }
   };
 
   const handleInputChangeIndex = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -127,22 +135,17 @@ const Admin = () => {
   const handleKeyPressLink = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter") {
       event.preventDefault();
-      if (!selectedIndex) {
-        toast.error("Please select an index first");
-        return;
-      }
-      if (!isValidURL(inputLink)) {
-        toast.error("Please enter a valid URL (must start with http:// or https://)");
-        return;
-      }
-      handleSubmitLink();
+      handleSubmitLink(); // Let the submit handler handle all validation
     }
   };
 
-  const onChangeSelectFileType = (fileTypes: string) => {
-    setFileTypeSelectedIndex(fileTypes);
-    setDropdownOpen(false);
-  }
+  const handleCancelLink = () => {
+    setInputLink("");
+  };
+
+  const handleCancelIndex = () => {
+    setInputIndex("");
+  };
 
   function validateIndex(input: string): boolean {
     // Kiểm tra nếu input là chữ thường
@@ -151,27 +154,6 @@ const Admin = () => {
       return false;
     }
     return true;
-  }
-
-  function isValidURL(string: string): boolean {
-    try {
-      const url = new URL(string);
-
-      // Ensure the URL uses the HTTP or HTTPS protocol
-      if (url.protocol !== "http:" && url.protocol !== "https:") {
-        return false;
-      }
-
-      if (!url.hostname) {
-        return false;
-      }
-
-      return true;
-    } catch (err) {
-      console.error("Invalid URL error:", err);
-      toast.error("The URL provided is invalid.");
-      return false;
-    }
   };
 
   const handleFileTypeSelect = (type: string) => {
@@ -180,31 +162,53 @@ const Admin = () => {
   };
 
   return (
-    <div className="admin-container flex flex-col gap-3">
+    <div id="admin-container" className="h-full flex flex-col gap-3 p-3 overflow-hidden" style={{
+      backgroundImage: `url(${bg})`,
+      backgroundSize: "contain",
+      backgroundPosition: "center",
+      backgroundRepeat: "no-repeat",
+    }}>
       <h1 className="font-serif	text-2xl antialiased font-bold">Retrieval-Augmented Generation</h1>
       <div className="flex flex-col gap-4">
-        <div id="web-loader-container" className="p-2 border rounded-md border-green-500 gap-1.5 flex flex-col">
-          <h2 className="underline font-serif text-lg antialiased font-medium">Web Loader</h2>
-          <div className="flex gap-2">
-          <IndexSelector indices={indices} onSelectIndex={setWebSelectedIndex} selectedIndex={webSelectedIndex} />
-          <input
-            ref={inputRef}
-            type="text"
-            value={inputLink}
-            onChange={handleInputChangeLink}
-            onKeyDown={handleKeyPressLink}
-            placeholder="Input a link..."
-            className="flex w-full items-center rounded-md bg-inherit pl-3 outline outline-1 -outline-offset-1 outline-green-600 focus-within:outline focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-green-600"
-          />
+      <div id="web-loader-container" className="p-2 border rounded-md border-green-500 gap-1.5 flex flex-col">
+      <h2 className="underline font-serif text-lg antialiased font-medium">Web Loader</h2>
+      <div className="flex gap-2">
+        <IndexSelector 
+          indices={indices} 
+          onSelectIndex={setWebSelectedIndex} 
+          selectedIndex={webSelectedIndex} 
+        />
+        <input
+          ref={inputRef}
+          type="text"
+          value={inputLink}
+          onChange={handleInputChangeLink}
+          onKeyDown={handleKeyPressLink}
+          placeholder="Input a link..."
+          className="flex w-full items-center rounded-md bg-inherit pl-3 outline outline-1 -outline-offset-1 outline-green-600 focus-within:outline focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-green-600"
+        />
+        <div className="flex gap-1.5 w-fit h-full">
+          <button
+            type="button"
+            onClick={handleCancelLink}
+            className="border-2 border-red-500 px-2 py-1 rounded-md hover:bg-red-600 cursor-pointer disabled:cursor-not-allowed"
+          >
+            Cancel
+          </button>
           <button
             onClick={handleSubmitLink}
-            className="bg-green-500 text-white px-3 py-1 rounded"
+            className={`px-2 py-1 rounded-md cursor-pointer ${
+              !inputLink || !webSelectedIndex 
+                ? 'bg-gray-500 cursor-not-allowed' 
+                : 'bg-green-500 hover:bg-green-600'
+            }`}
             disabled={!inputLink || !webSelectedIndex}
           >
             Submit
           </button>
         </div>
-        </div>
+      </div>
+    </div>
 
         <div id="file-loader-container" className="p-2 border rounded-md border-green-500 gap-1.5 flex flex-col">
           <h2 className="underline font-serif text-lg antialiased font-medium">File Loader</h2>
@@ -254,6 +258,7 @@ const Admin = () => {
               <div className="flex gap-1.5 w-fit h-full">
                 <button
                   type="button" // Ensure the button does not trigger form submission
+                  onClick={handleCancelIndex}
                   disabled={!inputIndex}
                   className="border-2 border-red-500 px-2 py-1 rounded-md hover:bg-red-600 cursor-pointer disabled:cursor-not-allowed "
                 >

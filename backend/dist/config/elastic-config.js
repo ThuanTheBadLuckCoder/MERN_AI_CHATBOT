@@ -26,11 +26,6 @@ else if (process.env.ELASTICSEARCH_USER && process.env.ELASTICSEARCH_PASSWORD) {
         password: process.env.ELASTICSEARCH_PASSWORD,
     };
 }
-// const clientArgs: ElasticClientArgs = {
-//     client: new Client(config),
-//     indexName: process.env.ELASTIC_INDEX ?? "uncategorized_vectorstore",
-// };
-// const vectorStore = new ElasticVectorSearch(embeddings, clientArgs);
 const client = new Client({
     node: 'http://localhost:9200'
 });

@@ -2,60 +2,87 @@ import { NextFunction, Request, Response } from "express";
 import User from "../models/User.js";
 import { model } from "../config/gemini-config.js";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
-import { queryGeminiVectorStore, queryVectorStore } from "./components/elastic-controller.js";
-
-
-// let messageHistories: Record<string, InMemoryChatMessageHistory> = {};
+import { queryVectorStore } from "./components/elastic-controller.js";
+import { executor } from "./components/agents/custom-gemini-agent.js";
+import { AIMessage, HumanMessage } from "@langchain/core/messages";
 
 export const generateChatCompletion = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  const { message } = req.body;
-  
-  const context = await queryVectorStore(req, res, next, message);
-  console.log("given_context: ", context);
   try {
-    const user = await User.findById(res.locals.jwtData.id);
+    const { message } = req.body;
 
-    if (!user) {
-      return res.status(401).json({ message: "User not registered OR Token malfunctioned" });
+    // Validate input
+    if (typeof message !== "string" || !message.trim()) {
+      return res
+        .status(400)
+        .json({ message: "Invalid input: 'message' should be a non-empty string" });
     }
 
+    // Retrieve context using vector store
+    const context = await queryVectorStore(req, res, next, message);
+    console.log("Given context: ", context);
+
+    // Fetch user information
+    const user = await User.findById(res.locals.jwtData?.id);
+    if (!user) {
+      return res
+        .status(401)
+        .json({ message: "Unauthorized: User not found or token is invalid" });
+    }
+
+    // Prepare chat history
+    const chatHistory = user.chats
+      .filter((msg) => ["user", "assistant"].includes(msg.role)) // Only include relevant roles
+      .map((msg) => {
+        if (msg.role === "user") {
+          return new HumanMessage({ content: msg.content || "" });
+        }
+        if (msg.role === "assistant") {
+          return new AIMessage({ content: msg.content || "" });
+        }
+        return null; // Fallback in case of an invalid role
+      })
+      .filter(Boolean); // Remove null values
+
+    // Build the chat prompt
     const prompt = ChatPromptTemplate.fromMessages([
       [
         "system",
-        `You are a ChatBot that ONLY supports IT users. You can reply to greetings as usual. 
-          You must answer BASED ON the given context: {context}.
-          Check for spelling errors, IF message is incorrect based on context, 
-          based on the context return ask the user 
-          if this is what the user meant? else just answer base on context`, 
+        `You are a ChatBot that supports IT users only. You can reply to greetings as usual.
+         You must answer BASED ON the given context: {context}.
+         If the message is incorrect or unclear based on the context, ask the user for clarification.
+         Otherwise, respond accurately based on the context.`,
       ],
       ["human", "{input}"],
     ]);
 
-    const chain = prompt.pipe(model);
-    const response = await chain.invoke({
-      context: `${context}`,
-      input: `${message}`
-    })
-    
-    // grab chats of user
-    const chats = user.chats.map(({ role, content }) => ({
-        role,
-        content,
-    }));
-    chats.push({ content: message, role: "user" });
-    user.chats.push({ content: message, role: "user" });
-    
-    console.log(response);
+    // Add the current message to chat history
+    const input = message.trim();
+    user.chats.push({ content: input, role: "user" });
 
-    user.chats.push({ content: response.content, role: "assistant" })
+    // Generate response using the executor
+    const responseAgent = await executor.invoke({
+      input,
+      chat_history: chatHistory,
+      model,
+    });
+
+    // Extract response content
+    const responseContent =
+      JSON.parse(responseAgent.output)?.kwargs?.content || "No valid response generated.";
+    console.log("Response content: ", responseContent);
+
+    // Add assistant's response to chat history
+    user.chats.push({ content: responseContent, role: "assistant" });
     await user.save();
+
+    // Return updated chat history
     return res.status(200).json({ chats: user.chats });
   } catch (error) {
-    console.log(error);
-    return res.status(500).json({ message: "Something went wrong" });
+    console.error("Error in generateChatCompletion: ", error);
+    return res.status(500).json({ message: "Something went wrong", error: error.message });
   }
 };

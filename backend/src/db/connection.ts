@@ -9,7 +9,6 @@ export default async function connectToDatabase () {
     }
 }
 
-
 async function disconnectFromDatabase() {
     try {
         await disconnect();

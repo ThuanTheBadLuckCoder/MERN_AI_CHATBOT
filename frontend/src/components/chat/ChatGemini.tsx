@@ -1,20 +1,22 @@
-import { Box, IconButton } from '@mui/material'
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { deleteUserChats, getUserChats, sendChatRequestGemini } from '../../helper/api-communicator';
-import ChatItem from './ChatItem';
 import toast from 'react-hot-toast';
 import ChatBox from './ChatBox';
+
+interface ChatGeminiProps {
+    onMessageSend: () => void;
+  }
 
 type Message = {
     role: "user" | "assistant";
     content: string;
 };
 
-const ChatGemini = () => {
+const ChatGemini = ({ onMessageSend }: ChatGeminiProps) => {
     const navigate = useNavigate();
-    const inputRef = useRef<HTMLInputElement | null>(null);
+    const inputRef = useRef<HTMLTextAreaElement | null>(null);
     const auth = useAuth();
     const [chatMessages, setChatMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState<string>("");
@@ -30,6 +32,7 @@ const ChatGemini = () => {
         }
         const newMessage: Message = { role: "user", content };
         setChatMessages((prev) => [...prev, newMessage]);
+        onMessageSend();
         const chatData = await sendChatRequestGemini(content);
         setChatMessages([...chatData.chats]);
     };
@@ -54,10 +57,10 @@ const ChatGemini = () => {
         }
     }, [auth]);
 
-    const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleInputChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
         setInputValue(event.target.value);
     };
-    const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    const handleKeyPress = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (event.key === "Enter") {
             event.preventDefault(); // Prevents the default behavior (like form submission)
             handleSubmit();

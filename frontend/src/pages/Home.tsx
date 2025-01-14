@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 import logo from "../../public/codfe_logo.svg";
-import ChatBox from "../components/chat/ChatBox";
+import bg from '../../public/main_bg.png'
 import { useNavigate } from "react-router-dom";
 
 const Home = () => {
   const [activeQuestion, setActiveQuestion] = useState<string | null>(null);
   const navigate = useNavigate();
-  
+
   const faqData = [
     {
       id: "faq-1",
@@ -33,15 +33,22 @@ const Home = () => {
   };
 
   const handleTryCodfe = () => {
-    navigate("/chat");
+    navigate("/login");
   };
 
   return (
-    <div className="size-full flex flex-col gap-10">
+    <div className="size-full flex flex-col gap-40 my-40">
       {/* Intro Section */}
-      <div id="intro-codfe" className="flex flex-row gap-5 my-40 px-10">
-      <div className="h-96 gap-10 flex flex-col ml-20">
-          <h1 className="text-8xl flex relative cursor-not-allowed">
+      <div id="intro-codfe" className="flex flex-row gap-5 mt-40 px-10">
+        <div className="size-full" style={{
+      backgroundImage: `url(${bg})`,
+      backgroundSize: "contain",
+      backgroundPosition: "left",
+      backgroundRepeat: "no-repeat",
+    }}>
+
+        <div className="h-96 gap-10 flex flex-col ml-20">
+          <h1 className="text-8xl flex relative cursor-not-allowed font-bold">
             Meet C
             <img
               src={logo}
@@ -50,52 +57,54 @@ const Home = () => {
             />
             dfe
           </h1>
-          <span className="text-4xl cursor-not-allowed">
-            Codfe is an AI assistant tailored to empower every developer, every project, and maximize productivity.
+          <span className="text-5xl cursor-not-allowed">
+            Codfe is an AI assistant tailored to empower every developer, <br />every project, and maximize productivity.
           </span>
-          <button 
-          onClick={handleTryCodfe}
-          className="border-2 px-8 py-2 rounded-md border-green-500 bg-green-950 hover:bg-green-900 text-xl w-fit">
+          <button
+            onClick={handleTryCodfe}
+            className="border-2 px-8 py-2 rounded-md border-green-500 bg-green-950 hover:bg-green-900 text-xl w-fit">
             Try Codfe
           </button>
+        </div>
+    </div>
 
-        </div>
-        <div className="h-96">
-          <img src="https://cdn.dribbble.com/users/214929/screenshots/4967879/ai-loader-opt.gif" />
-        </div>
-        
       </div>
 
       {/* Chatbox FAQ Section */}
-      <div id="chatbox-faq" className="my-20 px-20">
+      <div id="chatbox-faq" className="">
         <div className="h-96">
-          <h1 className="text-2xl mb-5">Codfe FQAs</h1>
-          <div className="rounded-md shadow-md bg-zinc-900 text-white flex flex-col gap-4 w-3/4 mx-auto">
-            <div className="flex flex-col gap-3 h-72 overflow-y-auto p-4">
+          <div className=" text-white flex flex-col gap-4 w-11/12 mx-auto">
+            <div className="flex flex-col gap-3 h-96 overflow-y-auto rounded-2xl shadow-md bg-zinc-900">
+              <div className="bg-zinc-900 sticky top-0">
+                <div className="h-10 flex flex-row justify-between items-start mx-2 my-2 z-50">
+                <div className="relative w-fit h-full">
+                  <button type="button" className="flex w-full bg-neutral-900 h-full text-white font-bold py-2 px-4 border border-green-500 rounded-xl overflow-hidden text-left gap-2.5 justify-between">
+                    <div className="w-5/6 flex flex-row justify-between truncate flex-1 px-4">Codfe FQAs</div>
+                  </button>
+                </div>
+                </div>
+              </div>
               {faqData.map(({ id, question, answer }) => (
-                <div key={id} className="flex flex-col gap-2">
+                <div key={id} className="flex flex-col gap-2 mx-4">
                   {/* Question Bubble */}
                   <div
                     onClick={() => toggleAnswer(id)}
                     className="self-end max-w-lg flex flex-row-reverse gap-3"
                   >
-                    <div className="flex text-sm font-medium border size-8 rounded-full text-xl p-2 items-center justify-center bg-white">
-                      <p className="size-5 flex items-center justify-center text-black font-sans cursor-default">U</p>
-                      </div>
-                    <div className="bg-green-700 text-white p-3 rounded-2xl text-left cursor-pointer hover:bg-green-600">{question}</div>
+                    <div className="bg-neutral-800 text-white px-4 py-2 border border-neutral-800 rounded-full text-left cursor-pointer hover:bg-green-500 hover:border-green-500 text-lg">{question}</div>
                   </div>
 
                   {/* Answer Bubble */}
                   {activeQuestion === id && (
                     <div className="self-start max-w-lg flex flex-row gap-3">
                       <img src="codfe_logo.svg" alt="openai" className="size-8 border border-green-500 rounded-full" />
-                    <div className="bg-gray-700 text-white p-3 rounded-2xl text-left">{answer}</div>
+                      <div className="text-white text-justify rounded-2xl text-left text-lg">{answer}</div>
                     </div>
                   )}
                 </div>
               ))}
             </div>
-          
+
           </div>
         </div>
       </div>

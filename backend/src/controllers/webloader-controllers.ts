@@ -18,12 +18,18 @@ const textSplitter = new RecursiveCharacterTextSplitter({
 export const EmbeddingsVectorStore = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { link, index } = req.body;
-        // console.log("link: ", link);
-        // console.log("indexChosen: ", index);
         const cheerioLoader = new CheerioWebBaseLoader(`${link}`);
         const loadedDocs = await cheerioLoader.load();
-        // console.log("loadedDocs: ", loadedDocs);
-        const splits = await textSplitter.splitDocuments(loadedDocs);
+        console.log("loadedDocs: ", loadedDocs);
+
+        const cleanedDocs = loadedDocs.map(doc => ({
+            ...doc,
+            pageContent: doc.pageContent.replace(/\n/g, '').replace(/\s+/g, ' ').trim(),
+        }));
+
+        console.log("loadedDocs: ", cleanedDocs);
+
+        const splits = await textSplitter.splitDocuments(cleanedDocs);
 
         const documents: Document[] = splits.map((split) => ({
             pageContent: split.pageContent,

@@ -14,6 +14,10 @@
     height: 32px;
 }
 
+.user .avatar-size {
+    display: none;
+}
+
 .chat-content {
     width: 50rem;
 }
@@ -26,13 +30,11 @@
 }
 
 .user .content-container span {
-    background-color: rgb(22 101 52 / var(--tw-bg-opacity, 1));
+    background-color: rgb(38 38 38 / var(--tw-bg-opacity, 1));
     padding-left: 1rem;
     padding-right: 1rem;
     padding-top: 0.5rem;
     padding-bottom: 0.5rem;
-    border: 1px solid rgb(22 101 52 / var(--tw-bg-opacity, 1));
+    border: 1px solid rgb(38 38 38 / var(--tw-bg-opacity, 1));
     border-radius: 9999px;
 }
-
-#input-question {}

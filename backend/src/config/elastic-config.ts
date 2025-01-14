@@ -4,24 +4,19 @@ import { Client, type ClientOptions  } from "@elastic/elasticsearch";
 import * as fs from "node:fs";
 import { TaskType } from "@google/generative-ai";
 import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
-
-
 export const embeddingsOpenAI = new OpenAIEmbeddings({
     apiKey: process.env.OPENAI_API_KEY,
     batchSize: 512,
     model: "text-embedding-3-small",
 });
-
 export const embeddingsGemini = new GoogleGenerativeAIEmbeddings({
     model: "text-embedding-004", // 768 dimensions
     taskType: TaskType.RETRIEVAL_DOCUMENT,
     title: "Document title",
   });
-
 const config: ClientOptions = {
     node: process.env.ELASTIC_URL ?? "http://127.0.0.1:9200/"
 }
-
 if (process.env.ELASTIC_API_KEY) {
     config.auth = {
         apiKey: process.env.ELASTIC_API_KEY,
@@ -32,17 +27,7 @@ if (process.env.ELASTIC_API_KEY) {
         password: process.env.ELASTICSEARCH_PASSWORD,
     };
 }
-
-// const clientArgs: ElasticClientArgs = {
-//     client: new Client(config),
-//     indexName: process.env.ELASTIC_INDEX ?? "uncategorized_vectorstore",
-// };
-
-// const vectorStore = new ElasticVectorSearch(embeddings, clientArgs);
-
 const client = new Client({
     node: 'http://localhost:9200'
-})
-
+});
 export { client, config }
-

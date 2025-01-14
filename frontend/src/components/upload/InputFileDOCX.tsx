@@ -40,6 +40,16 @@ export default function InputFileDOCX({ chosenIndices }: InputFileDOCXProps) {
         }
     };
 
+    const resetFileInput = () => {
+        // Reset the file input element
+        const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+        if (fileInput) {
+            fileInput.value = '';
+        }
+        setSelectedFile(null);
+        setFileContent("");
+    };
+
     const handleSubmitFile = async () => {
         if (!selectedFile || !fileContent) {
             toast.error("Please select a file first!");
@@ -50,6 +60,7 @@ export default function InputFileDOCX({ chosenIndices }: InputFileDOCXProps) {
             const response = await sendFileRequest(selectedFile.name, fileContent, chosenIndices);
             if (response) {
                 toast.success("Successfully sent file to server!");
+                resetFileInput();
             }
         } catch (error) {
             toast.error("Failed to send file to server");

@@ -30,7 +30,7 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: #888; /* scrollbar thumb color */
+  background-color: rgb(22 101 52 / var(--tw-text-opacity, 1));
   border-radius: 10px;
 }
 
@@ -39,7 +39,7 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1; /* scrollbar track color */
+  background: #00000000; /* scrollbar track color */
   border-radius: 10px;
 }
 /* Scroll bar */
@@ -70,4 +70,89 @@ main {
   --tw-bg-opacity: 1;
   background-color: rgb(63 63 70 / var(--tw-bg-opacity, 1));
   color: #fff;
+}
+
+
+/* Style the autocomplete suggestions */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  /* Override the default yellow background */
+  -webkit-box-shadow: 0 0 0 30px rgba(23, 23, 23, 0) inset !important;
+  
+  /* Change text color of the autocomplete text */
+  -webkit-text-fill-color: rgb(255, 255, 255) !important;
+  
+  /* Optional: Add a transition for smooth color changes */
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Style the autocomplete suggestions dropdown */
+input:-webkit-autofill::-webkit-credentials-auto-fill-button {
+  /* Hide the credentials button if desired */
+  /* visibility: hidden; */
+  /* display: none; */
+}
+
+/* Style the autocomplete dropdown menu */
+input::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
+
+/* Firefox specific styles */
+input:-moz-autofill,
+input:-moz-autofill:focus {
+  background-color: rgb(23, 23, 23) !important;
+  color: rgb(163, 163, 163) !important;
+}
+
+/* Microsoft Edge styles */
+input:-ms-input-placeholder {
+  color: rgb(163, 163, 163) !important;
+}
+
+/* Hide the default checkbox */
+.custom-checkbox input[type="checkbox"] {
+  display: none;
+}
+
+/* Style the custom checkbox */
+.custom-checkbox div span {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  background: #00000000; /* Default background */
+  border: 2px solid #00000000;
+  border-radius: 2px; /* Optional for rounded corners */
+  cursor: pointer;
+  position: relative;
+  vertical-align: middle;
+  margin-right: 8px;
+  border: 1px solid;
+}
+
+/* Change background when the checkbox is checked */
+.custom-checkbox input[type="checkbox"]:checked + div span {
+  background-color: rgba(1, 245, 140, 1);
+  border-color: rgba(1, 245, 140, 1);
+}
+
+/* Add a checkmark when checked */
+.custom-checkbox input[type="checkbox"]:checked + div span::after {
+  content: "";
+  position: absolute;
+  top: 0.01rem;
+  left: 0.30rem;
+  width: 5px;
+  height: 12px;
+  border: solid white;
+  border-width: 0 3px 3px 0;
+  transform: rotate(45deg);
+}
+
+.bg-green-custom {
+  background-color: rgba(1, 245, 140, 1);
+}
+.text-green-custom {
+  color: rgba(1, 245, 140, 1);
 }

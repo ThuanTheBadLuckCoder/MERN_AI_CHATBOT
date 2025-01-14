@@ -11,12 +11,18 @@ type Message = {
     content: string;
 };
 
-const ChatGPT = () => {
+interface ChatGPTProps {
+    onMessageSend: () => void;
+  }
+
+const ChatGPT = ({ onMessageSend }: ChatGPTProps) => {
     const navigate = useNavigate();
-    const inputRef = useRef<HTMLInputElement | null>(null);
+    const inputRef = useRef<HTMLTextAreaElement | null>(null);
     const auth = useAuth();
     const [chatMessages, setChatMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState<string>("");
+
+    
     const handleSubmit = async () => {
         const content = inputRef.current?.value.trim() as string;
         if (!content) {
@@ -28,6 +34,7 @@ const ChatGPT = () => {
         }
         const newMessage: Message = { role: "user", content };
         setChatMessages((prev) => [...prev, newMessage]);
+        onMessageSend();
         const chatData = await sendChatRequest(content);
         setChatMessages([...chatData.chats]);
     };
@@ -54,10 +61,10 @@ const ChatGPT = () => {
         
     }, [auth]);
 
-    const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleInputChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
         setInputValue(event.target.value);
     };
-    const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    const handleKeyPress = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (event.key === "Enter") {
             event.preventDefault(); // Prevents the default behavior (like form submission)
             handleSubmit();

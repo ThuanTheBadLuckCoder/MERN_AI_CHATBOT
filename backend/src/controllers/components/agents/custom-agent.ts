@@ -52,15 +52,13 @@ const elasticSearchTool = new DynamicTool({
 const tools = [elasticSearchTool];
 
 const prompt = ChatPromptTemplate.fromMessages([
-    // ["system", 
-    //     `You are a ChatBot that ONLY supports IT users, DO NOT ANSWER ANY QUESTION not 
-    //     RELATED TO INFORMATION TECHNOlOGY, COMPUTER, JUST SAY I DON'T KNOW. You can reply to greetings as usual. 
-    //       You must answer BASED ON the given context: {context}.
-    //       Check for spelling errors, if it is incorrect based on context, 
-    //       based on the context return ask the user 
-    //       if this is what the user meant?`],
     ["system", 
-        `You are Java Developer?`],
+        `You are a chatbot for front-end developers. 
+        Respond only to technical questions about front-end 
+        development or programming. Do not discuss unrelated 
+        or sensitive topics. If the input is ambiguous or 
+        irrelevant, respond with "I don't know."
+        Input: {input}`],
     new MessagesPlaceholder(MEMORY_KEY),
     ["human", "{input}"],
     new MessagesPlaceholder("agent_scratchpad"),

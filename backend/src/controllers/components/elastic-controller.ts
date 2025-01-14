@@ -6,7 +6,6 @@ import User from "../../models/User.js";
 
 export const queryVectorStore = async (req: Request, res: Response, next: NextFunction, message: string) => {
     const index = "*";
-    // console.log("messageQueryVectorStore: ", message);
     const filter = [
         {
             operator: "wildcard",
@@ -28,8 +27,6 @@ export const queryVectorStore = async (req: Request, res: Response, next: NextFu
     );
 
     const context = similaritySearchResults.map((result) => result.pageContent);
-    // console.log("Context: ", context);
-    // console.log("similaritySearchResults: ", similaritySearchResults);
     return context;
 }
 

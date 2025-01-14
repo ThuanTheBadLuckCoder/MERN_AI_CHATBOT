@@ -15,9 +15,6 @@ import { retriever } from "./components/model-io/web-loader.js";
 import { queryGeminiVectorStore, queryVectorStore } from "./components/elastic-controller.js";
 import { executor } from "./components/agents/custom-agent.js";
 
-
-// let messageHistories: Record<string, InMemoryChatMessageHistory> = {};
-
 export const generateChatCompletion = async (
   req: Request,
   res: Response,
@@ -38,35 +35,6 @@ export const generateChatCompletion = async (
     if (!user) {
       return res.status(401).json({ message: "User not registered OR Token malfunctioned" });
     }
-    // need to custom (Agents)
-    let prompt: ChatPromptTemplate<any, any>
-
-    if (!context) {
-      prompt = ChatPromptTemplate.fromMessages([
-        "system", "Say I don't know"
-      ])
-    } else {
-      prompt = ChatPromptTemplate.fromMessages([
-        [
-          "system",
-          `You are a ChatBot that ONLY supports IT users. You can reply to greetings as usual. 
-          You must answer BASED ON the given context: {given_context}.
-          Check for spelling errors, if it is incorrect based on context, 
-          based on the context return ask the user 
-          if this is what the user meant?`,
-        ],
-        ["placeholder", "{chat_history}"],
-        ["human", message],
-      ]);
-    }
-    // const chain = RunnableSequence.from<ChainInput>([
-    //   RunnablePassthrough.assign({
-    //     chat_history: filterMessages,
-    //     given_context: async () => context,
-    //   }),
-    //   prompt,
-    //   model,
-    // ]);
 
     const chatHistory = user.chats
       .filter((message) => message.role === 'user' || message.role === 'assistant') // Lọc các tin nhắn có role là 'user' hoặc 'assistant'
@@ -77,26 +45,18 @@ export const generateChatCompletion = async (
           return new AIMessage({ content: message.content });
         }
       });
-
-
-    // grab chats of user
     const chats = user.chats.map(({ role, content }) => ({
       role,
       content,
     })) as ChatCompletionRequestMessage[];
     chats.push({ content: message, role: "user" });
     user.chats.push({ content: message, role: "user" });
-
-    
-
     const input = message;
-    // const chatHistoryAgent: BaseMessage[] = [];
     const responseAgent = await executor.invoke({
       input,
       chat_history: chatHistory,
       model,
     });
-
     user.chats.push({ content: responseAgent.output, role: "assistant" })
     await user.save();
     return res.status(200).json({ chats: user.chats });

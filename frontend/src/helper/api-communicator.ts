@@ -1,8 +1,17 @@
 import axios from "axios";
-export const loginUser = async (email: string, password: string) => {
-  const res = await axios.post("/user/login", { email, password });
+export const loginUser = async (email: string, password: string, remember: boolean) => {
+  const res = await axios.post("/user/login", { email, password, remember });
   if (res.status !== 200) {
     throw new Error("Unable to login");
+  }
+  const data = await res.data;
+  return data;
+};
+
+export const isExistedLink = async (url: string) => {
+  const res = await axios.post("/link/check-url", { url });
+  if (res.status !== 200) {
+    throw new Error("Link IS NOT valid!");
   }
   const data = await res.data;
   return data;

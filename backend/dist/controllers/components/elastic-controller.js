@@ -4,7 +4,6 @@ import { client, config, embeddingsGemini, embeddingsOpenAI } from "../../config
 import User from "../../models/User.js";
 export const queryVectorStore = async (req, res, next, message) => {
     const index = "*";
-    // console.log("messageQueryVectorStore: ", message);
     const filter = [
         {
             operator: "wildcard",
@@ -19,8 +18,6 @@ export const queryVectorStore = async (req, res, next, message) => {
     const vectorStore = new ElasticVectorSearch(embeddingsOpenAI, clientArgs);
     const similaritySearchResults = await vectorStore.similaritySearch(`${message}`, 1, filter);
     const context = similaritySearchResults.map((result) => result.pageContent);
-    // console.log("Context: ", context);
-    // console.log("similaritySearchResults: ", similaritySearchResults);
     return context;
 };
 export const queryGeminiVectorStore = async (req, res, next, message) => {

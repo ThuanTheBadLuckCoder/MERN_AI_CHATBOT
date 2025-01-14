@@ -1,6 +1,7 @@
-.isOnSite div {
+
+.isOnSite > div > div {
     border-color: rgb(34 197 94 / var(--tw-border-opacity, 1)) !important;
-    background-color: rgb(5 46 22 / var(--tw-bg-opacity, 1)) !important;
+    background-color: rgb(23 23 23 / var(--tw-bg-opacity, 1)) !important;
 }
 
 .logout {
@@ -14,6 +15,11 @@
 .logout:hover .logout-icon {
     color: rgb(239 68 68);
     
+}
+
+.logout:hover > div > div {
+  border: 1px solid transparent !important;
+  background-color: #00000000 !important;
 }
 
 .logout-icon {
@@ -86,7 +92,7 @@
   }
   
   .isOnSite {
-    background-color: rgba(255, 255, 255, 0.1); /* Highlight for active item */
+    /* background-color: rgba(255, 255, 255, 0.1); */
     transition: background-color 0.3s ease-in-out;
   }
   

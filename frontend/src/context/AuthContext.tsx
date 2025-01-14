@@ -20,7 +20,7 @@ import {
   type UserAuth = {
     isLoggedIn: boolean;
     user: User | null;
-    login: (email: string, password: string ) => Promise<void>;
+    login: (email: string, password: string, remember: boolean) => Promise<void>;
     signup: ( name: string, email: string, password: string ) => Promise<void>;
     logout: () => Promise<void>;
   };
@@ -42,8 +42,8 @@ import {
       }
       checkStatus();
     }, []);
-    const login = async (email: string, password: string) => {
-      const data = await loginUser(email, password);
+    const login = async (email: string, password: string, remember: boolean) => {
+      const data = await loginUser(email, password, remember);
       if (data) {
         setUser({ email: data.email, name: data.name, role: data.role });
         setIsLoggedIn(true);
