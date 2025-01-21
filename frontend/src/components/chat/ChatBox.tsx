@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ChatItem from './ChatItem';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import './styles/chat-component.css';
 import QuestionInput from './QuestionInput';
 
@@ -94,13 +93,7 @@ function ChatBox({
                     handleSubmit={handleSubmit}
                     handleDeleteClick={handleDeleteClick}
                 />
-                <p className="flex gap-0.5 items-center font-serif text-xs text-gray-500">
-                    <ErrorOutlineIcon
-                        sx={{ fontSize: 14, color: 'gray' }}
-                        className="cursor-help"
-                    />
-                    Code can make mistakes. Check important info.
-                </p>
+                
             </div>
 
             {/* Delete Confirmation Modal */}

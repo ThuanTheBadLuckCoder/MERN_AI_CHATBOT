@@ -1,0 +1,8 @@
+.yellow-custom {
+    color: rgb(255, 255, 0)
+}
+
+.tab-content {
+    height: 250px;
+    overflow: scroll;
+}

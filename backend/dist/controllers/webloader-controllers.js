@@ -13,12 +13,10 @@ export const EmbeddingsVectorStore = async (req, res, next) => {
         const { link, index } = req.body;
         const cheerioLoader = new CheerioWebBaseLoader(`${link}`);
         const loadedDocs = await cheerioLoader.load();
-        console.log("loadedDocs: ", loadedDocs);
         const cleanedDocs = loadedDocs.map(doc => ({
             ...doc,
             pageContent: doc.pageContent.replace(/\n/g, '').replace(/\s+/g, ' ').trim(),
         }));
-        console.log("loadedDocs: ", cleanedDocs);
         const splits = await textSplitter.splitDocuments(cleanedDocs);
         const documents = splits.map((split) => ({
             pageContent: split.pageContent,

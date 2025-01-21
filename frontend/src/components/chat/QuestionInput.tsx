@@ -48,7 +48,7 @@ const QuestionInput: React.FC<QuestionInputProps> = ({
   return (
     <div className="flex flex-col w-full gap-1.5">
       <div className="flex w-full gap-1.5 items-center justify-center">
-        <div className="flex w-full items-center justify-between gap-1.5 p-2 rounded-full bg-inherit outline outline-1 -outline-offset-1 outline-green-900 focus-within:outline focus-within:outline-1 focus-within:-outline-offset-1 focus-within:outline-green-600">
+        <div className="flex w-full items-center justify-between gap-1.5 p-2 rounded-3xl bg-inherit outline outline-1 -outline-offset-1 outline-green-900 focus-within:outline focus-within:outline-1 focus-within:-outline-offset-1 focus-within:outline-green-600">
           <textarea
             ref={inputRef}
             value={inputValue}
@@ -64,7 +64,7 @@ const QuestionInput: React.FC<QuestionInputProps> = ({
             }}
           />
           <div className='flex size-fit'>
-            <div  className='size-fit'>
+            <div className='size-fit'>
               <button
                 onClick={handleSubmit}
                 disabled={!inputValue.trim()}

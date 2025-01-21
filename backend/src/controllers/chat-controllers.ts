@@ -57,6 +57,7 @@ export const generateChatCompletion = async (
       chat_history: chatHistory,
       model,
     });
+    console.log("responseAgent: ", responseAgent); 
     user.chats.push({ content: responseAgent.output, role: "assistant" })
     await user.save();
     return res.status(200).json({ chats: user.chats });

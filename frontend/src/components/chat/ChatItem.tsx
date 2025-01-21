@@ -1,14 +1,24 @@
 import React from "react";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { coldarkDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { useAuth } from "../../context/AuthContext";
-import toast from "react-hot-toast";
 import "./styles/chat-component.css";
+import TabsChatItems from "../tabs/Tabs";
 
 const CODE_PATTERNS = {
   html: /(?:<(!DOCTYPE\s+html|html|head|body|[a-zA-Z]+)[^>]*>|<\/[a-zA-Z]+>)[\s\S]*(?:<\/(?:html|body|div|p|[a-zA-Z]+)>)/i,
   css: /^\s*(?:(?:\.|#|@media|@import|@keyframes)[a-zA-Z][\w-]*\s*{|{[\s\S]*})/,
   javascript: /^\s*(?:function\s+\w+|const\s+\w+|let\s+\w+|var\s+\w+|class\s+\w+|import\s+[\w\s,{]*\s+from|export\s+(?:default\s+)?(?:function|class|const|let|var))/,
+  typescript: /^(?:interface\s+\w+|type\s+\w+|enum\s+\w+|namespace\s+\w+|abstract\s+class)/,
+  jsx: /(?:<[A-Z][a-zA-Z]*|<>\s*{)/,
+  tsx: /(?:<[A-Z][a-zA-Z]*(?:<.*?>)?\s*(?:{.*?})?|<>\s*{)/,
+};
+
+const FILE_EXTENSION_MAP: Record<string, string> = {
+  'js': 'javascript',
+  'jsx': 'jsx',
+  'ts': 'typescript',
+  'tsx': 'tsx',
+  'html': 'html',
+  'css': 'css',
 };
 
 function isHtmlContent(str: string): boolean {
@@ -60,19 +70,73 @@ function isCodeBlock(str: string): boolean {
 function extractCodeBlocks(message: string, isAssistant: boolean) {
   if (message.includes("```")) {
     const blocks = message.split("```");
-    return blocks.map((block, index) => ({
-      content: block.trim(),
-      isCode: index % 2 === 1,
-      language: index % 2 === 1 ? detectLanguage(block) : null,
-    }));
+    return blocks.map((block, index) => {
+      if (index % 2 === 1) { // This is a code block
+        const firstLineBreak = block.indexOf('\n');
+        let content = block;
+        let language = null;
+        
+        if (firstLineBreak !== -1) {
+          const possibleLang = block.substring(0, firstLineBreak).trim();
+          if (possibleLang) {
+            if (possibleLang.startsWith('.')) {
+              // It's a file extension - use the mapping
+              const ext = possibleLang.slice(1);
+              language = FILE_EXTENSION_MAP[ext] || ext;
+            } else {
+              // It's a language identifier - check if it's a known extension
+              language = FILE_EXTENSION_MAP[possibleLang] || possibleLang;
+            }
+            content = block.substring(firstLineBreak + 1);
+          }
+        }
+
+        // Clean up the content
+        content = content.replace(/^(html|javascript|css|tsx?|jsx?)?\s*\n?/, '').trim();
+        
+        // If no language was detected from the marker, try to detect from content
+        if (!language) {
+          const detectedLang = detectLanguage(content);
+          // Map the detected language if it has a mapping
+          language = FILE_EXTENSION_MAP[detectedLang] || detectedLang;
+        }
+        
+        return {
+          content,
+          isCode: true,
+          language,
+        };
+      }
+      
+      return {
+        content: block.trim(),
+        isCode: false,
+        language: null,
+      };
+    });
   }
+
+  // Handle code without markers
   if (isAssistant && isCodeBlock(message)) {
+    const fileExtMatch = message.match(/^\.([a-zA-Z]+)\s*\n/);
+    if (fileExtMatch) {
+      const ext = fileExtMatch[1];
+      return [{
+        content: message.substring(fileExtMatch[0].length).trim(),
+        isCode: true,
+        language: FILE_EXTENSION_MAP[ext] || ext,
+      }];
+    }
+    
+    const detectedLang = detectLanguage(message.trim());
     return [{
       content: message.trim(),
       isCode: true,
-      language: detectLanguage(message.trim()),
+      language: FILE_EXTENSION_MAP[detectedLang] || detectedLang,
     }];
   }
+
+  // Default case: treat as regular text
   return [{
     content: message,
     isCode: false,
@@ -80,31 +144,133 @@ function extractCodeBlocks(message: string, isAssistant: boolean) {
   }];
 }
 
-const CodeBlock = ({ language, content }: { language: string | null, content: string }) => (
-  <div className="w-full">
-    <div className="bg-green-900 px-4 py-2 text-xs font-mono rounded-t-lg flex justify-between items-center">
-      <span>{language}</span>
-      <button 
-        onClick={() => handleCopy(content)} 
-        className="copy-button text-xs text-blue-500 hover:underline"
-        aria-label="Copy code block"
-      >
-        Copy
-      </button>
-    </div>
-    <SyntaxHighlighter language={language || "plaintext"} style={coldarkDark} className="w-full no-margin rounded-b-lg">
-      {content}
-    </SyntaxHighlighter>
-  </div>
-);
+const formatContent = (content: string): React.ReactNode[] => {
+  // First split by newlines to handle bullet points
+  const lines = content.split('\n');
+  const formattedLines: React.ReactNode[] = [];
 
-const handleCopy = (code: string) => {
-  navigator.clipboard.writeText(code).then(() => {
-    toast.success("Copied");
-  }).catch(() => {
-    toast.error("Failed to copy");
+  lines.forEach((line, lineIndex) => {
+    // Check if line starts with single asterisk for bullet point
+    if (line.trim().startsWith('*') && !line.trim().startsWith('**')) {
+      // Remove the asterisk and trim
+      const bulletContent = line.trim().slice(1).trim();
+      formattedLines.push(
+        <div key={`line-${lineIndex}`} className="flex items-start gap-2">
+          <span className="">•</span>
+          <span>{formatInlineContent(bulletContent)}</span>
+        </div>
+      );
+    } else {
+      // Handle regular line with inline formatting
+      formattedLines.push(
+        <div key={`line-${lineIndex}`}>
+          {formatInlineContent(line)}
+        </div>
+      );
+    }
   });
+
+  return formattedLines;
 };
+
+// Helper function to handle inline formatting (bold and code)
+const formatInlineContent = (text: string): React.ReactNode[] => {
+  const parts: React.ReactNode[] = [];
+  let currentIndex = 0;
+
+  while (currentIndex < text.length) {
+    // Look for the next marker (** or `)
+    const boldIndex = text.indexOf('**', currentIndex);
+    const codeIndex = text.indexOf('`', currentIndex);
+
+    // No more special formatting found
+    if (boldIndex === -1 && codeIndex === -1) {
+      parts.push(
+        <span key={`text-${currentIndex}`}>
+          {text.slice(currentIndex)}
+        </span>
+      );
+      break;
+    }
+
+    // Determine which comes first
+    let nextIndex: number;
+    let isCode: boolean;
+
+    if (boldIndex === -1) {
+      nextIndex = codeIndex;
+      isCode = true;
+    } else if (codeIndex === -1) {
+      nextIndex = boldIndex;
+      isCode = false;
+    } else {
+      if (codeIndex < boldIndex) {
+        nextIndex = codeIndex;
+        isCode = true;
+      } else {
+        nextIndex = boldIndex;
+        isCode = false;
+      }
+    }
+
+    // Add text before the marker
+    if (nextIndex > currentIndex) {
+      parts.push(
+        <span key={`text-${currentIndex}`}>
+          {text.slice(currentIndex, nextIndex)}
+        </span>
+      );
+    }
+
+    if (isCode) {
+      // Handle inline code
+      const endCode = text.indexOf('`', nextIndex + 1);
+      if (endCode === -1) {
+        parts.push(
+          <span key={`text-${nextIndex}`}>
+            {text.slice(nextIndex)}
+          </span>
+        );
+        break;
+      }
+      const codeContent = text.slice(nextIndex + 1, endCode);
+      parts.push(
+        <code 
+          key={`code-${nextIndex}`}
+          className="px-1.5 py-0.5 rounded bg-gray-700 text-gray-200 font-mono text-sm"
+        >
+          {codeContent}
+        </code>
+      );
+      currentIndex = endCode + 1;
+    } else {
+      // Handle bold text
+      const endBold = text.indexOf('**', nextIndex + 2);
+      if (endBold === -1) {
+        parts.push(
+          <span key={`text-${nextIndex}`}>
+            {text.slice(nextIndex)}
+          </span>
+        );
+        break;
+      }
+      const boldContent = text.slice(nextIndex + 2, endBold);
+      parts.push(
+        <strong 
+          key={`bold-${nextIndex}`} 
+          className="font-bold text-lg"
+        >
+          {boldContent}
+        </strong>
+      );
+      currentIndex = endBold + 2;
+    }
+  }
+
+  return parts;
+};
+
+
 
 const ChatItem = ({ content, role }: { content: string; role: "user" | "assistant"; }) => {
   const auth = useAuth();
@@ -125,15 +291,21 @@ const ChatItem = ({ content, role }: { content: string; role: "user" | "assistan
           )}
         </div>
 
-        <div className="chat-content flex flex-col gap-5 my-auto">
+        <div className="w-3/5 flex flex-col my-auto justify-start gap-2">
           {blocks.map((block, index) => (
             <React.Fragment key={index}>
               {block.isCode ? (
-                <CodeBlock language={block.language} content={block.content} />
-              ) : (
-                <div className="content-container font-serif text-justify">
-                  <span>{block.content}</span>
+                <div className="h-fit w-full">
+                  {block.language && (
+                    <TabsChatItems language={block.language} content={block.content}/>
+                  )}
                 </div>
+              ) : (
+                block.content && (
+                  <div className="content-container font-serif text-justify">
+                    <span>{formatContent(block.content)}</span>
+                  </div>
+                )
               )}
             </React.Fragment>
           ))}
