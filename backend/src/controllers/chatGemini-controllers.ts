@@ -4,6 +4,7 @@ import { model } from "../config/gemini-config.js";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { queryVectorStore } from "./components/elastic-controller.js";
 import { executor } from "./components/agents/custom-gemini-agent.js";
+import { googleGemini } from './components/agents/google-gemini-agent.js'
 import { AIMessage, HumanMessage } from "@langchain/core/messages";
 
 export const generateChatCompletion = async (
@@ -69,11 +70,16 @@ export const generateChatCompletion = async (
       chat_history: chatHistory,
       model,
     });
+    const responseSearchAgent = await googleGemini.invoke({
+      input,
+      chat_history: chatHistory,
+      model,
+    });
 
     // Extract response content
     const responseContent =
-      JSON.parse(responseAgent.output)?.kwargs?.content || "No valid response generated.";
-    console.log("Response content: ", responseContent);
+      JSON.parse(responseSearchAgent.output)?.kwargs?.content || "No valid response generated.";
+    // console.log("Response content: ", responseContent);
 
     // Add assistant's response to chat history
     user.chats.push({ content: responseContent, role: "assistant" });
