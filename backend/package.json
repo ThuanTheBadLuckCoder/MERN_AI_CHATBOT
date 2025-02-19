@@ -37,6 +37,7 @@
     "mongoose": "^7.4.2",
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.10.0",
     "openai": "^3.3.0"
   },
   "devDependencies": {
@@ -47,6 +48,7 @@
     "@types/jsonwebtoken": "^9.0.1",
     "@types/multer": "^1.4.12",
     "@types/node": "^20.4.8",
+    "@types/nodemailer": "^6.4.17",
     "@types/whatwg-url": "^11.0.5",
     "nodemon": "^3.0.1",
     "ts-node": "^10.9.1",

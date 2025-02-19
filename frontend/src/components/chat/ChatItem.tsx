@@ -173,17 +173,64 @@ const formatContent = (content: string): React.ReactNode[] => {
   return formattedLines;
 };
 
+const MARKDOWN_LINK_PATTERN = /\[([^\]]+)\]\(([^)]+)\)/g;
+
 // Helper function to handle inline formatting (bold and code)
 const formatInlineContent = (text: string): React.ReactNode[] => {
   const parts: React.ReactNode[] = [];
   let currentIndex = 0;
+  let lastMatchEnd = 0;
+  const matches = Array.from(text.matchAll(MARKDOWN_LINK_PATTERN));
+
+  if (matches.length === 0) {
+    // If no links found, process the text for other formatting
+    return processNonLinkContent(text);
+  }
+
+  matches.forEach((match, index) => {
+    const [fullMatch, title, url] = match;
+    const matchStart = match.index!;
+
+    // Add any text before the link with regular formatting
+    if (matchStart > lastMatchEnd) {
+      const textBefore = text.slice(lastMatchEnd, matchStart);
+      parts.push(...processNonLinkContent(textBefore));
+    }
+
+    // Add the link
+    parts.push(
+      <a
+        key={`link-${index}`}
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-blue-500 hover:text-blue-600 underline"
+      >
+        {title}
+      </a>
+    );
+
+    lastMatchEnd = matchStart + fullMatch.length;
+  });
+
+  // Add any remaining text after the last link
+  if (lastMatchEnd < text.length) {
+    const textAfter = text.slice(lastMatchEnd);
+    parts.push(...processNonLinkContent(textAfter));
+  }
+
+  return parts;
+};
+
+// Helper function to process text without links for bold and code formatting
+const processNonLinkContent = (text: string): React.ReactNode[] => {
+  const parts: React.ReactNode[] = [];
+  let currentIndex = 0;
 
   while (currentIndex < text.length) {
-    // Look for the next marker (** or `)
     const boldIndex = text.indexOf('**', currentIndex);
     const codeIndex = text.indexOf('`', currentIndex);
 
-    // No more special formatting found
     if (boldIndex === -1 && codeIndex === -1) {
       parts.push(
         <span key={`text-${currentIndex}`}>
@@ -193,7 +240,6 @@ const formatInlineContent = (text: string): React.ReactNode[] => {
       break;
     }
 
-    // Determine which comes first
     let nextIndex: number;
     let isCode: boolean;
 
@@ -213,7 +259,6 @@ const formatInlineContent = (text: string): React.ReactNode[] => {
       }
     }
 
-    // Add text before the marker
     if (nextIndex > currentIndex) {
       parts.push(
         <span key={`text-${currentIndex}`}>
@@ -223,7 +268,6 @@ const formatInlineContent = (text: string): React.ReactNode[] => {
     }
 
     if (isCode) {
-      // Handle inline code
       const endCode = text.indexOf('`', nextIndex + 1);
       if (endCode === -1) {
         parts.push(
@@ -244,7 +288,6 @@ const formatInlineContent = (text: string): React.ReactNode[] => {
       );
       currentIndex = endCode + 1;
     } else {
-      // Handle bold text
       const endBold = text.indexOf('**', nextIndex + 2);
       if (endBold === -1) {
         parts.push(

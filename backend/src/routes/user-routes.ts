@@ -1,6 +1,8 @@
 import { Router } from "express";
 import {
   getAllUsers,
+  requestPasswordReset,
+  resetPassword,
   userLogin,
   userLogout,
   userSignup,
@@ -20,5 +22,7 @@ userRoutes.post("/signup", validate(signupValidator), userSignup);
 userRoutes.post("/login", validate(loginValidator), userLogin);
 userRoutes.get("/auth-status", verifyToken, verifyUser);
 userRoutes.get("/logout", verifyToken, userLogout);
+userRoutes.post("/request-reset", requestPasswordReset);
+userRoutes.post("/reset-password", resetPassword);
 
 export default userRoutes;
