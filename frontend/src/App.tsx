@@ -10,6 +10,7 @@ import Admin from "./pages/Admin";
 import LeftNavi from "./components/LeftNavi";
 import "./App.css";
 import ChangePassword from "./pages/ChangePassword";
+import RequestOTP from "./pages/RequestOTP";
 
 function App() {
   const auth = useAuth();
@@ -20,7 +21,8 @@ function App() {
   const isLeftNaviVisible =
     location.pathname !== "/" &&
     location.pathname !== "/login" &&
-    location.pathname !== "/changepw" &&
+    location.pathname !== "/otp-request" &&
+    location.pathname !== "/change-password" &&
     location.pathname !== "/signup" &&
     location.pathname !== "/notfound";
 
@@ -73,7 +75,8 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
-            <Route path="/changepw" element={<ChangePassword />} />
+            <Route path="/otp-request" element={<RequestOTP />} />
+            <Route path="/change-password" element={<ChangePassword />} />
             {auth?.isLoggedIn && auth.user && (
               <Route path="/chat" element={<Chat />} />
             )}

@@ -26,6 +26,24 @@ export const signupUser = async ( name: string, email: string, password: string 
   return data;
 };
 
+export const sendOTPUser = async ( email: string ) => {
+  const res = await axios.post("/user/request-reset", { email });
+  if (res.status !== 200) {
+    throw new Error("Unable to Send OTP");
+  }
+  const data = await res.data;
+  return data;
+};
+
+export const authOTPUser = async ( email: string, otpCode: string ) => {
+  const res = await axios.post("/user/auth-otp", { email, otpCode });
+  if (res.status !== 200) {
+    throw new Error("Unable to auth OTP");
+  }
+  const data = await res.data;
+  return data;
+};
+
 export const checkAuthStatus = async () => {
   const res = await axios.get("/user/auth-status");
   if (res.status !== 200) {
@@ -80,6 +98,7 @@ export const createNewIndex = async (indexName: string) => {
   const data = await res.data;
   return data;
 }
+
 
 export const getUserChats = async () => {
   const res = await axios.get("/chat/all-chats");

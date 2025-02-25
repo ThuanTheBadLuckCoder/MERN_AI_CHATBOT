@@ -54,7 +54,7 @@ const Login = () => {
   };
 
   const handleForgotPassword = () => {
-    navigate("/changepw");
+    navigate("/otp-request");
   }
 
   const backToHomePage = () => {

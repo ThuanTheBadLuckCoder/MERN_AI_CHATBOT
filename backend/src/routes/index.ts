@@ -16,4 +16,5 @@ appRouter.use("/indice", indicesRoutes); //domain/api/v1/index
 appRouter.use("/chatGemini", chatGeminiRoutes);
 
 
+
 export default appRouter;

@@ -1,10 +1,11 @@
 import { NextFunction, Request, Response } from "express";
 import User from "../models/User.js";
 import { hash, compare } from "bcrypt";
-import { createToken } from "../utils/token-manager.js";
+import { createToken, verifyToken } from "../utils/token-manager.js";
 import { COOKIE_NAME } from "../utils/constants.js";
 import nodemailer from "nodemailer";
 import dotenv from 'dotenv';
+import OTP from "../models/OTP.js";
 
 
 dotenv.config();
@@ -200,7 +201,7 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-transporter.verify(function(error, success) {
+transporter.verify(function (error, success) {
   if (error) {
     console.log("Transporter error:", error);
   } else {
@@ -216,7 +217,7 @@ export const requestPasswordReset = async (
 ) => {
   try {
     const { email } = req.body;
-    
+
     // Check if user exists
     const user = await User.findOne({ email });
     if (!user) {
@@ -224,12 +225,11 @@ export const requestPasswordReset = async (
     }
 
     // Generate OTP
-    const otp = generateOTP();
-    
-    // Store OTP with 15-minute expiration
-    const expires = new Date();
-    expires.setMinutes(expires.getMinutes() + 15);
-    otpStore.set(email, { otp, expires });
+    const otpCode = Math.floor(100000 + Math.random() * 900000);
+    // console.log("otpCode: ", otpCode);
+
+    // Save OTP with expiration time
+    await OTP.create({ email, otp: otpCode });
 
     // Email template
     const mailOptions = {
@@ -238,92 +238,77 @@ export const requestPasswordReset = async (
       subject: "Password Reset Request",
       html: `
         <h1>Password Reset Request</h1>
-        <p>Your OTP for password reset is: <strong>${otp}</strong></p>
-        <p>This OTP will expire in 15 minutes.</p>
+        <p>Your OTP for password reset is: <strong>${otpCode}</strong></p>
+        <p>This OTP will expire in 5 minutes.</p>
         <p>If you didn't request this password reset, please ignore this email.</p>
       `,
     };
 
     // Send email
-    await transporter.sendMail(mailOptions);
+    try {
+      await transporter.sendMail(mailOptions);
+    } catch (emailError) {
+      console.error("Email sending failed:", emailError);
+      return res.status(500).json({ message: "Failed to send OTP email" });
+    }
 
-    return res.status(200).json({ 
+    return res.status(200).json({
       message: "OTP sent successfully",
-      expiresIn: "15 minutes"
+      expiresIn: "5 minutes"
     });
 
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ 
-      message: "ERROR", 
-      cause: error.message 
+    return res.status(500).json({
+      message: "ERROR",
+      cause: error.message
     });
   }
 };
 
-// Verify OTP and reset password
-export const resetPassword = async (
+export const verifyOTPUser = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   try {
-    const { email, otp, newPassword } = req.body;
-
-    // Check if OTP exists and is valid
-    const storedOTPData = otpStore.get(email);
-    if (!storedOTPData) {
-      return res.status(400).json({ 
-        message: "No OTP request found. Please request a new OTP." 
-      });
+    const { email, otpCode } = req.body;
+    console.log(email, otpCode);
+    if (!email || !otpCode) {
+      return res.status(400).json({ success: false, message: "Email and OTP are required." });
     }
 
-    // Check if OTP has expired
-    if (new Date() > storedOTPData.expires) {
-      otpStore.delete(email);
-      return res.status(400).json({ 
-        message: "OTP has expired. Please request a new one." 
-      });
+    // Find the most recent OTP for the given email
+    const otpRecord = await OTP.findOne({ email }).sort({ createdAt: -1 });
+
+    if (!otpRecord) {
+      return res.status(404).json({ success: false, message: "OTP not found or expired." });
     }
 
-    // Verify OTP
-    if (storedOTPData.otp !== otp) {
-      return res.status(400).json({ 
-        message: "Invalid OTP" 
-      });
+    // Check if OTP is already used
+    if (otpRecord.isUsed) {
+      return res.status(400).json({ success: false, message: "OTP has already been used." });
     }
 
-    // Hash new password
-    const hashedPassword = await hash(newPassword, 10);
+    // Check if OTP is expired
+    const expirationTime = new Date(otpRecord.createdAt.getTime() + 5 * 60 * 1000); // 5 minutes
+    if (new Date() > expirationTime) {
+      await OTP.deleteOne({ _id: otpRecord._id }); // Remove expired OTP
+      return res.status(400).json({ success: false, message: "OTP has expired." });
+    }
 
-    // Update password in database
-    await User.findOneAndUpdate(
-      { email },
-      { password: hashedPassword }
-    );
+    // Ensure OTP comparison works correctly
+    if (otpRecord.otp.toString() !== otpCode.toString()) {
+      return res.status(400).json({ success: false, message: "Invalid OTP." });
+    }
 
-    // Clear OTP from store
-    otpStore.delete(email);
+    // Mark OTP as used
+    otpRecord.isUsed = true;
+    await otpRecord.save();
 
-    return res.status(200).json({ 
-      message: "Password reset successful" 
-    });
-
+    return res.status(200).json({ success: true, message: "OTP verified successfully." });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ 
-      message: "ERROR", 
-      cause: error.message 
-    });
+    console.error("OTP Verification Error:", error);
+    return res.status(500).json({ success: false, message: "Internal Server Error", error: error.message });
   }
 };
-
-// Cleanup expired OTPs periodically
-setInterval(() => {
-  const now = new Date();
-  for (const [email, data] of otpStore.entries()) {
-    if (now > data.expires) {
-      otpStore.delete(email);
-    }
-  }
-}, 15 * 60 * 1000);
