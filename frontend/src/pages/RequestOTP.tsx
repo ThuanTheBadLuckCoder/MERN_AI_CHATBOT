@@ -1,13 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
-import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import logo from '../../public/codfe_logo.svg'
 import bg from '../../public/main_bg.png'
 import MarkEmailReadOutlinedIcon from '@mui/icons-material/MarkEmailReadOutlined';
-import PasswordOutlinedIcon from '@mui/icons-material/PasswordOutlined';
-import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
-import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
 import '../index.css'
 import { sendOTPUser } from "../helper/api-communicator";
 
@@ -71,8 +67,8 @@ const RequestOTP = () => {
       <div className="flex size-full flex-col items-center justify-center gap-8">
         <button onClick={backToHomePage}><img src={logo} className="size-12" /></button>
         <div className="border border-neutral-900 items-center flex flex-col p-10 gap-5 rounded-3xl bg-neutral-900/1 backdrop-blur">
-          <h1 className="text-4xl font-bold">Log in</h1>
-          <form onSubmit={handleSubmit} className="text-neutral-400">
+          <h1 className="text-4xl font-bold">Verification</h1>
+          <form onSubmit={handleSubmit} className="text-neutral-400 w-full">
             <div className="flex flex-col gap-3">
               <div id='email' className="flex flex-col gap-0.5">
                 <label className="text-sm">Email</label>
