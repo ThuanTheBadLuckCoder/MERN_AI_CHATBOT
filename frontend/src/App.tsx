@@ -9,7 +9,7 @@ import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
 import LeftNavi from "./components/LeftNavi";
 import "./App.css";
-import ChangePassword from "./pages/ChangePassword";
+import ChangePassword from "./pages/ForgotPassword";
 import RequestOTP from "./pages/RequestOTP";
 
 function App() {

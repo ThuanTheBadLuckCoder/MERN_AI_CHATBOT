@@ -26,6 +26,15 @@ export const signupUser = async ( name: string, email: string, password: string 
   return data;
 };
 
+export const changePassword = async ( email: string, password: string ) => {
+  const res = await axios.patch("/user/change-password", { email, newPassword: password });
+  if (res.status !== 200) {
+    throw new Error("Unable to Signup");
+  }
+  const data = await res.data;
+  return data;
+}
+
 export const sendOTPUser = async ( email: string ) => {
   const res = await axios.post("/user/request-reset", { email });
   if (res.status !== 200) {

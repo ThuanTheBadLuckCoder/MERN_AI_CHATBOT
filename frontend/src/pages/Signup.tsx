@@ -95,14 +95,15 @@ const Signup = () => {
               </div>
 
               {/* Email */}
-              <div id="email" className="flex flex-col gap-0.5">
-                <label className="text-sm">Email</label>
+              <div id="email" className="flex flex-col gap-0.5 justify-center items-center ">
+                <label className="w-full text-sm">Email</label>
                 <div className={`flex w-full h-10 items-center rounded-full bg-inherit outline outline-1 -outline-offset-1 
                   focus-within:outline focus-within:outline-1 focus-within:-outline-offset-1 overflow-hidden px-4 py-3 gap-3 ${emailError ? 'outline-red-600 focus-within:outline-red-600' : 'outline-neutral-600 focus-within:outline-neutral-600'}`}>
                   <MarkEmailReadOutlinedIcon sx={{ fontSize: 20 }} />
                   <input type="email" name="email" className="flex w-full size-full items-center bg-inherit pr-2 outline-none text-neutral-400 text-sm text-white"
                     placeholder="Enter your Email" />
                 </div>
+                <p className="text-yellow-300 text-xs mt-1 italic">*Ensure that you enter your actual email address.</p>
                 {emailError && <span className="text-red-500 text-sm">{emailError}</span>}
               </div>
 

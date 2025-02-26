@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   getAllUsers,
   requestPasswordReset,
+  updatePassword,
   userLogin,
   userLogout,
   userSignup,
@@ -24,5 +25,6 @@ userRoutes.get("/auth-status", verifyToken, verifyUser);
 userRoutes.get("/logout", verifyToken, userLogout);
 userRoutes.post("/request-reset", requestPasswordReset);
 userRoutes.post("/auth-otp", verifyOTPUser);
+userRoutes.patch("/change-password", updatePassword);
 
 export default userRoutes;

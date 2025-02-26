@@ -6,6 +6,7 @@ import bg from '../../public/main_bg.png'
 import MarkEmailReadOutlinedIcon from '@mui/icons-material/MarkEmailReadOutlined';
 import '../index.css'
 import { sendOTPUser } from "../helper/api-communicator";
+import ChangePassword from "../components/forgotpassword/ChangePassword";
 
 const RequestOTP = () => {
   const navigate = useNavigate();
@@ -14,19 +15,19 @@ const RequestOTP = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setEmailError(""); // Clear previous errors
-  
+
     const formData = new FormData(e.currentTarget);
     const email = formData.get("email") as string;
-  
+
     try {
       const response = await sendOTPUser(email);
       console.log("response: ", response);
-  
+
       // Check for successful message instead of status code
       if (response && response.message === "OTP sent successfully") {
         console.log("Success condition met, preparing to navigate");
         toast.success(`OTP sent successfully! Please check your email. Expires in ${response.expiresIn}.`);
-        
+
         console.log("About to navigate to /change-password");
         navigate("/change-password", {
           state: {
@@ -40,7 +41,7 @@ const RequestOTP = () => {
       }
     } catch (error: any) {
       console.error("Error sending OTP:", error);
-      
+
       if (error.response && error.response.data?.message) {
         setEmailError(error.response.data.message);
       } else {
@@ -56,6 +57,8 @@ const RequestOTP = () => {
   const backToHomePage = () => {
     navigate("/");
   }
+  const email = "dthuan@gmail.com"
+  const isVerified = true;
 
   return (
     <div className="size-full" style={{
@@ -98,6 +101,8 @@ const RequestOTP = () => {
             </div>
           </form>
         </div>
+
+        {/* <ChangePassword email={email} isVerified={isVerified}/> */}
       </div>
     </div>
   );

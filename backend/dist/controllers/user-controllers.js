@@ -257,4 +257,29 @@ export const verifyOTPUser = async (req, res, next) => {
         return res.status(500).json({ success: false, message: "Internal Server Error", error: error.message });
     }
 };
+export const updatePassword = async (req, res, next) => {
+    try {
+        const { email, newPassword } = req.body;
+        console.log(email, newPassword);
+        if (!email || !newPassword) {
+            return res.status(400).json({ success: false, message: "Email and password are required." });
+        }
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found." });
+        }
+        const hashedPassword = await hash(newPassword, 10);
+        user.password = hashedPassword; // Only update the password field
+        await user.save();
+        return res.status(200).json({ success: true, message: "Password updated successfully." });
+    }
+    catch (error) {
+        console.error("Error updating password:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Reset Password Error",
+            error: error.stack // Log full error details
+        });
+    }
+};
 //# sourceMappingURL=user-controllers.js.map
