@@ -63,7 +63,7 @@ export const checkAuthStatus = async () => {
 };
 
 export const sendChatRequest = async (message: string) => {
-  const res = await axios.post("/chat/new", { message });
+  const res = await axios.post("/chat/new-gpt", { message });
   if (res.status !== 200) {
     throw new Error("Unable to send chat");
   }
@@ -71,8 +71,8 @@ export const sendChatRequest = async (message: string) => {
   return data;
 };
 
-export const sendChatRequestGemini = async (message: string) => {
-  const res = await axios.post("/chatGemini/new", { message });
+export const sendChatRequestGemini = async (message: string, conversationId: string) => {
+  const res = await axios.post("/chat/new-gemini", { message, conversationId });
   if (res.status !== 200) {
     throw new Error("Unable to send chat");
   }
@@ -108,9 +108,17 @@ export const createNewIndex = async (indexName: string) => {
   return data;
 }
 
+export const getUserCons = async () => {
+  const res = await axios.get("/chat/all-conservations");
+  if (res.status !== 200) {
+    throw new Error("Unable to send chat");
+  }
+  const data = await res.data;
+  return data;
+};
 
-export const getUserChats = async () => {
-  const res = await axios.get("/chat/all-chats");
+export const getUserChats = async ( conservationId: string ) => {
+  const res = await axios.get(`/chat/${conservationId}`);
   if (res.status !== 200) {
     throw new Error("Unable to send chat");
   }
@@ -145,8 +153,8 @@ export const getIndexSources = async (index: string) => {
   return data;
 }
 
-export const deleteUserChats = async () => {
-  const res = await axios.delete("/chat/delete");
+export const deleteUserChats = async ( conversationId: string ) => {
+  const res = await axios.delete(`/chat/delete/${ conversationId }`);
   if (res.status !== 200) {
     throw new Error("Unable to delete chats");
   }

@@ -8,19 +8,20 @@ type Message = {
     content: string;
 };
 
-type ChatBoxProps = {
+interface ChatBoxProps {
     chatMessages: Message[];
     chatBoxRef: React.RefObject<HTMLDivElement>;
-    handleSubmit: () => void;
-    handleDeleteChats: () => void;
-    inputRef: React.MutableRefObject<HTMLTextAreaElement | null>;
+    handleSubmit: () => Promise<void>;
+    handleDeleteChats: () => Promise<void>;
+    inputRef: React.RefObject<HTMLTextAreaElement>;
     inputValue: string;
+    isLoading: boolean; // Add this prop
     handleInputChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
     handleKeyPress: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
-};
+}
 
 function ChatBox({
-    chatMessages,
+    chatMessages = [],
     chatBoxRef,
     handleSubmit,
     handleDeleteChats,

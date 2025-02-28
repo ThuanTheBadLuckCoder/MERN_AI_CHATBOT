@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -18,55 +18,39 @@ function App() {
   const [isNaviShow, setIsNaviShow] = useState(true);
   const location = useLocation();
 
-  const isLeftNaviVisible =
-    location.pathname !== "/" &&
-    location.pathname !== "/login" &&
-    location.pathname !== "/otp-request" &&
-    location.pathname !== "/change-password" &&
-    location.pathname !== "/signup" &&
-    location.pathname !== "/notfound";
+  const protectedRoutes = ["/chat", "/admin", "/chat/:conversationId?"];
+  const authRoutes = ["/", "/login", "/otp-request", "/change-password", "/signup"];
+  const isRouteNotFound = ![...authRoutes].includes(location.pathname) &&
+  !location.pathname.startsWith("/chat") &&
+  location.pathname !== "/admin";
 
-  // Combined resize logic
+  // Hide LeftNavi if:
+  // - The route is in authRoutes (login/signup/etc.)
+  // - The user is trying to access /chat but is not logged in
+  // - The page does not exist (404)
+  const isLeftNaviVisible =
+    !isRouteNotFound &&
+    !authRoutes.includes(location.pathname) &&
+    !(location.pathname.startsWith("/chat") && !auth?.isLoggedIn);
+
   useEffect(() => {
     const handleResize = () => {
       const width = window.innerWidth;
 
-      // Handle visibility (smaller screens)
-      if (width <= 425) {
-        setIsNaviShow(false);
-      } else {
-        setIsNaviShow(true);
-      }
-
-      // Handle width-based open/close
-      if (width < 900) {
-        setIsNavOpen(false);
-      } else {
-        setIsNavOpen(true);
-      }
+      setIsNaviShow(width > 425);
+      setIsNavOpen(width >= 900);
     };
 
-    // Set initial state based on window width
     handleResize();
-
-    // Add event listener
     window.addEventListener("resize", handleResize);
-
-    // Cleanup event listener
-    return () => {
-      window.removeEventListener("resize", handleResize);
-    };
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   return (
     <main className="w-screen h-screen overflow-hidden">
       <div className="flex size-full">
         {isLeftNaviVisible && isNaviShow && (
-          <div
-            className={`transition-all duration-300 ${
-              isNavOpen ? "w-64" : "w-16"
-            }`}
-          >
+          <div className={`transition-all duration-300 ${isNavOpen ? "w-64" : "w-16"}`}>
             <LeftNavi isOpen={isNavOpen} setIsOpen={setIsNavOpen} />
           </div>
         )}
@@ -77,12 +61,12 @@ function App() {
             <Route path="/signup" element={<Signup />} />
             <Route path="/otp-request" element={<RequestOTP />} />
             <Route path="/change-password" element={<ChangePassword />} />
-            {auth?.isLoggedIn && auth.user && (
-              <Route path="/chat" element={<Chat />} />
-            )}
-            {auth?.isLoggedIn && auth.user?.role === "Admin" && (
-              <Route path="/admin" element={<Admin />} />
-            )}
+
+            {/* Protected Routes */}
+            <Route path="/chat/:conversationId?" element={auth?.isLoggedIn ? <Chat /> : <Navigate to="/login" replace />} />
+            <Route path="/admin" element={auth?.isLoggedIn && auth.user?.role === "Admin" ? <Admin /> : <Navigate to="/" replace />} />
+
+            {/* Catch all unknown routes */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>
