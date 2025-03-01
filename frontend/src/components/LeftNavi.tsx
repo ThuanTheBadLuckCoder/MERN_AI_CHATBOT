@@ -6,10 +6,11 @@ import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
 import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
 import { useLocation } from "react-router-dom";
-import { useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import "./styles/isOnSite.css";
 import { getUserCons } from "../helper/api-communicator";
 import toast from "react-hot-toast";
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 
 // Define the Conversation type
 interface Conversation {
@@ -32,25 +33,45 @@ const LeftNavi: React.FC<LeftNaviProps> = ({ isOpen, setIsOpen }) => {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
 
-  useLayoutEffect(() => {
-    if (auth?.isLoggedIn && auth.user) {
-      toast.loading("Loading Chats", { id: "loadchats" });
-      getUserCons()
-        .then((data) => {
-          // Store the conversations in state
-          if (data && data.conversations && Array.isArray(data.conversations)) {
-            setConversations(data.conversations);
-            toast.success("Chats Loaded", { id: "loadchats" });
-          } else {
-            toast.error("Invalid conversation data", { id: "loadchats" });
-          }
-        })
-        .catch((err) => {
-          console.log(err);
-          toast.error("Loading Failed", { id: "loadchats" });
-        });
+  // Function to load conversations
+  const loadConversations = async () => {
+    if (!auth?.isLoggedIn || !auth.user) return;
+    
+    toast.loading("Loading Chats", { id: "loadchats" });
+    try {
+      const data = await getUserCons();
+      // Store the conversations in state
+      if (data && data.conversations && Array.isArray(data.conversations)) {
+        setConversations(data.conversations);
+        toast.success("Chats Loaded", { id: "loadchats" });
+      } else {
+        toast.error("Invalid conversation data", { id: "loadchats" });
+      }
+    } catch (err) {
+      console.log(err);
+      toast.error("Loading Failed", { id: "loadchats" });
     }
+  };
+
+  // Initial load of conversations
+  useLayoutEffect(() => {
+    loadConversations();
   }, [auth]);
+
+  // Add listener for refresh events
+  // In LeftNavi.tsx, update the event listener
+useEffect(() => {
+  const handleRefresh = () => {
+    loadConversations();
+  };
+
+  window.addEventListener('refreshConversations', handleRefresh);
+
+  return () => {
+    window.removeEventListener('refreshConversations', handleRefresh);
+  };
+}, [auth]);
+
 
   const toggleNav = () => {
     setIsTransitioning(true);
@@ -122,7 +143,7 @@ const LeftNavi: React.FC<LeftNaviProps> = ({ isOpen, setIsOpen }) => {
                     to="/chat"
                     text={isOpen ? "Chat" : ""}
                     textColor="black"
-                    icon={<ChatOutlinedIcon />}
+                    icon={<EditOutlinedIcon />}
                     class={isOnSite("/chat") ? "isOnSite" : ""}
                   />
 
@@ -133,12 +154,12 @@ const LeftNavi: React.FC<LeftNaviProps> = ({ isOpen, setIsOpen }) => {
                       <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
                         {conversations.map((conversation) => (
                           <NavigationLink
-                            key={conversation.id}
+                            key={conversation.id || conversation._id}
                             bg="#2D3035"
-                            to={`/chat/${conversation.id}`}
+                            to={`/chat/${conversation.id || conversation._id}`}
                             text={conversation.title}
                             textColor="white"
-                            class={isOnSite(`/chat/${conversation.id}`) ? "isOnSite" : ""}
+                            class={location.pathname === `/chat/${conversation.id || conversation._id}` ? "isOnSite" : ""}
                           />
                         ))}
                       </div>

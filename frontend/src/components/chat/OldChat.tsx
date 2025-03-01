@@ -44,86 +44,47 @@ const OldChat = ({ conversationId }: ChatGeminiProps) => {
     };
 
     const handleSubmit = async () => {
-      const content = inputRef.current?.value.trim();
-      if (!content) return;
-    
-      if (inputRef.current) {
-          inputRef.current.value = "";
-          setInputValue("");
-      }
-    
-      // Append the user's message immediately
-      const newUserMessage: Message = { role: "user", content };
-      setChatMessages((prev) => [...prev, newUserMessage]);
-    
-      // Create a unique ID for the typing message
-      const typingMessageId = Date.now().toString();
+        const content = inputRef.current?.value.trim();
+        if (!content) return;
       
-      // Append a temporary assistant message as a "typing..." placeholder
-      const typingMessage: Message = { 
-        role: "assistant", 
-        content: "Assistant is typing...", 
-        id: typingMessageId
-      };
+        // Clear input after submission
+        setInputValue("");
+        
+        const newUserMessage: Message = { role: "user", content };
+        setChatMessages((prev) => [...prev, newUserMessage]);
       
-      setChatMessages((prev) => [...prev, typingMessage]);
-    
-      try {
-          // Fetch assistant response
+        setIsLoading(true);
+        try {
           const chatData = await sendChatRequestGemini(content, conversationId);
+          setIsLoading(false);
           
-          // The API returns the full conversation, so we need to extract the latest assistant message
           if (chatData.conversation && chatData.conversation.messages) {
-              // Get the most recent assistant message from the conversation
-              const messages = chatData.conversation.messages;
-              const latestAssistantMessage = messages
-                  .filter(msg => msg.role === "assistant")
-                  .pop();
-              
-              if (latestAssistantMessage) {
-                  // Replace the typing message with the actual response
-                  setChatMessages((prev) =>
-                      prev.map((msg) => {
-                          // Check if this is our typing message using the ID
-                          if ('id' in msg && msg.id === typingMessageId) {
-                              return {
-                                  role: "assistant",
-                                  content: latestAssistantMessage.content
-                              };
-                          }
-                          return msg;
-                      })
-                  );
-              } else {
-                  // Remove the typing message if no assistant message was found
-                  setChatMessages((prev) => 
-                      prev.filter((msg) => !('id' in msg) || msg.id !== typingMessageId)
-                  );
-                  toast.error("No response received from assistant");
-              }
-          } else {
-              // If the response doesn't have the expected structure
-              setChatMessages((prev) => 
-                  prev.filter((msg) => !('id' in msg) || msg.id !== typingMessageId)
-              );
-              toast.error("Unexpected response format");
+            const messages = chatData.conversation.messages;
+            const latestAssistantMessage = messages.pop();
+      
+            if (latestAssistantMessage) {
+              setChatMessages((prev) => [...prev, latestAssistantMessage]);
+      
+              // Dispatch a more detailed event
+              const refreshEvent = new CustomEvent('refreshConversations', {
+                detail: { conversationId }
+              });
+              window.dispatchEvent(refreshEvent);
+            }
           }
-      } catch (error) {
-          console.log(error);
+        } catch (error) {
+          console.error("Failed to send message");
           toast.error("Failed to send message");
-    
-          // Remove the "typing..." placeholder in case of failure
-          setChatMessages((prev) => 
-              prev.filter((msg) => !('id' in msg) || msg.id !== typingMessageId)
-          );
-      }
-    };
+        }
+      };
+
+
     // Load conversation when component mounts or conversationId changes
     useEffect(() => {
         if (conversationId) {
-            loadConversation(conversationId);
+          loadConversation(conversationId);
         }
-    }, [conversationId, auth?.isLoggedIn]);
+      }, [conversationId, auth?.isLoggedIn]);
 
     // Redirect to login if not authenticated
     useEffect(() => {
@@ -155,6 +116,13 @@ const OldChat = ({ conversationId }: ChatGeminiProps) => {
             await deleteUserChats(conversationId); // Pass the conversationId to delete specific conversation
             setChatMessages([]);
             toast.success("Deleted Chats Successfully", { id: "deletechats" });
+            
+            // Trigger an event to refresh the conversation list in LeftNavi
+            const refreshEvent = new CustomEvent('refreshConversations');
+            window.dispatchEvent(refreshEvent);
+            
+            // Navigate back to new chat page
+            navigate('/chat');
         } catch (error) {
             console.log(error);
             toast.error("Deleting chats failed", { id: "deletechats" });
@@ -162,7 +130,7 @@ const OldChat = ({ conversationId }: ChatGeminiProps) => {
     };
 
     return (
-        <div id="chat-gemini" className="relative h-full">
+        <div id="old-chat" className="size-full bg-[#1D2025]/40 rounded-2xl">
             <ChatBox 
                 chatMessages={chatMessages} 
                 chatBoxRef={chatBoxRef}

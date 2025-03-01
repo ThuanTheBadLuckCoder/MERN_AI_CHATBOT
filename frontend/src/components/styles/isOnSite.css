@@ -1,7 +1,7 @@
 
 .isOnSite > div > div {
     border-color: rgb(34 197 94 / var(--tw-border-opacity, 1)) !important;
-    background-color: rgb(23 23 23 / var(--tw-bg-opacity, 1)) !important;
+    background-color: #1D2025 !important;
 }
 
 .logout {

@@ -3,7 +3,7 @@ import { model } from "../config/openai-config.js";
 import { AIMessage, HumanMessage } from "@langchain/core/messages";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { queryVectorStore } from "./components/elastic-controller.js";
-import { executor } from "./components/agents/custom-agent.js";
+import { executor } from "./components/agents/custom-gemini-agent.js";
 // export const generateChatCompletion = async (
 //   req: Request,
 //   res: Response,

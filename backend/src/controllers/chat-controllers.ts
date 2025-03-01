@@ -13,7 +13,7 @@ import {
 } from "@langchain/core/runnables";
 import { retriever } from "./components/model-io/web-loader.js";
 import { queryGeminiVectorStore, queryVectorStore } from "./components/elastic-controller.js";
-import { executor } from "./components/agents/custom-agent.js";
+import { executor } from "./components/agents/custom-gemini-agent.js";
 
 // export const generateChatCompletion = async (
 //   req: Request,

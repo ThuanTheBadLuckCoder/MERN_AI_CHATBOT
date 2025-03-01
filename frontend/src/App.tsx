@@ -21,8 +21,8 @@ function App() {
   const protectedRoutes = ["/chat", "/admin", "/chat/:conversationId?"];
   const authRoutes = ["/", "/login", "/otp-request", "/change-password", "/signup"];
   const isRouteNotFound = ![...authRoutes].includes(location.pathname) &&
-  !location.pathname.startsWith("/chat") &&
-  location.pathname !== "/admin";
+    !location.pathname.startsWith("/chat") &&
+    location.pathname !== "/admin";
 
   // Hide LeftNavi if:
   // - The route is in authRoutes (login/signup/etc.)

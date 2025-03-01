@@ -46,44 +46,44 @@ const QuestionInput: React.FC<QuestionInputProps> = ({
   };
 
   return (
-    <div className="flex flex-col w-full gap-1.5">
+    <div className="flex flex-col w-full gap-1.5 items-center">
       <div className="flex w-full gap-1.5 items-center justify-center">
-        <div className="flex w-full items-center justify-between gap-1.5 p-2 rounded-3xl bg-inherit outline outline-1 -outline-offset-1 outline-green-900 focus-within:outline focus-within:outline-1 focus-within:-outline-offset-1 focus-within:outline-green-600">
-          <textarea
-            ref={inputRef}
-            value={inputValue}
-            onChange={handleInputChangeWithResize}
-            onKeyDown={handleKeyPress}
-            placeholder="Type your question here..."
-            rows={1}
-            className="flex w-full text-lg items-center border border-transparent bg-inherit pl-3 outline-none resize-none min-h-[40px] py-1 leading-normal scrollbar-thin scrollbar-thumb-green-900 scrollbar-track-transparent"
-            style={{
-              height: 'auto',
-              maxHeight: '300px',
-              overflowY: 'hidden' // Initial state, will be updated by adjustHeight
-            }}
-          />
-          <div className='flex size-fit'>
-            <div className='size-fit'>
-              <button
-                onClick={handleSubmit}
-                disabled={!inputValue.trim()}
-                className="flex flex-col items-center justify-center rounded-full size-10 disabled:cursor-not-allowed disabled:opacity-75 bg-green-900 border border-green-800 shrink-0"
-              >
-                <CodeIcon className="size-5" />
-              </button>
-            </div>
-
-            {/* <div className="flex size-10 flex-row flex-nowrap justify-center border-red-500 rounded-full hover:bg-red-100">
-
-              <button onClick={handleDeleteClick} className="size-full">
-                <CodeOffIcon className="text-red-500 size-5" />
-              </button>
-            </div> */}
+        <div className="flex flex-col w-full items-center justify-between gap-1.5 p-4 rounded-2xl bg-inherit outline outline-1 -outline-offset-1 outline-[#515357] focus-within:outline focus-within:outline-1 focus-within:-outline-offset-1">
+          <div className='w-full pl-3'>
+            <span>Codfe 3.5</span>
           </div>
+          <div className="flex size-full">
+            <textarea
+              ref={inputRef}
+              value={inputValue}
+              onChange={handleInputChangeWithResize}
+              onKeyDown={handleKeyPress}
+              placeholder="Type your question here..."
+              rows={1}
+              className="flex w-full text-lg items-center border border-transparent bg-inherit pl-3 outline-none resize-none min-h-[40px] py-1 leading-normal scrollbar-thin scrollbar-thumb-green-900 scrollbar-track-transparent"
+              style={{
+                height: 'auto',
+                maxHeight: '300px',
+                overflowY: 'hidden' // Initial state, will be updated by adjustHeight
+              }}
+            />
+            <div className='flex size-fit'>
+              <div className='size-fit'>
+                <button
+                  onClick={handleSubmit}
+                  disabled={!inputValue.trim()}
+                  className="flex flex-col items-center justify-center rounded-full size-10 disabled:cursor-not-allowed disabled:opacity-75 bg-green-900 border border-green-800 shrink-0"
+                >
+                  <CodeIcon className="size-5" />
+                </button>
+              </div>
+            </div>
+          </div>
+
 
         </div>
       </div>
+      <span>Codfe can make mistakes. Check information info.</span>
     </div>
   );
 };
