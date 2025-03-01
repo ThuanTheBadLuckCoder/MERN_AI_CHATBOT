@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import "./styles/chat-component.css";
 import TabsChatItems from "../tabs/Tabs";
+import logo from '../../../public/codfe_logo.svg'
 
 const CODE_PATTERNS = {
   html: /(?:<(!DOCTYPE\s+html|html|head|body|[a-zA-Z]+)[^>]*>|<\/[a-zA-Z]+>)[\s\S]*(?:<\/(?:html|body|div|p|[a-zA-Z]+)>)/i,
@@ -313,9 +314,40 @@ const processNonLinkContent = (text: string): React.ReactNode[] => {
   return parts;
 };
 
+// Thinking animation component
+const ThinkingIndicator = () => {
+  const [dots, setDots] = useState('.');
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDots(prev => {
+        if (prev.length >= 3) return '.';
+        return prev + '.';
+      });
+    }, 500);
+    
+    return () => clearInterval(interval);
+  }, []);
+  
+  return (
+    <div className="thinking-indicator flex items-center gap-2">
+      <span className="text-gray-600 font-medium">Codfe is thinking{dots}</span>
+      <div className="flex gap-1">
+        <div className="h-2 w-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0ms' }}></div>
+        <div className="h-2 w-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '200ms' }}></div>
+        <div className="h-2 w-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '400ms' }}></div>
+      </div>
+    </div>
+  );
+};
 
+interface ChatItemProps {
+  content: string; 
+  role: "user" | "assistant";
+  isTyping?: boolean;
+}
 
-const ChatItem = ({ content, role }: { content: string; role: "user" | "assistant"; }) => {
+const ChatItem = ({ content, role, isTyping = false }: ChatItemProps) => {
   const auth = useAuth();
   const blocks = extractCodeBlocks(content, role === "assistant");
 
@@ -323,8 +355,8 @@ const ChatItem = ({ content, role }: { content: string; role: "user" | "assistan
     <div className="py-4 pl-2 pr-4 w-full">
       <div className={`${role} flex w-full items-start gap-4`}>
         <div className="size-8 rounded-full overflow-hidden avatar-size">
-          {role === "assistant" ? (
-            <img src="codfe_logo.svg" alt="Assistant avatar" className="size-full" />
+          {role === "assistant" ?  (
+            <img src={logo} alt="Assistant avatar" className="size-full" />
           ) : auth?.user?.name ? (
             <div className="border rounded-full size-full flex justify-center items-center cursor-default">
               {auth.user.name[0]}{auth.user.name.split(" ")[1]?.[0]}
@@ -335,23 +367,27 @@ const ChatItem = ({ content, role }: { content: string; role: "user" | "assistan
         </div>
 
         <div className="w-3/5 flex flex-col my-auto justify-start gap-2">
-          {blocks.map((block, index) => (
-            <React.Fragment key={index}>
-              {block.isCode ? (
-                <div className="h-fit w-full">
-                  {block.language && (
-                    <TabsChatItems language={block.language} content={block.content}/>
-                  )}
-                </div>
-              ) : (
-                block.content && (
-                  <div className="content-container font-serif text-justify">
-                    <span>{formatContent(block.content)}</span>
+          {isTyping && role === "assistant" ? (
+            <ThinkingIndicator />
+          ) : (
+            blocks.map((block, index) => (
+              <React.Fragment key={index}>
+                {block.isCode ? (
+                  <div className="h-fit w-full">
+                    {block.language && (
+                      <TabsChatItems language={block.language} content={block.content}/>
+                    )}
                   </div>
-                )
-              )}
-            </React.Fragment>
-          ))}
+                ) : (
+                  block.content && (
+                    <div className="content-container font-serif text-justify">
+                      <span>{formatContent(block.content)}</span>
+                    </div>
+                  )
+                )}
+              </React.Fragment>
+            ))
+          )}
         </div>
       </div>
     </div>

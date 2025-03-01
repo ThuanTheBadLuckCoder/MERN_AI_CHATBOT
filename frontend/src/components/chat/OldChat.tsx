@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { deleteUserChats, getUserChats, sendChatRequestGemini } from '../../helper/api-communicator';
@@ -53,10 +53,11 @@ const OldChat = ({ conversationId }: ChatGeminiProps) => {
         const newUserMessage: Message = { role: "user", content };
         setChatMessages((prev) => [...prev, newUserMessage]);
       
+        // Set loading to true when waiting for response
         setIsLoading(true);
+        
         try {
           const chatData = await sendChatRequestGemini(content, conversationId);
-          setIsLoading(false);
           
           if (chatData.conversation && chatData.conversation.messages) {
             const messages = chatData.conversation.messages;
@@ -65,19 +66,19 @@ const OldChat = ({ conversationId }: ChatGeminiProps) => {
             if (latestAssistantMessage) {
               setChatMessages((prev) => [...prev, latestAssistantMessage]);
       
-              // Dispatch a more detailed event
-              const refreshEvent = new CustomEvent('refreshConversations', {
-                detail: { conversationId }
-              });
+              // Dispatch event for metadata refresh only (not full conversations)
+              const refreshEvent = new Event('refreshConversations');
               window.dispatchEvent(refreshEvent);
             }
           }
         } catch (error) {
           console.error("Failed to send message");
           toast.error("Failed to send message");
+        } finally {
+          // Set loading to false after receiving response
+          setIsLoading(false);
         }
       };
-
 
     // Load conversation when component mounts or conversationId changes
     useEffect(() => {
@@ -113,12 +114,12 @@ const OldChat = ({ conversationId }: ChatGeminiProps) => {
     const handleDeleteChats = async () => {
         try {
             toast.loading("Deleting Chats", { id: "deletechats" });
-            await deleteUserChats(conversationId); // Pass the conversationId to delete specific conversation
+            await deleteUserChats(conversationId);
             setChatMessages([]);
             toast.success("Deleted Chats Successfully", { id: "deletechats" });
             
             // Trigger an event to refresh the conversation list in LeftNavi
-            const refreshEvent = new CustomEvent('refreshConversations');
+            const refreshEvent = new Event('refreshConversations');
             window.dispatchEvent(refreshEvent);
             
             // Navigate back to new chat page

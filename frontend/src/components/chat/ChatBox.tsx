@@ -2,10 +2,14 @@ import React, { useEffect, useRef, useState } from 'react';
 import ChatItem from './ChatItem';
 import './styles/chat-component.css';
 import QuestionInput from './QuestionInput';
+import logo from '../../../public/codfe_logo.svg'
+import CircleIcon from '@mui/icons-material/Circle';
+
 
 type Message = {
     role: 'user' | 'assistant';
     content: string;
+    id?: string;
 };
 
 interface ChatBoxProps {
@@ -15,13 +19,13 @@ interface ChatBoxProps {
     handleDeleteChats: () => Promise<void>;
     inputRef: React.RefObject<HTMLTextAreaElement>;
     inputValue: string;
-    isLoading: boolean; // Add this prop
+    isLoading: boolean;
     handleInputChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
     handleKeyPress: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
 }
 
 function ChatBox({
-    chatMessages = [],
+    chatMessages,
     chatBoxRef,
     handleSubmit,
     handleDeleteChats,
@@ -29,9 +33,27 @@ function ChatBox({
     inputValue,
     handleInputChange,
     handleKeyPress,
+    isLoading,
 }: ChatBoxProps) {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const endOfMessagesRef = useRef<HTMLDivElement | null>(null);
+    const [dotCount, setDotCount] = useState(0);
+    // isLoading = true;
+    
+    // Animate the dots when loading
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        
+        if (isLoading) {
+            interval = setInterval(() => {
+                setDotCount((prev) => (prev + 1) % 4); // Cycles through 0, 1, 2, 3
+            }, 500); // Change dots every 500ms for a gentle rhythm
+        }
+        
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [isLoading]);
 
     // Smooth scrolling to the latest message
     useEffect(() => {
@@ -47,7 +69,7 @@ function ChatBox({
         // Ensure DOM rendering is complete
         const timer = setTimeout(scrollToEnd, 50); // Adjust delay as needed
         return () => clearTimeout(timer);
-    }, [chatMessages]);
+    }, [chatMessages, isLoading, dotCount]); // Also scroll when loading state or dots change
 
     const handleDeleteClick = () => setShowDeleteConfirm(true);
 
@@ -69,8 +91,39 @@ function ChatBox({
         adjustHeight();
     }, [inputValue]);
 
+    // Generate the bouncing dots
+    const renderDots = () => {
+        // Create dots with staggered animation delay
+        return Array(3).fill(null).map((_, index) => (
+            <div 
+                key={index} 
+                className=""
+                style={{
+                    animation: 'bounce 0.8s infinite',
+                    animationDelay: `${index * 0.15}s`, // Stagger the animation
+                    position: 'relative',
+                    display: 'inline-block'
+                }}
+            >
+                <CircleIcon sx={{ fontSize: 10 }} />
+            </div>
+        ));
+    };
+
     return (
         <div id='chat-box' className="flex h-full overflow-hidden flex-col py-1 px-1 gap-2 justify-between">
+            {/* Add bounce animation keyframes */}
+            <style>{`
+                @keyframes bounce {
+                    0%, 100% {
+                        transform: translateY(0);
+                    }
+                    50% {
+                        transform: translateY(-10px);
+                    }
+                }
+            `}</style>
+            
             <div
                 ref={chatBoxRef}
                 id="chat-history"
@@ -79,6 +132,26 @@ function ChatBox({
                 {chatMessages.map((chat, index) => (
                     <ChatItem content={chat.content} role={chat.role} key={index} />
                 ))}
+                
+                {/* Loading indicator with bouncing dots */}
+                {isLoading && (
+                    <div className="py-4 pl-2 pr-4 w-full">
+                        <div className='flex items-center gap-4'>
+                            <div className="size-8 rounded-full overflow-hidden avatar-size">
+                                <img src={logo} className='size-full'/>
+                            </div>
+                            <div>
+                                <p className="flex items-center font-mono font-bold text-lg gap-1.5">
+                                    Codfe is thinking to give the best answer
+                                    <span className="flex gap-0.5 flex-row flex-wrap">
+                                        {renderDots()}
+                                    </span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                
                 {/* Scroll target */}
                 <div ref={endOfMessagesRef} />
             </div>

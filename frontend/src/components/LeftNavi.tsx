@@ -3,21 +3,19 @@ import NavigationLink from "./shared/NavigationLink";
 import logo from "../../public/codfe_logo.svg";
 import LogOut from "./LogOut";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
-import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
 import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
 import { useLocation } from "react-router-dom";
 import { useEffect, useLayoutEffect, useState } from "react";
 import "./styles/isOnSite.css";
-import { getUserCons } from "../helper/api-communicator";
+import { getConversationList } from "../helper/api-communicator";
 import toast from "react-hot-toast";
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 
-// Define the Conversation type
-interface Conversation {
+// Define the ConversationMeta type (lightweight version without messages)
+interface ConversationMeta {
   _id?: string;
   id?: string;
   title: string;
-  messages: any[];
   createdAt: string;
   updatedAt: string;
 }
@@ -31,18 +29,24 @@ const LeftNavi: React.FC<LeftNaviProps> = ({ isOpen, setIsOpen }) => {
   const auth = useAuth();
   const location = useLocation();
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversations, setConversations] = useState<ConversationMeta[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Function to load conversations
-  const loadConversations = async () => {
-    if (!auth?.isLoggedIn || !auth.user) return;
+  // Function to load conversation list (metadata only)
+  const loadConversationList = async () => {
+    if (!auth?.isLoggedIn || !auth.user || isLoading) return;
     
+    setIsLoading(true);
     toast.loading("Loading Chats", { id: "loadchats" });
     try {
-      const data = await getUserCons();
+      const data = await getConversationList();
       // Store the conversations in state
       if (data && data.conversations && Array.isArray(data.conversations)) {
-        setConversations(data.conversations);
+        // Sort conversations by updatedAt (newest first)
+        const sortedConversations = [...data.conversations].sort((a, b) => 
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        );
+        setConversations(sortedConversations);
         toast.success("Chats Loaded", { id: "loadchats" });
       } else {
         toast.error("Invalid conversation data", { id: "loadchats" });
@@ -50,28 +54,44 @@ const LeftNavi: React.FC<LeftNaviProps> = ({ isOpen, setIsOpen }) => {
     } catch (err) {
       console.log(err);
       toast.error("Loading Failed", { id: "loadchats" });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // Initial load of conversations
   useLayoutEffect(() => {
-    loadConversations();
+    loadConversationList();
   }, [auth]);
 
   // Add listener for refresh events
-  // In LeftNavi.tsx, update the event listener
-useEffect(() => {
-  const handleRefresh = () => {
-    loadConversations();
-  };
+  useEffect(() => {
+    // Debounce function to prevent multiple rapid calls
+    let timeoutId: number | null = null;
+    
+    const handleRefresh = () => {
+      // Clear any existing timeout
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+      
+      // Set a new timeout
+      timeoutId = window.setTimeout(() => {
+        loadConversationList();
+        timeoutId = null;
+      }, 300); // 300ms debounce
+    };
 
-  window.addEventListener('refreshConversations', handleRefresh);
-
-  return () => {
-    window.removeEventListener('refreshConversations', handleRefresh);
-  };
-}, [auth]);
-
+    // Listen for refresh events only
+    window.addEventListener('refreshConversations', handleRefresh);
+    
+    return () => {
+      window.removeEventListener('refreshConversations', handleRefresh);
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [auth]);
 
   const toggleNav = () => {
     setIsTransitioning(true);
@@ -141,16 +161,17 @@ useEffect(() => {
                   <NavigationLink
                     bg="#1D2025"
                     to="/chat"
-                    text={isOpen ? "Chat" : ""}
+                    text={isOpen ? "Start new Chat" : ""}
                     textColor="black"
                     icon={<EditOutlinedIcon />}
                     class={isOnSite("/chat") ? "isOnSite" : ""}
+                    id={"start-newchat"}
                   />
 
                   {/* Display the conversation list if navigated to chat */}
                   {isOpen && conversations.length > 0 && (
                     <div className="mt-4">
-                      <h3 className="text-white text-sm mb-2 font-medium">Recent Chats</h3>
+                      <h3 className="text-white text-sm mb-2 font-medium">Recent</h3>
                       <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
                         {conversations.map((conversation) => (
                           <NavigationLink

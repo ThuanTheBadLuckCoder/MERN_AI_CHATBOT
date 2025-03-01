@@ -109,7 +109,16 @@ export const createNewIndex = async (indexName: string) => {
 }
 
 export const getUserCons = async () => {
-  const res = await axios.get("/chat/all-conservations");
+  const res = await axios.get("/chat/all-conversations");
+  if (res.status !== 200) {
+    throw new Error("Unable to send chat");
+  }
+  const data = await res.data;
+  return data;
+};
+
+export const getConversationList = async () => {
+  const res = await axios.get("/chat/conversation-list");
   if (res.status !== 200) {
     throw new Error("Unable to send chat");
   }

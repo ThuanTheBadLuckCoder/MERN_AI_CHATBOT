@@ -96,3 +96,8 @@
     transition: background-color 0.3s ease-in-out;
   }
   
+
+  #start-newchat > div > div {
+    height: 48px !important;
+    border-radius: 16px !important;
+  }
