@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { verifyToken } from "../utils/token-manager.js";
 import { chatCompletionValidator, validate } from "../utils/validator.js";
-import { deleteChats, generateChatGeminiMultiCompletion, sendChatsToUser, 
+import { deleteChats, generateChatGeminiMultiCompletion, generateChatGPTCompletion, sendChatsToUser, 
 // generateChatCompletion,
 // generateChatGeminiCompletion,
 sendConversationsToUser, } from "../controllers/chat-controllers.js";
@@ -14,6 +14,7 @@ const chatRoutes = Router();
 //   generateChatCompletion
 // );
 chatRoutes.post("/new-gemini", validate(chatCompletionValidator), verifyToken, generateChatGeminiMultiCompletion);
+chatRoutes.post("/new-gpt", validate(chatCompletionValidator), verifyToken, generateChatGPTCompletion);
 chatRoutes.get("/all-conversations", verifyToken, sendConversationsToUser);
 chatRoutes.get("/conversation-list", verifyToken, sendConversationsToUser);
 chatRoutes.get("/:conversationId", verifyToken, sendChatsToUser);

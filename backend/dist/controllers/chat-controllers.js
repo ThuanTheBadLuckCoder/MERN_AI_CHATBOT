@@ -4,6 +4,7 @@ import { AIMessage, HumanMessage } from "@langchain/core/messages";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { queryVectorStore } from "./components/elastic-controller.js";
 import { executor } from "./components/agents/custom-gemini-agent.js";
+import { executorGPT } from "./components/agents/custom-agent.js";
 export const generateChatGeminiMultiCompletion = async (req, res, next) => {
     try {
         const { message, conversationId } = req.body;
@@ -59,6 +60,7 @@ export const generateChatGeminiMultiCompletion = async (req, res, next) => {
             return null;
         })
             .filter(Boolean);
+        console.log("chatHistory: ", chatHistory);
         // Build the chat prompt
         const prompt = ChatPromptTemplate.fromMessages([
             [
@@ -87,9 +89,14 @@ export const generateChatGeminiMultiCompletion = async (req, res, next) => {
         // Generate response using the executor
         const responseAgent = await executor.invoke({
             input,
-            chat_history: chatHistory,
+            chat_history: chatHistory.length > 0 ? chatHistory : undefined,
             model,
         });
+        const responseGPT = await executorGPT.invoke({
+            input,
+            model
+        });
+        console.log("responseGPT: ", responseGPT);
         // Extract response content
         let responseContent;
         try {
@@ -131,6 +138,122 @@ export const generateChatGeminiMultiCompletion = async (req, res, next) => {
     }
     catch (error) {
         console.error("Error in generateChatCompletion: ", error);
+        return res.status(500).json({ message: "Something went wrong", error: error.message });
+    }
+};
+export const generateChatGPTCompletion = async (req, res, next) => {
+    try {
+        const { message, conversationId } = req.body;
+        console.log("Frontend: ", message, conversationId);
+        // Validate input
+        if (typeof message !== "string" || !message.trim()) {
+            return res
+                .status(400)
+                .json({ message: "Invalid input: 'message' should be a non-empty string" });
+        }
+        // Retrieve context using vector store
+        const context = await queryVectorStore(req, res, next, message);
+        console.log("Given context: ", context);
+        // Fetch user information
+        const user = await User.findById(res.locals.jwtData?.id);
+        if (!user) {
+            return res
+                .status(401)
+                .json({ message: "Unauthorized: User not found or token is invalid" });
+        }
+        // Find the existing conversation or create a new one
+        let conversation = null;
+        let conversationIndex = -1;
+        if (conversationId) {
+            conversationIndex = user.conversations.findIndex(conv => conv.id === conversationId);
+            if (conversationIndex === -1) {
+                return res.status(404).json({ message: "Conversation not found" });
+            }
+            conversation = user.conversations[conversationIndex];
+        }
+        // If no conversationId was provided, create a new conversation before proceeding
+        if (!conversation) {
+            conversation = {
+                title: message.slice(0, 30) + (message.length > 30 ? "..." : ""), // Create title from first message
+                messages: [],
+                createdAt: new Date(),
+                updatedAt: new Date()
+            };
+            user.conversations.push(conversation);
+            conversationIndex = user.conversations.length - 1;
+        }
+        // Prepare chat history from the specific conversation
+        const chatHistory = conversation.messages
+            .filter((msg) => ["user", "assistant"].includes(msg.role))
+            .map((msg) => {
+            if (msg.role === "user") {
+                return new HumanMessage({ content: msg.content || "" });
+            }
+            if (msg.role === "assistant") {
+                return new AIMessage({ content: msg.content || "" });
+            }
+            return null;
+        })
+            .filter(Boolean);
+        console.log("chatHistory: ", chatHistory);
+        // Add the current message to conversation messages
+        const input = message.trim();
+        const userMessage = {
+            content: input,
+            role: "user",
+            createdAt: new Date()
+        };
+        // Use Mongoose array methods to ensure middleware triggers
+        user.conversations[conversationIndex].messages.push(userMessage);
+        // Save the updated user document before invoking the model
+        await user.save();
+        // Generate response using ONLY the GPT executor
+        const responseGPT = await executorGPT.invoke({
+            input,
+            chat_history: chatHistory.length > 0 ? chatHistory : [],
+            steps: []
+        });
+        console.log("responseGPT: ", responseGPT);
+        // Extract response content from GPT
+        let responseContent;
+        if (typeof responseGPT.output === 'string') {
+            responseContent = responseGPT.output;
+        }
+        else if (responseGPT.output && typeof responseGPT.output === 'object') {
+            responseContent = responseGPT.output.content || JSON.stringify(responseGPT.output);
+        }
+        else {
+            responseContent = "No valid response generated.";
+        }
+        // Add assistant's response to conversation messages
+        const assistantMessage = {
+            content: responseContent,
+            role: "assistant",
+            createdAt: new Date()
+        };
+        // Use Mongoose array methods to ensure middleware triggers
+        user.conversations[conversationIndex].messages.push(assistantMessage);
+        // If this is a new conversation and we need a better title
+        if (!conversationId && conversation.title.includes("...")) {
+            user.conversations[conversationIndex].title = input.slice(0, 30) + (input.length > 30 ? "..." : "");
+        }
+        // Explicitly set the updatedAt field on the conversation to ensure it's updated
+        user.conversations[conversationIndex].updatedAt = new Date();
+        // Save the updated user document
+        await user.save();
+        // Return the updated conversation
+        return res.status(200).json({
+            conversation: {
+                id: user.conversations[conversationIndex].id,
+                title: user.conversations[conversationIndex].title,
+                messages: user.conversations[conversationIndex].messages,
+                createdAt: user.conversations[conversationIndex].createdAt,
+                updatedAt: user.conversations[conversationIndex].updatedAt
+            }
+        });
+    }
+    catch (error) {
+        console.error("Error in generateChatGPTCompletion: ", error);
         return res.status(500).json({ message: "Something went wrong", error: error.message });
     }
 };
