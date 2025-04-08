@@ -83,7 +83,7 @@ export const generateChatGeminiMultiCompletion = async (
       .filter(Boolean);
 
 
-      console.log("chatHistory: ", chatHistory);
+      // console.log("chatHistory: ", chatHistory);
 
     // Build the chat prompt
     const prompt = ChatPromptTemplate.fromMessages([
@@ -121,12 +121,12 @@ export const generateChatGeminiMultiCompletion = async (
       model,
     });
 
-    const responseGPT = await executorGPT.invoke({
-      input,
-      model
-    });
+    // const responseGPT = await executorGPT.invoke({
+    //   input,
+    //   model
+    // });
 
-    console.log("responseGPT: ", responseGPT);
+    // console.log("responseGPT: ", responseGPT);
 
     // Extract response content
     let responseContent;
@@ -242,7 +242,7 @@ export const generateChatGPTCompletion = async (
       })
       .filter(Boolean);
 
-    console.log("chatHistory: ", chatHistory);
+    // console.log("chatHistory: ", chatHistory);
 
     // Add the current message to conversation messages
     const input = message.trim();
