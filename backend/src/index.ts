@@ -1,4 +1,5 @@
 import app from './app.js';
+import { modelGemini } from './config/gemini-config.js';
 import { connectToDatabase } from './db/connection.js';
 
 
