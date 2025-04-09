@@ -15,10 +15,12 @@ import {
 //Protected API
 const chatRoutes = Router();
 
-chatRoutes.post("/new-gemini", 
+/* chatRoutes.post("/new-gemini", 
   validate(chatCompletionValidator), 
   verifyToken, 
-  generateChatGeminiMultiCompletion);
+  generateChatGeminiMultiCompletion); */
+
+
 chatRoutes.post("/new-basic", 
     validate(chatCompletionValidator), 
     verifyToken, 

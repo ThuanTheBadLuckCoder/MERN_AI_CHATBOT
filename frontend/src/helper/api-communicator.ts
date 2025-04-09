@@ -62,8 +62,8 @@ export const checkAuthStatus = async () => {
   return data;
 };
 
-export const sendChatRequest = async (message: string) => {
-  const res = await axios.post("/chat/new-gpt", { message });
+export const sendChatRequest = async (message: string, conversationId: string) => {
+  const res = await axios.post("/chat/new-gpt", { message, conversationId });
   if (res.status !== 200) {
     throw new Error("Unable to send chat");
   }
@@ -73,6 +73,15 @@ export const sendChatRequest = async (message: string) => {
 
 export const sendChatRequestGemini = async (message: string, conversationId: string) => {
   const res = await axios.post("/chat/new-gemini", { message, conversationId });
+  if (res.status !== 200) {
+    throw new Error("Unable to send chat");
+  }
+  const data = await res.data;
+  return data;
+}
+
+export const sendChatRequestGoogle = async (message: string, conversationId: string) => {
+  const res = await axios.post("/chat/new-basic", { message, conversationId });
   if (res.status !== 200) {
     throw new Error("Unable to send chat");
   }
