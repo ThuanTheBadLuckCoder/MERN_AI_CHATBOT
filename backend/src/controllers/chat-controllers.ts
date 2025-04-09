@@ -210,6 +210,7 @@ export const generateGoogleMultiCompletion = async (
     if (conversationId) {
       conversationIndex = user.conversations.findIndex(conv => conv.id === conversationId);
       if (conversationIndex === -1) {
+        //404 go here
         return res.status(404).json({ message: "Conversation not found" });
       }
       conversation = user.conversations[conversationIndex];

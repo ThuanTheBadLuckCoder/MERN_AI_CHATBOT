@@ -14,14 +14,15 @@ import {
 
 //Protected API
 const chatRoutes = Router();
-// chatRoutes.post(
-//   "/new-gpt",
-//   validate(chatCompletionValidator),
-//   verifyToken,
-//   generateChatCompletion
-// );
-chatRoutes.post("/new-gemini", validate(chatCompletionValidator), verifyToken, generateChatGeminiMultiCompletion);
-chatRoutes.post("/new-google", validate(chatCompletionValidator), verifyToken, generateGoogleMultiCompletion);
+
+chatRoutes.post("/new-gemini", 
+  validate(chatCompletionValidator), 
+  verifyToken, 
+  generateChatGeminiMultiCompletion);
+chatRoutes.post("/new-basic", 
+    validate(chatCompletionValidator), 
+    verifyToken, 
+    generateGoogleMultiCompletion);
 chatRoutes.post("/new-gpt", validate(chatCompletionValidator), verifyToken, generateChatGPTCompletion);
 chatRoutes.get("/all-conversations", verifyToken, sendConversationsToUser); 
 chatRoutes.get("/conversation-list", verifyToken, sendConversationsToUser);
