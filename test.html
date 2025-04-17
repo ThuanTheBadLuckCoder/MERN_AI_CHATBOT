@@ -1,52 +1,80 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Feature Section</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <title>Dark Mode Feature Section</title>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 font-sans">
 
-<div class="container mx-auto py-12 px-4">
-    <div class="flex flex-wrap -mx-4">
-
-        <div class="w-full md:w-1/2 px-4 mb-8 md:mb-0">
-            <div class="bg-white rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-transform duration-300 ease-in-out relative overflow-hidden">
-                <div class="p-6">
-                    <h3 class="text-xl font-semibold text-gray-800 mb-3">Card Title 1</h3>
-                    <p class="text-gray-600 mb-4">Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, voluptatum.</p>
-                    <a href="#" class="inline-flex items-center text-blue-500 hover:text-blue-700 font-medium">
-                        Learn More
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-1" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                        </svg>
-                    </a>
+<body class="bg-gray-900 text-gray-200 dark:bg-gray-900 dark:text-gray-200">
+    <div class="container mx-auto p-6">
+        <h1 class="text-3xl font-semibold text-center mb-6">Main Heading</h1>
+        <p class="text-center text-gray-400 dark:text-gray-400">Short description of the feature section.</p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+            <!-- Feature Card 1 -->
+            <div class="bg-gray-800 dark:bg-gray-800 rounded-lg shadow-md relative">
+                <div class="p-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-400 dark:text-blue-400" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 14l9-5-9-5-9 5 9 5z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 14l9-5-9-5-9 5 9 5z" />
+                    </svg>
+                    <h2 class="text-lg font-semibold mt-2">Feature 1</h2>
+                    <p class="text-gray-400 dark:text-gray-400 mt-2">Description of Feature 1.</p>
+                    <ul class="mt-4">
+                        <li class="text-sm">Computers</li>
+                        <li class="text-sm">Health</li>
+                        <li class="text-sm">Reference</li>
+                    </ul>
                 </div>
-
-                <div class="absolute bottom-0 left-0 w-full h-2 bg-blue-500 transform -translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out"></div>
+                <span class="absolute top-0 left-0 bg-blue-500 text-white font-semibold py-1 px-2 rounded-br-md">Featured</span>
+            </div>
+            
+            <!-- Feature Card 2 -->
+            <div class="bg-gray-800 dark:bg-gray-800 rounded-lg shadow-md transform transition duration-300 ease-in-out hover:scale-105 hover:bg-green-600 dark:hover:bg-green-600">
+                <div class="p-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-green-400 dark:text-green-400" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 14l9-5-9-5-9 5 9 5z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 14l9-5-9-5-9 5 9 5z" />
+                    </svg>
+                    <h2 class="text-lg font-semibold mt-2">Feature 2</h2>
+                    <p class="text-gray-400 dark:text-gray-400 mt-2">Description of Feature 2.</p>
+                    <ul class="mt-4">
+                        <li class="text-sm">Computers</li>
+                        <li class="text-sm">Health</li>
+                        <li class="text-sm">Reference</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Feature Card 3 -->
+            <div class="bg-gray-800 dark:bg-gray-800 rounded-lg shadow-md transform transition duration-300 ease-in-out hover:scale-105 hover:bg-yellow-600 dark:hover:bg-yellow-600">
+                <div class="p-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-yellow-400 dark:text-yellow-400" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 14l9-5-9-5-9 5 9 5z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 14l9-5-9-5-9 5 9 5z" />
+                    </svg>
+                    <h2 class="text-lg font-semibold mt-2">Feature 3</h2>
+                    <p class="text-gray-400 dark:text-gray-400 mt-2">Description of Feature 3.</p>
+                    <ul class="mt-4">
+                        <li class="text-sm">Computers</li>
+                        <li class="text-sm">Health</li>
+                        <li class="text-sm">Reference</li>
+                    </ul>
+                </div>
             </div>
         </div>
-
-        <div class="w-full md:w-1/2 px-4">
-            <div class="bg-white rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-transform duration-300 ease-in-out relative overflow-hidden">
-                <div class="p-6">
-                    <h3 class="text-xl font-semibold text-gray-800 mb-3">Card Title 2</h3>
-                    <p class="text-gray-600 mb-4">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec a diam lectus.</p>
-                    <a href="#" class="inline-flex items-center text-blue-500 hover:text-blue-700 font-medium">
-                        Learn More
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-1" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                        </svg>
-                    </a>
-                </div>
-                <div class="absolute bottom-0 left-0 w-full h-2 bg-blue-500 transform -translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out"></div>
-            </div>
-        </div>
-
     </div>
-</div>
-
-
 </body>
+
 </html>

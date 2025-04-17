@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { sendChatRequestGemini, sendChatRequestGoogle } from "../../helper/api-communicator";
+import { sendChatRequest, sendChatRequestGemini, sendChatRequestGoogle } from "../../helper/api-communicator";
 import toast from "react-hot-toast";
 import logo from "../../../public/codfe_logo.svg"
 import bg from '../../../public/main_bg.png'
@@ -84,7 +84,7 @@ const NewChat = () => {
     toast.loading("Creating new conversation...", { id: "newchat" });
 
     try {
-      const chatData = await sendChatRequestGoogle(content, "");
+      const chatData = await sendChatRequest(content, "");
       console.log("Chat response data:", chatData);
 
       if (chatData.conversation && (chatData.conversation._id || chatData.conversation.id)) {

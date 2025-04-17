@@ -14,7 +14,7 @@ import {
 import { retriever } from "./components/model-io/web-loader.js";
 import { queryGeminiVectorStore, queryVectorStore } from "./components/elastic-controller.js";
 import { executor } from "./components/agents/custom-gemini-agent.js";
-import { executorGPT } from "./components/agents/custom-agent.js";
+import { executeWithCodeHandling, executeWithNLP, executorGPT } from "./components/agents/custom-agent.js";
 import { modelGemini } from "../config/gemini-config.js";
 
 export const generateChatGeminiMultiCompletion = async (
@@ -417,11 +417,11 @@ export const generateChatGPTCompletion = async (
     await user.save();
 
     // Generate response using ONLY the GPT executor
-    const responseGPT = await executorGPT.invoke({
+    const responseGPT = await executeWithCodeHandling(
       input,
-      chat_history: chatHistory.length > 0 ? chatHistory : [],
-      steps: []
-    });
+      chatHistory.length > 0 ? chatHistory : [],
+      conversationId // Make sure this variable is defined in your scope
+    );
 
     console.log("responseGPT: ", responseGPT);
 

@@ -26,7 +26,7 @@ chatRoutes.post("/new-basic",
     validate(chatCompletionValidator), 
     verifyToken, 
     generateGoogleMultiCompletion);
-chatRoutes.post("/new-gpt", validate(chatCompletionValidator), verifyToken, generateOpenAICompletion);
+chatRoutes.post("/new-gpt", validate(chatCompletionValidator), verifyToken, generateChatGPTCompletion);
 chatRoutes.post("/new-gpt-3.5", validate(chatCompletionValidator), verifyToken, generateOpenAICompletion);
 
 chatRoutes.get("/all-conversations", verifyToken, sendConversationsToUser); 

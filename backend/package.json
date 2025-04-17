@@ -5,7 +5,7 @@
   "main": "index.ts",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"npx tsc --watch\" \"nodemon -q dist/index.js\" ",
+    "dev": "concurrently \"tsc --watch\" \"nodemon -q dist/index.js\"",
     "build": "tsc",
     "start": "node dist/index.js"
   },
@@ -14,11 +14,11 @@
   "license": "ISC",
   "dependencies": {
     "@elastic/elasticsearch": "^8.15.0",
-    "@langchain/community": "^0.3.1",
-    "@langchain/core": "^0.3.9",
+    "@langchain/community": "^0.3.40",
+    "@langchain/core": "^0.3.44",
     "@langchain/google-genai": "^0.1.0",
     "@langchain/mongodb": "^0.1.0",
-    "@langchain/openai": "^0.3.0",
+    "@langchain/openai": "^0.5.5",
     "axios": "^1.7.7",
     "bcrypt": "^5.1.0",
     "cheerio": "^1.0.0",
@@ -31,14 +31,16 @@
     "express": "^4.18.2",
     "express-validator": "^7.0.1",
     "jsonwebtoken": "^9.0.1",
-    "langchain": "^0.3.2",
+    "langchain": "^0.3.21",
     "mammoth": "^1.8.0",
     "mongodb": "^6.9.0",
     "mongoose": "^7.4.2",
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
+    "node-html-parser": "^7.0.1",
     "nodemailer": "^6.10.0",
-    "openai": "^3.3.0"
+    "openai": "^3.3.0",
+    "redis": "^4.7.0"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.0",
@@ -52,6 +54,6 @@
     "@types/whatwg-url": "^11.0.5",
     "nodemon": "^3.0.1",
     "ts-node": "^10.9.1",
-    "typescript": "^5.1.6"
+    "typescript": "^5.8.3"
   }
 }
