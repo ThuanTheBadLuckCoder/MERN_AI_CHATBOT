@@ -80,8 +80,7 @@ const NewChat = () => {
       return;
     }
 
-    setIsLoading(true);
-    toast.loading("Creating new conversation...", { id: "newchat" });
+    setIsLoading(false);
 
     try {
       const chatData = await sendChatRequest(content, "");
@@ -89,7 +88,7 @@ const NewChat = () => {
 
       if (chatData.conversation && (chatData.conversation._id || chatData.conversation.id)) {
         const conversationId = chatData.conversation._id || chatData.conversation.id;
-        toast.success("Conversation created!", { id: "newchat" });
+        // toast.success("Conversation created!", { id: "newchat" });
 
         setInputValue("");
 
@@ -173,7 +172,17 @@ const NewChat = () => {
             </button>
           </div>
           <div className='w-full pl-2 flex justify-between'>
-            <span>Codfe 3.5</span>
+            <div id="rag-selector" className="flex gap-2">
+
+              <button className="bg-blue-500 text-white font-semibold py-2 px-4 rounded-full opacity-50 cursor-not-allowed bg-neutral-900 border border-green-500">Search</button>
+              <button className="bg-blue-500 text-white font-semibold py-2 px-4 rounded-full opacity-100 bg-neutral-900 border border-green-500">Chain of Thought</button>
+            </div>
+            <div id="model-selector" className="bg-neutral-900 px-2 py-1 rounded-md">
+              <select className="bg-inherit h-full">
+                <option>Codfe 3.5</option>
+              </select>
+
+            </div>
             {/* Display loading message with animated dots if waiting for response */}
             {isLoading && (
               <div>

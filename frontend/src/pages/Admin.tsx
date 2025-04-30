@@ -203,7 +203,7 @@ const Admin = () => {
           <div className="relative">
             <button
               onClick={() => setDropdownOpen((prev) => !prev)}
-              className="bg-green-950 border border-green-500 h-10 text-white px-3 py-1 rounded w-40 flex justify-between items-center"
+              className="bg-green-950 border border-green-500 h-10 text-white px-3 py-1 rounded w-64 flex justify-between items-center"
             >
               {fileTypeSelectedIndex || "Select File Type"}
               <ExpandMoreIcon />
@@ -265,9 +265,6 @@ const Admin = () => {
           <IndexList />
         </div>
       </div>
-            <div>
-              {/*  /*your code goes here */}
-            </div>
     </div>
   );
 };

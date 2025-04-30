@@ -131,7 +131,7 @@ const LeftNavi: React.FC<LeftNaviProps> = ({ isOpen, setIsOpen }) => {
             </button>
           </div>
           <div className="w-full flex">
-            {isOpen ? <><h1 className="font-serif text-2xl italic font-bold cursor-not-allowed">Codfe</h1></> : <></>}
+            {isOpen ? <><h1 className="text-2xl font-normal cursor-not-allowed power-grotesk">Codfe</h1></> : <></>}
           </div>
         </div>
         
@@ -140,14 +140,7 @@ const LeftNavi: React.FC<LeftNaviProps> = ({ isOpen, setIsOpen }) => {
             {auth?.isLoggedIn ? (
               <>
                 <div className="flex justify-between flex-col gap-3">
-                  <NavigationLink
-                    bg="#1D2025"
-                    to="/"
-                    text={isOpen ? "Home" : ""}
-                    textColor="black"
-                    icon={<HomeOutlinedIcon />}
-                    class={isOnSite("/") ? "isOnSite" : ""}
-                  />
+                  
                   {auth.user?.role === "Admin" && (
                     <NavigationLink
                       bg="#1D2025"

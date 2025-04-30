@@ -161,7 +161,7 @@ export const getIndexSources = async (req, res, next) => {
         }
         // Fetch documents from the index
         const response = await client.search({
-            index: 'frontend_developer', // Replace with your index name
+            index: `${index}`, // Replace with your index name
             size: 0,
             body: {
                 aggs: {

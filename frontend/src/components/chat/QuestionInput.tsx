@@ -48,10 +48,8 @@ const QuestionInput: React.FC<QuestionInputProps> = ({
   return (
     <div className="flex flex-col w-full gap-1.5 items-center">
       <div className="flex w-full gap-1.5 items-center justify-center">
-        <div className="flex flex-col w-full items-center justify-between gap-1.5 p-4 rounded-2xl bg-inherit outline outline-1 -outline-offset-1 outline-[#515357] focus-within:outline focus-within:outline-1 focus-within:-outline-offset-1">
-          <div className='w-full pl-3'>
-            <span>Codfe 3.5</span>
-          </div>
+        <div className="flex flex-col w-full items-center justify-between gap-2 p-4 rounded-2xl bg-inherit outline outline-1 -outline-offset-1 outline-[#515357] focus-within:outline focus-within:outline-1 focus-within:-outline-offset-1">
+          
           <div className="flex size-full">
             <textarea
               ref={inputRef}
@@ -80,7 +78,20 @@ const QuestionInput: React.FC<QuestionInputProps> = ({
             </div>
           </div>
 
+          <div className='w-full pl-2 flex justify-between'>
+            {/* <span>Codfe 3.5</span> */}
+            <div id="rag-selector" className="flex gap-2">
 
+              <button className="bg-blue-500 text-white font-semibold py-2 px-4 rounded-full opacity-50 cursor-not-allowed bg-neutral-900 border border-green-500">Search</button>
+              <button className="bg-blue-500 text-white font-semibold py-2 px-4 rounded-full opacity-100 bg-neutral-900 border border-green-500">Chain of Thought</button>
+            </div>
+            <div id="model-selector" className="bg-neutral-900 px-2 py-1 rounded-md">
+              <select className="bg-inherit h-full">
+                <option>Codfe 3.5</option>
+              </select>
+
+            </div>
+          </div>
         </div>
       </div>
       <span>Codfe can make mistakes. Check information info.</span>

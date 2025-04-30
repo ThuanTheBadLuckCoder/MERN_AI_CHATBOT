@@ -156,3 +156,22 @@ input:-ms-input-placeholder {
 .text-green-custom {
   color: rgba(1, 245, 140, 1);
 }
+
+:root {
+  --font-figtree: 'Figtree', sans-serif;
+}
+
+body {
+  font-family: var(--font-figtree);
+}
+
+@font-face {
+  font-family: 'Power Grotesk';
+  src: url('./assets/fonts/PowerGrotesk.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+}
+
+.power-grotesk {
+  font-family: 'Power Grotesk', sans-serif !important;
+}

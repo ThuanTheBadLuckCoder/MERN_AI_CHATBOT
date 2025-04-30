@@ -380,7 +380,7 @@ const ChatItem = ({ content, role, isTyping = false }: ChatItemProps) => {
                   </div>
                 ) : (
                   block.content && (
-                    <div className="content-container font-serif text-justify">
+                    <div className="content-container text-justify">
                       <span>{formatContent(block.content)}</span>
                     </div>
                   )
