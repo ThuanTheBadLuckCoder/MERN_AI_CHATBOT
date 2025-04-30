@@ -10,7 +10,7 @@ import { OpenAIFunctionsAgentOutputParser } from "langchain/agents/openai/output
 import { BaseMessage, HumanMessage, AIMessage, SystemMessage } from "@langchain/core/messages";
 import { ElasticClientArgs, ElasticVectorSearch } from "@langchain/community/vectorstores/elasticsearch";
 import { Client } from "@elastic/elasticsearch";
-import { config, embeddingsOpenAI } from "../../../config/elastic-config.js";
+import { config, embeddingsOpenAI, client } from "../../../config/elastic-config.js";
 import { z } from "zod";
 import { AgentAction, AgentFinish } from "@langchain/core/agents";
 import { 
@@ -81,6 +81,9 @@ async function performBM25Search(query: string, documents: Document[], k: number
 }
 
 // Helper function to merge and re-rank search results
+/**
+ * Merges and re-ranks search results with special handling for parent/child relationships
+ */
 function mergeAndRerank(
     vectorResults: Document[], 
     keywordResults: Document[], 
@@ -91,11 +94,15 @@ function mergeAndRerank(
     
     // Process vector results first (semantic matching)
     vectorResults.forEach((doc, index) => {
-        // Calculate score based on position (higher ranked = higher score)
+        // Calculate score based on position
         const vectorScore = 1 - (index / vectorResults.length);
+        
+        // Give bonus to parent documents to prioritize complete code
+        const parentBonus = doc.metadata?.is_parent === true ? 0.2 : 0;
+        
         uniqueDocuments.set(doc.pageContent, {
             doc: doc,
-            score: vectorScore * 0.7 // Weight vector results at 70%
+            score: (vectorScore * 0.7) + parentBonus // Weight vector results at 70% + parent bonus
         });
     });
     
@@ -104,15 +111,18 @@ function mergeAndRerank(
         const keywordScore = 1 - (index / keywordResults.length);
         const key = doc.pageContent;
         
+        // Give bonus to parent documents in keyword results too
+        const parentBonus = doc.metadata?.is_parent === true ? 0.15 : 0;
+        
         if (uniqueDocuments.has(key)) {
             // If document already exists from vector search, combine scores
             const existing = uniqueDocuments.get(key)!;
-            existing.score += keywordScore * 0.3; // Weight keyword results at 30%
+            existing.score += (keywordScore * 0.3) + parentBonus;
         } else {
             // Add new document from keyword search
             uniqueDocuments.set(key, {
                 doc: doc,
-                score: keywordScore * 0.3
+                score: (keywordScore * 0.3) + parentBonus
             });
         }
     });
@@ -135,10 +145,10 @@ function mergeAndRerank(
         .map(item => item.doc);
 }
 
-// Implementation of the hybrid search tool
+// Updated hybrid search tool with parent document resolution
 const hybridSearchTool = new DynamicTool({
     name: 'hybrid_search_tool',
-    description: 'Performs hybrid search combining dense vector embeddings and sparse BM25 for more accurate retrieval',
+    description: 'Performs hybrid search combining dense vector embeddings and sparse BM25 with parent document resolution',
     func: async (input: string) => {
         try {
             // Validate input
@@ -150,7 +160,7 @@ const hybridSearchTool = new DynamicTool({
             
             console.log("Performing hybrid search for query:", input);
             
-            // Filter for documents (can be customized based on your needs)
+            // Basic filter for documents
             const filter = [
                 {
                     operator: "wildcard",
@@ -163,31 +173,23 @@ const hybridSearchTool = new DynamicTool({
             const vectorResults = await elasticVectorSearch.similaritySearch(input, 5, filter);
             console.log(`Dense vector search returned ${vectorResults.length} results`);
             
-            // Step 2: Collect all available documents for BM25 search
-            // For BM25, we'll use a larger set of documents from your vector store
-            // This helps catch relevant documents that might not be in the top vector results
-            const allDocuments = await elasticVectorSearch.similaritySearch(input, 20, filter);
+            // Step 2: Collect documents for BM25 search
+            const allDocuments = await elasticVectorSearch.similaritySearch("*", 30, filter);
             
-            // Step 3: Prepare documents for BM25
-            const splitter = new RecursiveCharacterTextSplitter({
-                chunkSize: 1000,
-                chunkOverlap: 100
-            });
-            
-            // Process documents for BM25 if needed
-            const processedDocs = allDocuments.length > 0 ? allDocuments : 
-                [new Document({ pageContent: "No documents found", metadata: {} })];
-            
-            // Step 4: Perform BM25 search
-            const keywordResults = await performEnhancedBM25Search(input, processedDocs);
+            // Step 3: Perform BM25 search
+            const keywordResults = await performEnhancedBM25Search(input, allDocuments);
             console.log(`BM25 search returned ${keywordResults.length} results`);
             
-            // Step 5: Merge and re-rank results
-            const combinedResults = mergeAndRerank(vectorResults, keywordResults, input);
-            console.log(`Hybrid search returned ${combinedResults.length} unique results after merging`);
+            // Step 4: Merge and re-rank results
+            let combinedResults = mergeAndRerank(vectorResults, keywordResults, input);
+            console.log(`Initial hybrid search returned ${combinedResults.length} unique results after merging`);
             
-            // Step 6: Extract page content for response
-            const context = combinedResults.map(doc => doc.pageContent);
+            // Step 5: Resolve parent documents when chunks are returned
+            const resolvedResults = await resolveParentDocuments(combinedResults);
+            console.log(`After parent resolution: ${resolvedResults.length} total documents`);
+            
+            // Extract page content for response
+            const context = resolvedResults.map(doc => doc.pageContent);
             
             // Add debug info in metadata
             const responseWithMetadata = {
@@ -195,7 +197,10 @@ const hybridSearchTool = new DynamicTool({
                 metadata: {
                     vectorResultCount: vectorResults.length,
                     keywordResultCount: keywordResults.length,
-                    combinedResultCount: combinedResults.length
+                    combinedResultCount: combinedResults.length,
+                    resolvedResultCount: resolvedResults.length,
+                    containsFullDocuments: resolvedResults.some(doc => 
+                        doc.metadata?.is_parent === true)
                 }
             };
             
@@ -206,6 +211,128 @@ const hybridSearchTool = new DynamicTool({
         }
     }
 });
+
+/**
+ * Resolves parent documents for any child chunks found in search results
+ * This ensures complete code is always available when needed
+ */
+async function resolveParentDocuments(documents: Document[]): Promise<Document[]> {
+    // Create an array for results and keep track of processed parent IDs
+    const result: Document[] = [];
+    const processedParentIds = new Set<string>();
+    
+    // Check each document to see if it's a child that needs parent resolution
+    for (const doc of documents) {
+        // Skip documents without metadata
+        if (!doc.metadata) {
+            result.push(doc);
+            continue;
+        }
+        
+        // If this is a parent document, add it directly and mark it as processed
+        if (doc.metadata.is_parent === true) {
+            result.push(doc);
+            if (doc.metadata.document_id) {
+                processedParentIds.add(doc.metadata.document_id);
+            }
+            continue;
+        }
+        
+        // This is a child document, check if we need to fetch its parent
+        if (doc.metadata.parent_id && !processedParentIds.has(doc.metadata.parent_id)) {
+            try {
+                // Create a filter for ElasticSearch
+                const filter = [
+                    {
+                        operator: "equals",
+                        field: "metadata.document_id",
+                        value: doc.metadata.parent_id
+                    },
+                    {
+                        operator: "equals",
+                        field: "metadata.is_parent",
+                        value: true
+                    }
+                ];
+                
+                // Search for the parent document
+                // Note: Don't use minScore as it's not a valid parameter
+                const parentResults = await elasticVectorSearch.similaritySearch("", 1, filter);
+                
+                if (parentResults.length > 0) {
+                    // Add parent document to results and mark it as processed
+                    result.push(parentResults[0]);
+                    processedParentIds.add(doc.metadata.parent_id);
+                    console.log(`Resolved parent document: ${doc.metadata.parent_id}`);
+                } else {
+                    console.log(`No parent document found for ID: ${doc.metadata.parent_id}`);
+                    // Try an alternative approach: direct fetch by ID if supported
+                    try {
+                        // Use the direct fetch method
+                        const directResults = await fetchDocumentById(doc.metadata.parent_id);
+                        if (directResults) {
+                            result.push(directResults);
+                            processedParentIds.add(doc.metadata.parent_id);
+                            console.log(`Directly fetched parent document: ${doc.metadata.parent_id}`);
+                        }
+                    } catch (directError) {
+                        console.error(`Failed direct fetch for parent: ${doc.metadata.parent_id}`, directError);
+                    }
+                }
+            } catch (error) {
+                console.error(`Error fetching parent document ${doc.metadata.parent_id}:`, error);
+            }
+        }
+        
+        // Always add the child document
+        result.push(doc);
+    }
+    
+    return result;
+}
+
+
+/**
+ * Helper function to fetch a document directly by ID
+ * This is a fallback method if filters don't work as expected
+ */
+async function fetchDocumentById(documentId: string): Promise<Document | null> {
+    try {
+        // This is a direct ElasticSearch query using the client
+        const indexName = process.env.ELASTIC_INDEX || "*";
+        
+        const response = await client.search({
+            index: indexName,
+            body: {
+                query: {
+                    bool: {
+                        must: [
+                            { term: { "metadata.document_id": documentId } },
+                            { term: { "metadata.is_parent": true } }
+                        ]
+                    }
+                }
+            }
+        });
+        
+        // Extract the document from the response
+        if (response.hits.hits.length > 0) {
+            const hit = response.hits.hits[0];
+            const source = hit._source as any; // Using 'any' for flexibility
+            
+            // Convert to Document format
+            return {
+                pageContent: source.text || source.pageContent || "",
+                metadata: source.metadata || {}
+            };
+        }
+        
+        return null;
+    } catch (error) {
+        console.error("Error in direct document fetch:", error);
+        return null;
+    }
+}
 
 // NEW: Greeting and thanks detection tool
 // NEW: Greeting and thanks detection tool with direct response templates
@@ -815,12 +942,65 @@ const conversationAnalyzerTool = new DynamicTool({
     }
 });
 
+// Define a dedicated tool for context preservation
+const exactContextPreservationTool = new DynamicTool({
+    name: 'exact_context_preservation_tool',
+    description: 'Ensures that provided context is preserved exactly without any modifications',
+    func: async (input: string) => {
+        try {
+            // Parse the input JSON
+            const data = JSON.parse(input);
+            const action = data.action; // "verify" or "extract"
+            const content = data.content || "";
+            const originalContext = data.originalContext || "";
+            
+            if (action === "verify") {
+                // Verify that context is preserved exactly
+                const links = extractLinks(originalContext);
+                const isPreserved = verifyExactContextPreservation(originalContext, content, links);
+                
+                return JSON.stringify({
+                    preserved: isPreserved,
+                    message: isPreserved 
+                        ? "Context preserved exactly" 
+                        : "Context may have been modified"
+                });
+            } 
+            else if (action === "extract") {
+                // Extract content that needs to be preserved exactly
+                // This could be code blocks, links, or other critical content
+                const extractedContent = {
+                    codeBlocks: extractCodeBlocks(content),
+                    links: extractLinks(content),
+                    quotedText: extractQuotedText(content)
+                };
+                
+                return JSON.stringify(extractedContent);
+            }
+            
+            return JSON.stringify({ error: "Invalid action specified" });
+        } catch (error) {
+            console.error("Error in context preservation tool:", error);
+            return JSON.stringify({ error: "Error processing context preservation request" });
+        }
+    }
+});
+
 // const tools = [elasticSearchTool, conversationAnalyzerTool, codeMemoryTool, greetingDetectionTool];
-const tools = [hybridSearchTool, elasticSearchTool, conversationAnalyzerTool, codeMemoryTool, greetingDetectionTool];
+// const tools = [hybridSearchTool, elasticSearchTool, conversationAnalyzerTool, codeMemoryTool, greetingDetectionTool];
 
+const tools = [
+    hybridSearchTool, 
+    elasticSearchTool, 
+    conversationAnalyzerTool, 
+    codeMemoryTool, 
+    greetingDetectionTool,
+    exactContextPreservationTool  // Add the new tool here
+];
 
+// Modify the frontEndDevPrompt in custom-agent.ts by adding this section
+// to the system message part:
 
-// Improved front-end development prompt with strong code continuity
 const frontEndDevPrompt = ChatPromptTemplate.fromMessages([
     ["system",
         `You are a helpful, expert front-end developer assistant. Your responses should be technically accurate, comprehensive, and maintain continuity across the conversation, especially for code examples.
@@ -838,6 +1018,13 @@ const frontEndDevPrompt = ChatPromptTemplate.fromMessages([
         7. If user provides code, ALWAYS incorporate it into your response or modifications.
         8. Store the complete, final version of any code you generate in your response.
         
+        EXACT CONTEXT PRESERVATION DIRECTIVES:
+        1. PRESERVE ALL CONTEXT: When context or information is provided, use it EXACTLY as provided without any changes, modifications, substitutions, or interpretations. This includes preserving all formatting, spacing, capitalization, and punctuation.
+        2. QUOTE LINKS PRECISELY: All links must be quoted VERBATIM without any modifications. Do not change URLs in any way, do not add or remove characters, and do not modify protocols (http vs https).
+        3. NO CORRECTIONS: Do not attempt to "fix" or "improve" any information that is provided. If you believe there is an error in the provided context, you must still reproduce it exactly as given.
+        4. NO CONTENT EDITING: Do not add, remove, or modify any content from the provided context unless explicitly instructed to do so.
+        5. VERIFICATION: Before sending your final response, verify that all content from the original context is preserved exactly as provided.
+        
         RESPONSE APPROACH:
         - First, understand what the user is asking for in relation to previous code
         - If modifying previous code, make sure to maintain the full document structure
@@ -853,6 +1040,66 @@ const frontEndDevPrompt = ChatPromptTemplate.fromMessages([
     ["human", "{input}"],
     new MessagesPlaceholder("agent_scratchpad"),
 ]);
+
+// Function to ensure context is preserved exactly
+function verifyExactContextPreservation(
+    originalContext: string, 
+    responseOutput: string,
+    links: string[] = []
+  ): boolean {
+    // Check if all original context is preserved exactly
+    const contextIncluded = originalContext.split('\n')
+      .filter(line => line.trim().length > 0)
+      .every(line => responseOutput.includes(line));
+    
+    // Check if all links are preserved exactly
+    const linksPreserved = links.every(link => {
+      // Count occurrences in original vs response
+      const originalOccurrences = countOccurrences(originalContext, link);
+      const responseOccurrences = countOccurrences(responseOutput, link);
+      
+      // Links should appear at least the same number of times
+      return responseOccurrences >= originalOccurrences;
+    });
+    
+    return contextIncluded && linksPreserved;
+  }
+
+  // Helper function to count string occurrences
+function countOccurrences(text: string, searchString: string): number {
+    let count = 0;
+    let position = text.indexOf(searchString);
+    
+    while (position !== -1) {
+      count++;
+      position = text.indexOf(searchString, position + 1);
+    }
+    
+    return count;
+  }
+  
+
+  // Add this to the executeWithCodeHandling function to enforce context preservation
+const executeWithExactContext = async (
+    input: string,
+    chatHistory: BaseMessage[] = [],
+    conversationId: string = "default"
+) => {
+    // Extract links from input for verification
+    const linkRegex = /(https?:\/\/[^\s]+)/g;
+    const links = input.match(linkRegex) || [];
+    
+    // Normal execution
+    const result = await executeWithCodeHandling(input, chatHistory, conversationId);
+    
+    // Verify context preservation in the output
+    if (typeof result.output === 'string' && !verifyExactContextPreservation(input, result.output, links)) {
+        // If verification fails, add a warning
+        result.output = `[WARNING: Some context may not be preserved exactly as provided. Please verify all information.]\n\n${result.output}`;
+    }
+    
+    return result;
+};
 
 // Model with OpenAI functions
 const modelWithFunctions = model.bind({
@@ -1525,5 +1772,29 @@ const executeWithNLP = async (
     return verifiedResult;
 }
 
+
+
+// Helper function to extract links from text
+function extractLinks(text: string): string[] {
+    const linkRegex = /(https?:\/\/[^\s]+)/g;
+    return text.match(linkRegex) || [];
+}
+
+// Helper function to extract quoted text
+function extractQuotedText(text: string): string[] {
+    const quoteRegex = /"([^"]*)"/g;
+    const matches = [];
+    let match;
+    
+    while ((match = quoteRegex.exec(text)) !== null) {
+        matches.push(match[1]);
+    }
+    
+    return matches;
+}
+
+// Add this tool to your tools array
+
+
 // Export the executor and the code handling function
-export { executorGPT, executeWithCodeHandling, executeWithNLP };
+export { executorGPT, executeWithCodeHandling, executeWithNLP, executeWithExactContext };

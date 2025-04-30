@@ -1,20 +1,236 @@
 import { NextFunction, Request, Response } from "express";
 import type { Document } from "@langchain/core/documents";
-import { COOKIE_NAME } from "../utils/constants.js";
 import { ElasticClientArgs, ElasticVectorSearch } from "@langchain/community/vectorstores/elasticsearch";
 import { Client } from "@elastic/elasticsearch";
 import { config, embeddingsOpenAI } from "../config/elastic-config.js";
 import { randomUUID } from "crypto";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
-import { DocxLoader } from "@langchain/community/document_loaders/fs/docx";
 
+// Original text splitter - keep this for compatibility
 const textSplitter = new RecursiveCharacterTextSplitter({
     chunkSize: 1000,
     chunkOverlap: 200,
 });
 
 /**
+ * Intelligent Code Splitter - Splits code documents in a semantically meaningful way
+ */
+class IntelligentCodeSplitter {
+  /**
+   * Split a code document based on its structure and semantics
+   */
+  static splitCodeDocument(content: string, fileFormat: string): string[] {
+    // Determine the appropriate splitting strategy based on file format
+    switch (fileFormat.toLowerCase()) {
+      case 'html':
+        return this.splitHtmlDocument(content);
+      case 'javascript':
+      case 'js':
+        return this.splitJavaScriptDocument(content);
+      case 'css':
+        return this.splitCssDocument(content);
+      default:
+        // Default to generic code splitting
+        return this.splitGenericCode(content);
+    }
+  }
+
+  /**
+   * Split HTML document at meaningful boundaries (components/sections)
+   */
+  private static splitHtmlDocument(content: string): string[] {
+    const chunks: string[] = [];
+    
+    // Always keep the document structure (DOCTYPE, html, head)
+    let documentStructure = '';
+    
+    // Extract document structure if present
+    const doctypeMatch = content.match(/(<!DOCTYPE[^>]*>[\s\S]*?<body[^>]*>)/i);
+    if (doctypeMatch) {
+      documentStructure = doctypeMatch[1];
+      // Remove the structure from content for further processing
+      content = content.replace(doctypeMatch[1], '');
+    }
+    
+    // Also capture closing tags if present
+    let closingStructure = '';
+    const closingMatch = content.match(/(<\/body>[\s\S]*?<\/html>)/i);
+    if (closingMatch) {
+      closingStructure = closingMatch[1];
+      content = content.replace(closingMatch[1], '');
+    }
+    
+    // Find major HTML component boundaries
+    const componentRegexes = [
+      /<section[^>]*>[\s\S]*?<\/section>/g,
+      /<div[^>]*?(?:id|class)=[^>]*?>[\s\S]*?<\/div>/g,
+      /<article[^>]*>[\s\S]*?<\/article>/g,
+      /<nav[^>]*>[\s\S]*?<\/nav>/g,
+      /<header[^>]*>[\s\S]*?<\/header>/g,
+      /<footer[^>]*>[\s\S]*?<\/footer>/g,
+      /<main[^>]*>[\s\S]*?<\/main>/g,
+      /<form[^>]*>[\s\S]*?<\/form>/g
+    ];
+    
+    // Extract components using regexes
+    let remainingContent = content;
+    const extractedComponents: string[] = [];
+    
+    componentRegexes.forEach(regex => {
+      const matches = remainingContent.match(regex);
+      if (matches) {
+        matches.forEach(match => {
+          extractedComponents.push(match);
+          // Remove matched content to avoid duplicates
+          remainingContent = remainingContent.replace(match, '<!-- COMPONENT_EXTRACTED -->');
+        });
+      }
+    });
+    
+    // Check if we have any substantial remaining content 
+    remainingContent = remainingContent.replace(/<!-- COMPONENT_EXTRACTED -->/g, '').trim();
+    if (remainingContent.length > 50) {
+      extractedComponents.push(remainingContent);
+    }
+    
+    // Create chunks with proper structure
+    if (extractedComponents.length === 0) {
+      // If no components were extracted, just return the full content
+      return [content];
+    }
+    
+    extractedComponents.forEach(component => {
+      // For the first chunk, include document structure
+      if (chunks.length === 0 && documentStructure) {
+        chunks.push(`${documentStructure}\n${component}\n${closingStructure}`);
+      } else {
+        // For subsequent chunks, include minimal context
+        const context = documentStructure ? 
+          `<!-- This is part of a larger HTML document -->\n` : '';
+        chunks.push(`${context}${component}`);
+      }
+    });
+    
+    return chunks;
+  }
+
+  /**
+   * Split JavaScript document at function/class boundaries
+   */
+  private static splitJavaScriptDocument(content: string): string[] {
+    const chunks: string[] = [];
+    
+    // Get imports and top-level declarations
+    const importsMatch = content.match(/(import[\s\S]*?;(\r?\n|$))+/g);
+    let imports = importsMatch ? importsMatch.join('\n') : '';
+    
+    // Find function and class declarations
+    const functionRegex = /(\/\*\*[\s\S]*?\*\/\s*)?(async\s+)?function\s+\w+\s*\([^)]*\)\s*\{[\s\S]*?\n\}/g;
+    const classRegex = /(\/\*\*[\s\S]*?\*\/\s*)?class\s+\w+(\s+extends\s+\w+)?\s*\{[\s\S]*?\n\}/g;
+    const arrowFunctionRegex = /(\/\*\*[\s\S]*?\*\/\s*)?(const|let|var)\s+\w+\s*=\s*(async\s*)?\([^)]*\)\s*=>\s*\{[\s\S]*?\n\}/g;
+    
+    // Extract all function-like structures
+    const functionMatches = content.match(functionRegex) || [];
+    const classMatches = content.match(classRegex) || [];
+    const arrowMatches = content.match(arrowFunctionRegex) || [];
+    
+    // Combine all matched code blocks
+    const codeBlocks = [...functionMatches, ...classMatches, ...arrowMatches];
+    
+    // If we found code blocks, create chunks with imports
+    if (codeBlocks.length > 0) {
+      codeBlocks.forEach(block => {
+        chunks.push(`${imports}\n\n${block}`);
+      });
+      
+      // Check for remaining content
+      let remainingContent = content;
+      codeBlocks.forEach(block => {
+        remainingContent = remainingContent.replace(block, '');
+      });
+      remainingContent = remainingContent.replace(imports, '').trim();
+      
+      if (remainingContent.length > 50) {
+        chunks.push(`${imports}\n\n${remainingContent}`);
+      }
+    } else {
+      // No functions/classes found, use generic approach
+      return this.splitGenericCode(content);
+    }
+    
+    return chunks;
+  }
+
+  /**
+   * Split CSS document at rule boundaries
+   */
+  private static splitCssDocument(content: string): string[] {
+    const chunks: string[] = [];
+    
+    // Extract @import and other top declarations
+    const importRegex = /(@import[^;]*;(\r?\n|$))+/g;
+    const importMatches = content.match(importRegex);
+    let importSection = importMatches ? importMatches.join('\n') : '';
+    
+    // Find media queries (keep these as units)
+    const mediaQueryRegex = /@media\s+[^{]+\{[\s\S]*?\n\}/g;
+    const mediaQueries = content.match(mediaQueryRegex) || [];
+    
+    // Find keyframes
+    const keyframesRegex = /@keyframes\s+[^{]+\{[\s\S]*?\n\}/g;
+    const keyframes = content.match(keyframesRegex) || [];
+    
+    // Find CSS rule sets (selector + rules)
+    const ruleSetRegex = /([^{}])+\{[^{}]+\}/g;
+    const ruleSets = content.match(ruleSetRegex) || [];
+    
+    // Combine special blocks (media queries, keyframes)
+    const specialBlocks = [...mediaQueries, ...keyframes];
+    
+    // If we found special blocks, they become their own chunks
+    if (specialBlocks.length > 0) {
+      specialBlocks.forEach(block => {
+        chunks.push(`${importSection}\n\n${block}`);
+      });
+    }
+    
+    // Group regular rule sets into chunks of reasonable size
+    const MAX_RULES_PER_CHUNK = 10;
+    for (let i = 0; i < ruleSets.length; i += MAX_RULES_PER_CHUNK) {
+      const ruleChunk = ruleSets.slice(i, i + MAX_RULES_PER_CHUNK).join('\n\n');
+      chunks.push(`${importSection}\n\n${ruleChunk}`);
+    }
+    
+    // If no chunks were created, return the entire document
+    if (chunks.length === 0) {
+      return [content];
+    }
+    
+    return chunks;
+  }
+
+  /**
+   * Generic code splitting for other code types
+   */
+  private static splitGenericCode(content: string): string[] {
+    // For generic code, we'll use a simpler approach based on line count
+    const lines = content.split(/\r?\n/);
+    const chunks: string[] = [];
+    const CHUNK_SIZE = 50; // Lines per chunk
+    
+    // Create chunks of reasonable line counts
+    for (let i = 0; i < lines.length; i += CHUNK_SIZE) {
+      const chunkLines = lines.slice(i, i + CHUNK_SIZE);
+      chunks.push(chunkLines.join('\n'));
+    }
+    
+    return chunks.length > 0 ? chunks : [content];
+  }
+}
+
+/**
  * Processes and stores code components in Elasticsearch with enhanced metadata
+ * Using a hierarchical approach to maintain complete code while improving search
  */
 export const EmbeddingsVectorStore = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -36,63 +252,38 @@ export const EmbeddingsVectorStore = async (req: Request, res: Response, next: N
         // Create timestamp for embedding
         const embeddingTimestamp = new Date().toISOString();
         
-        // Detect languages if not provided
+        // Process metadata (same as original)
         const detectedLanguages = detectLanguages(content, file_format);
         const componentLanguages = languages.length > 0 ? languages : detectedLanguages;
-        
-        // Generate component name if not provided
         const componentName = name || generateComponentName(content, file_format);
-        
-        // Generate description if not provided
         const componentDescription = description || generateComponentDescription(content, file_format);
-        
-        // Extract features
         const features = extractFeatures(content, file_format);
-        
-        // Determine if responsive
         const isResponsive = checkIfResponsive(content);
-        
-        // Determine framework
         const framework = detectFramework(content);
-        
-        // Determine component type
         const componentType = detectComponentType(content);
 
-        // Create document with enhanced metadata
-        const loadedDocs = [
-            {
-                pageContent: content,
-                metadata: {
-                    source: componentName,
-                    file_format: file_format,
-                    languages: componentLanguages,
-                    description: componentDescription,
-                    created_at: embeddingTimestamp,
-                    document_id: documentId,
-                    component_name: componentName,
-                    component_type: componentType,
-                    framework: framework,
-                    responsive: isResponsive,
-                    features: features
-                },
-            }
-        ];
-        
-        console.log("Prepared document with metadata:", loadedDocs[0].metadata);
-
-        // Split documents for better semantic search
-        const splits = await textSplitter.splitDocuments(loadedDocs);
-
-        // Prepare documents for vectorization - maintain the same document_id across chunks
-        const documents: Document[] = splits.map((split, index) => ({
-            pageContent: split.pageContent,
-            metadata: { 
-                ...split.metadata,
-                chunk_id: randomUUID(),
-                chunk_index: index,
-                total_chunks: splits.length,
+        // Create the PARENT document with full content and complete metadata
+        const parentDocument: Document = {
+            pageContent: content,
+            metadata: {
+                source: componentName,
+                file_format: file_format,
+                languages: componentLanguages,
+                description: componentDescription,
+                created_at: embeddingTimestamp,
+                document_id: documentId,
+                component_name: componentName,
+                component_type: componentType,
+                framework: framework,
+                responsive: isResponsive,
+                features: features,
+                is_parent: true,      // Flag to identify parent documents
+                has_children: false,  // Will be set to true if we create child documents
+                child_count: 0        // Will be updated if we create child documents
             },
-        }));
+        };
+        
+        console.log("Prepared parent document with metadata:", parentDocument.metadata);
 
         // Initialize vector store
         const clientArgs: ElasticClientArgs = {
@@ -102,10 +293,119 @@ export const EmbeddingsVectorStore = async (req: Request, res: Response, next: N
         
         const vectorStore = new ElasticVectorSearch(embeddingsOpenAI, clientArgs);
 
-        // Add documents to Elasticsearch
-        const result = await vectorStore.addDocuments(documents);
+        // First, add the COMPLETE parent document to Elasticsearch
+        await vectorStore.addDocuments([parentDocument]);
+        
+        // Create array to track all documents
+        const documents: Document[] = [parentDocument]; // Start with the parent document
+        
+        // Only split large documents (e.g., over 3000 characters)
+        if (content.length > 3000) {
+            // Try intelligent splitting first
+            const codeChunks = IntelligentCodeSplitter.splitCodeDocument(content, file_format);
+            
+            // If we have multiple chunks after intelligent splitting
+            if (codeChunks.length > 1) {
+                // Update parent document metadata
+                parentDocument.metadata.has_children = true;
+                parentDocument.metadata.child_count = codeChunks.length;
+                
+                // We need to replace the parent document to update metadata
+                // ElasticSearch doesn't allow direct metadata updates, so delete and re-add
+                const query = {
+                    term: {
+                        "metadata.document_id": documentId
+                    }
+                };
+                // Use the appropriate method for deletion based on the ElasticSearch client
+                try {
+                    // If using bulk delete API (if available)
+                    await vectorStore.delete({
+                        ids: [documentId]
+                    });
+                } catch (error) {
+                    console.error("Error deleting document for metadata update:", error);
+                    // If delete method fails, just continue with adding updated document
+                }
+                
+                // Add updated parent document back
+                await vectorStore.addDocuments([parentDocument]);
+                
+                // Prepare child documents with links to parent
+                const childDocuments: Document[] = codeChunks.map((chunk, index) => ({
+                    pageContent: chunk,
+                    metadata: { 
+                        ...parentDocument.metadata,
+                        is_parent: false,
+                        parent_id: documentId,
+                        chunk_id: randomUUID(),
+                        chunk_index: index,
+                        total_chunks: codeChunks.length,
+                        snippet_type: "code_chunk"
+                    },
+                }));
+                
+                // Add child documents to Elasticsearch
+                await vectorStore.addDocuments(childDocuments);
+                
+                // Add child documents to our result array
+                documents.push(...childDocuments);
+                
+                console.log(`Added ${codeChunks.length} intelligent chunks as child documents`);
+            } else {
+                // Fall back to original splitting method if intelligent splitting didn't produce multiple chunks
+                const splits = await textSplitter.splitDocuments([parentDocument]);
+                
+                if (splits.length > 1) {
+                    // Update parent document metadata
+                    parentDocument.metadata.has_children = true;
+                    parentDocument.metadata.child_count = splits.length;
+                    
+                    // Replace parent document with updated metadata
+                    const query = {
+                        term: {
+                            "metadata.document_id": documentId
+                        }
+                    };
+                    
+                    try {
+                        // The delete method expects an object with an ids array
+                        await vectorStore.delete({
+                            ids: [documentId]
+                        });
+                    } catch (error) {
+                        console.error("Error deleting document for metadata update:", error);
+                        console.log("Continuing with document update without deletion");
+                    }
+                    
+                    await vectorStore.addDocuments([parentDocument]);
+                    
+                    // Create child documents
+                    const childDocuments: Document[] = splits.map((split, index) => ({
+                        pageContent: split.pageContent,
+                        metadata: { 
+                            ...split.metadata,
+                            is_parent: false,
+                            parent_id: documentId,
+                            chunk_id: randomUUID(),
+                            chunk_index: index,
+                            total_chunks: splits.length,
+                            snippet_type: "code_chunk"
+                        },
+                    }));
+                    
+                    // Add child documents to Elasticsearch
+                    await vectorStore.addDocuments(childDocuments);
+                    
+                    // Add child documents to our result array
+                    documents.push(...childDocuments);
+                    
+                    console.log(`Added ${splits.length} text splitter chunks as child documents`);
+                }
+            }
+        }
 
-        console.log("Successfully added vectors to Elasticsearch:", result);
+        console.log(`Successfully added ${documents.length} vectors to Elasticsearch (1 parent + ${documents.length - 1} children)`);
         
         return res.status(200).json({ 
             message: "Component successfully embedded",
@@ -121,7 +421,8 @@ export const EmbeddingsVectorStore = async (req: Request, res: Response, next: N
                 responsive: isResponsive,
                 embedded_at: embeddingTimestamp,
                 index: index,
-                chunks: splits.length
+                chunks: documents.length,
+                has_chunks: documents.length > 1
             }
         });
     } catch (error) {

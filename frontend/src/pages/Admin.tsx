@@ -1,7 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { IconButton } from "@mui/material";
 import { useAuth } from "../context/AuthContext";
-import { IoMdSend } from "react-icons/io";
 import { useNavigate } from "react-router-dom";
 import { getAllIndices, sendLinkRequest, createNewIndex, isExistedLink } from "../helper/api-communicator";
 import toast from "react-hot-toast";
@@ -12,15 +10,11 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import IndexSelector from "../components/shared/IndexSelector";
 import IndexList from "../components/index/IndexList";
 import bg from '../../public/main_bg.png'
-
+import InputFileHTML from "../components/upload/InputFileHTML";
 
 type Indexies = {
   index: string;
   content: string;
-};
-
-type Link = {
-  link: string;
 };
 
 const Admin = () => {
@@ -28,20 +22,15 @@ const Admin = () => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const auth = useAuth();
   const [indices, setIndices] = useState<Indexies[]>([]);
-  const [chosenIndices, setChosenIndices] = useState<string>("");
   const [inputLink, setInputLink] = useState<string>("");
   const [inputIndex, setInputIndex] = useState<string>("");
   const [isIndexValid, setIsIndexValid] = useState(false);
-  const [selectedFileType, setSelectedFileType] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [selectedIndex, setSelectedIndex] = useState("");
   const dropdownRef = useRef<HTMLUListElement | null>(null);
   const [webSelectedIndex, setWebSelectedIndex] = useState<string>("");
   const [fileSelectedIndex, setFileSelectedIndex] = useState<string>("");
   const [fileTypeSelectedIndex, setFileTypeSelectedIndex] = useState<string>("");
-  const fileTypes: string[] = ["JSON", "DOCX", "PDF"];
-  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
-
+  const fileTypes: string[] = ["HTML"];
 
   const handleSubmitLink = async () => {
     if (!webSelectedIndex) {
@@ -85,7 +74,6 @@ const Admin = () => {
   }, []);
 
   const handleSubmitIndex = async () => {
-    // if (isIndexValid) {
     const index = inputRef.current?.value.trim() as string;
     if (!index) return;
     try {
@@ -93,11 +81,9 @@ const Admin = () => {
       toast.success("Successful Create New Index");
     } catch (error) {
       toast.error("Can't Create New Index with error");
-
     }
     setInputIndex(""); // Clear the input after submission
     if (inputRef.current) inputRef.current.value = ""; // Reset ref
-    // }
   };
 
   useLayoutEffect(() => {
@@ -162,7 +148,7 @@ const Admin = () => {
   };
 
   return (
-    <div id="admin-container" className="h-full flex flex-col gap-3 p-3 overflow-hidden" style={{
+    <div id="admin-container" className="h-full flex flex-col gap-3 p-3" style={{
       backgroundImage: `url(${bg})`,
       backgroundSize: "contain",
       backgroundPosition: "center",
@@ -170,7 +156,7 @@ const Admin = () => {
     }}>
       <h1 className="font-serif	text-2xl antialiased font-bold">Retrieval-Augmented Generation</h1>
       <div className="flex flex-col gap-4">
-      <div id="web-loader-container" className="p-2 border rounded-md border-green-500 gap-1.5 flex flex-col">
+      {/* <div id="web-loader-container" className="p-2 border rounded-md border-green-500 gap-1.5 flex flex-col">
       <h2 className="underline font-serif text-lg antialiased font-medium">Web Loader</h2>
       <div className="flex gap-2">
         <IndexSelector 
@@ -208,7 +194,7 @@ const Admin = () => {
           </button>
         </div>
       </div>
-    </div>
+    </div> */}
 
         <div id="file-loader-container" className="p-2 border rounded-md border-green-500 gap-1.5 flex flex-col">
           <h2 className="underline font-serif text-lg antialiased font-medium">File Loader</h2>
@@ -217,7 +203,7 @@ const Admin = () => {
           <div className="relative">
             <button
               onClick={() => setDropdownOpen((prev) => !prev)}
-              className="bg-green-950 border border-green-500 h-full text-white px-3 py-1 rounded w-40 flex justify-between items-center"
+              className="bg-green-950 border border-green-500 h-10 text-white px-3 py-1 rounded w-40 flex justify-between items-center"
             >
               {fileTypeSelectedIndex || "Select File Type"}
               <ExpandMoreIcon />
@@ -237,9 +223,7 @@ const Admin = () => {
             )}
           </div>
           <div className="w-full">
-            {fileTypeSelectedIndex === "JSON" && <InputFileJSON chosenIndices={fileSelectedIndex} />}
-            {fileTypeSelectedIndex === "DOCX" && <InputFileDOCX chosenIndices={fileSelectedIndex} />}
-            {fileTypeSelectedIndex === "PDF" && <InputFilePDF chosenIndices={fileSelectedIndex} />}
+            {fileTypeSelectedIndex === "HTML" && <InputFileHTML chosenIndices={fileSelectedIndex} />}
           </div>
         </div>
         </div>
@@ -281,7 +265,9 @@ const Admin = () => {
           <IndexList />
         </div>
       </div>
-
+            <div>
+              {/*  /*your code goes here */}
+            </div>
     </div>
   );
 };

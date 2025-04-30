@@ -4,77 +4,80 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dark Mode Feature Section</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Dark Theme Hero Section</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @media (max-width: 768px) {
+            .hero-content {
+                flex-direction: column-reverse;
+            }
+
+            .hero-img {
+                margin: 0 auto;
+                max-width: 80%;
+            }
+        }
+    </style>
 </head>
 
-<body class="bg-gray-900 text-gray-200 dark:bg-gray-900 dark:text-gray-200">
-    <div class="container mx-auto p-6">
-        <h1 class="text-3xl font-semibold text-center mb-6">Main Heading</h1>
-        <p class="text-center text-gray-400 dark:text-gray-400">Short description of the feature section.</p>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-            <!-- Feature Card 1 -->
-            <div class="bg-gray-800 dark:bg-gray-800 rounded-lg shadow-md relative">
-                <div class="p-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-400 dark:text-blue-400" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 14l9-5-9-5-9 5 9 5z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 14l9-5-9-5-9 5 9 5z" />
-                    </svg>
-                    <h2 class="text-lg font-semibold mt-2">Feature 1</h2>
-                    <p class="text-gray-400 dark:text-gray-400 mt-2">Description of Feature 1.</p>
-                    <ul class="mt-4">
-                        <li class="text-sm">Computers</li>
-                        <li class="text-sm">Health</li>
-                        <li class="text-sm">Reference</li>
-                    </ul>
+<body class="bg-gray-900 text-white">
+    <div class="flex flex-col lg:flex-row items-center justify-between px-4 py-16 mx-auto lg:py-32 xl:py-48 md:px-8 sm:max-w-xl md:max-w-full">
+        <div class="max-w-lg lg:w-1/2">
+            <h2 class="text-4xl font-bold text-purple-400 mb-4">We will bring your business <span class="text-white">online</span></h2>
+            <p class="text-base text-gray-300 md:text-lg mb-6">
+                Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae. explicabo.
+            </p>
+            <form>
+                <div class="flex flex-col md:flex-row mb-4">
+                    <input placeholder="Name" required type="text" class="input-field" />
+                    <input placeholder="Email" required type="email" class="input-field" />
                 </div>
-                <span class="absolute top-0 left-0 bg-blue-500 text-white font-semibold py-1 px-2 rounded-br-md">Featured</span>
-            </div>
-            
-            <!-- Feature Card 2 -->
-            <div class="bg-gray-800 dark:bg-gray-800 rounded-lg shadow-md transform transition duration-300 ease-in-out hover:scale-105 hover:bg-green-600 dark:hover:bg-green-600">
-                <div class="p-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-green-400 dark:text-green-400" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 14l9-5-9-5-9 5 9 5z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 14l9-5-9-5-9 5 9 5z" />
-                    </svg>
-                    <h2 class="text-lg font-semibold mt-2">Feature 2</h2>
-                    <p class="text-gray-400 dark:text-gray-400 mt-2">Description of Feature 2.</p>
-                    <ul class="mt-4">
-                        <li class="text-sm">Computers</li>
-                        <li class="text-sm">Health</li>
-                        <li class="text-sm">Reference</li>
-                    </ul>
+                <div class="flex items-center">
+                    <button type="submit" class="btn">Subscribe</button>
+                    <a href="/" class="text-purple-400 ml-4">Learn more</a>
                 </div>
-            </div>
-            
-            <!-- Feature Card 3 -->
-            <div class="bg-gray-800 dark:bg-gray-800 rounded-lg shadow-md transform transition duration-300 ease-in-out hover:scale-105 hover:bg-yellow-600 dark:hover:bg-yellow-600">
-                <div class="p-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-yellow-400 dark:text-yellow-400" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 14l9-5-9-5-9 5 9 5z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 14l9-5-9-5-9 5 9 5z" />
-                    </svg>
-                    <h2 class="text-lg font-semibold mt-2">Feature 3</h2>
-                    <p class="text-gray-400 dark:text-gray-400 mt-2">Description of Feature 3.</p>
-                    <ul class="mt-4">
-                        <li class="text-sm">Computers</li>
-                        <li class="text-sm">Health</li>
-                        <li class="text-sm">Reference</li>
-                    </ul>
-                </div>
-            </div>
+            </form>
+        </div>
+        <div class="max-w-xl lg:w-1/2 lg:ml-10 lg:mr-0">
+            <img src="https://kitwind.io/assets/kometa/laptop.png" class="hero-img" alt="Laptop Image" />
         </div>
     </div>
+    <style>
+        .input-field {
+            padding: 0.75rem;
+            margin-bottom: 1rem;
+            width: 100%;
+            border: 1px solid #6b7280;
+            border-radius: 0.5rem;
+            background-color: #1f2937;
+            color: white;
+            transition: border-color 0.3s;
+        }
+        
+        .input-field::placeholder {
+            color: #9CA3AF;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: #8B5CF6;
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            background-color: #A855F7;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .btn:hover,
+        .btn:focus {
+            background-color: #9F7AEA;
+        }
+    </style>
 </body>
 
 </html>
