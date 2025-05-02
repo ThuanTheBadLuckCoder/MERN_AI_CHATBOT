@@ -20,6 +20,11 @@ interface MetadataSource {
   has_children?: boolean;
   child_count?: number;
   is_parent?: boolean;
+  parent_id?: string;
+  chunk_id?: string;
+  chunk_index?: number;
+  total_chunks?: number;
+  snippet_type?: string;
 }
 
 // Define a more generic hit structure that works with Elasticsearch's response
@@ -210,30 +215,6 @@ export const getIndexContents = async (req: Request, res: Response, next: NextFu
     }
 };
 
-
-/*
-GET frontend_developer/_search
-{
-  "size": 0,
-  "aggs": {
-    "unique_metadata_sources": {
-      "composite": {
-        "sources": [
-          {
-            "metadata_source": {
-              "terms": {
-                "field": "metadata.source"
-              }
-            }
-          }
-        ],
-        "size": 10000
-      }
-    }
-  }
-}
-*/
-
 export const getIndexSources = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { index } = req.params;
@@ -244,15 +225,14 @@ export const getIndexSources = async (req: Request, res: Response, next: NextFun
         // Create Elasticsearch client
         const client = new Client(config);
 
-        // First, get only parent documents to avoid duplicates
+        // Modified query to return ALL documents (both parents and children)
+        // with a flat structure that clearly identifies relationships
         const response = await client.search({
             index: `${index}`,
-            size: 1000, // Adjust size as needed
+            size: 10000, // Adjust size as needed to accommodate all documents
             body: {
                 query: {
-                    term: {
-                        "metadata.is_parent": true
-                    }
+                    match_all: {} // Get all documents regardless of parent/child status
                 },
                 _source: [
                     "metadata.document_id",
@@ -266,30 +246,48 @@ export const getIndexSources = async (req: Request, res: Response, next: NextFun
                     "metadata.features",
                     "metadata.responsive",
                     "metadata.created_at",
+                    "metadata.is_parent",
+                    "metadata.parent_id",
                     "metadata.has_children",
-                    "metadata.child_count"
+                    "metadata.child_count",
+                    "metadata.chunk_id",
+                    "metadata.chunk_index",
+                    "metadata.total_chunks",
+                    "metadata.snippet_type",
+                    "text"
                 ],
                 sort: [
-                    { "metadata.created_at": { order: "desc" } }
+                    // Sort by is_parent first (so parents come before children),
+                    // then by created_at descending for parents,
+                    // and by chunk_index for children
+                    { "metadata.is_parent": { order: "desc" } },
+                    { "metadata.created_at": { order: "desc" } },
+                    { "metadata.chunk_index": { order: "asc" } }
                 ]
             }
         });
 
-        // Transform the response to a more frontend-friendly format
-        const componentSources = response.hits.hits.map((hit: any) => {
+        console.log("response: ", response);
+
+        // Transform all documents into a flat array with relationship indicators
+        const allDocuments = response.hits.hits.map((hit: any) => {
             if (!hit._source || !hit._source.metadata) {
                 return {
                     id: "unknown",
                     name: "Unknown Component",
+                    is_parent: false,
+                    parent_id: null,
                     languages: [],
                     features: [],
                     responsive: false,
                     has_chunks: false,
-                    chunk_count: 0
+                    chunk_count: 0,
+                    code: ""
                 };
             }
             
-            const metadata = hit._source.metadata as MetadataSource;
+            const metadata = hit._source.metadata;
+            
             return {
                 id: metadata.document_id,
                 name: metadata.component_name || metadata.source || "Unnamed",
@@ -301,8 +299,15 @@ export const getIndexSources = async (req: Request, res: Response, next: NextFun
                 features: metadata.features || [],
                 responsive: metadata.responsive || false,
                 created_at: metadata.created_at,
+                is_parent: metadata.is_parent || false,
+                parent_id: metadata.parent_id || null,
                 has_chunks: metadata.has_children || false,
-                chunk_count: metadata.child_count || 0
+                chunk_count: metadata.child_count || 0,
+                chunk_id: metadata.chunk_id,
+                chunk_index: metadata.chunk_index,
+                total_chunks: metadata.total_chunks,
+                snippet_type: metadata.snippet_type,
+                code: hit._source.text || ""
             };
         });
 
@@ -359,9 +364,9 @@ export const getIndexSources = async (req: Request, res: Response, next: NextFun
 
         return res.status(200).json({
             message: "OK",
-            components: componentSources,
+            all_documents: allDocuments,
             stats: {
-                total: componentSources.length,
+                total: allDocuments.length,
                 component_types: aggregations.component_types.buckets,
                 frameworks: aggregations.frameworks.buckets,
                 file_formats: aggregations.file_formats.buckets,

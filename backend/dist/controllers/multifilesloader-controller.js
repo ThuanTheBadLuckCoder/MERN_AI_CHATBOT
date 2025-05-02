@@ -252,34 +252,53 @@ export const EmbeddingsVectorStore = async (req, res, next) => {
             // If we have multiple chunks after intelligent splitting
             if (codeChunks.length > 1) {
                 // Update parent document metadata
-                parentDocument.metadata.has_children = true;
-                parentDocument.metadata.child_count = codeChunks.length;
+                const updatedParentMetadata = {
+                    ...parentDocument.metadata,
+                    has_children: true,
+                    child_count: codeChunks.length
+                };
+                // Create updated parent document
+                const updatedParentDocument = {
+                    pageContent: parentDocument.pageContent,
+                    metadata: updatedParentMetadata
+                };
                 // We need to replace the parent document to update metadata
                 // ElasticSearch doesn't allow direct metadata updates, so delete and re-add
-                const query = {
-                    term: {
-                        "metadata.document_id": documentId
-                    }
-                };
-                // Use the appropriate method for deletion based on the ElasticSearch client
                 try {
-                    // If using bulk delete API (if available)
+                    // Delete the existing document
                     await vectorStore.delete({
                         ids: [documentId]
                     });
+                    // Add updated parent document back
+                    await vectorStore.addDocuments([updatedParentDocument]);
+                    // Update our tracking array with the updated document
+                    documents[0] = updatedParentDocument;
                 }
                 catch (error) {
-                    console.error("Error deleting document for metadata update:", error);
-                    // If delete method fails, just continue with adding updated document
+                    console.error("Error updating parent document metadata:", error);
+                    // Continue with child documents, but log the issue
                 }
-                // Add updated parent document back
-                await vectorStore.addDocuments([parentDocument]);
-                // Prepare child documents with links to parent
+                // Prepare child documents with links to parent, but FIXED metadata
                 const childDocuments = codeChunks.map((chunk, index) => ({
                     pageContent: chunk,
                     metadata: {
-                        ...parentDocument.metadata,
+                        // Only copy specific fields from parent to avoid inconsistency
+                        source: parentDocument.metadata.source,
+                        file_format: parentDocument.metadata.file_format,
+                        languages: parentDocument.metadata.languages,
+                        description: parentDocument.metadata.description,
+                        created_at: parentDocument.metadata.created_at,
+                        document_id: `${documentId}-chunk-${index}`, // Unique ID for each chunk
+                        component_name: parentDocument.metadata.component_name,
+                        component_type: parentDocument.metadata.component_type,
+                        framework: parentDocument.metadata.framework,
+                        responsive: parentDocument.metadata.responsive,
+                        features: parentDocument.metadata.features,
+                        // Set correct parent-child relationship
                         is_parent: false,
+                        has_children: false, // Children NEVER have children
+                        child_count: 0, // Children NEVER have children
+                        // Add child-specific metadata
                         parent_id: documentId,
                         chunk_id: randomUUID(),
                         chunk_index: index,
@@ -298,31 +317,52 @@ export const EmbeddingsVectorStore = async (req, res, next) => {
                 const splits = await textSplitter.splitDocuments([parentDocument]);
                 if (splits.length > 1) {
                     // Update parent document metadata
-                    parentDocument.metadata.has_children = true;
-                    parentDocument.metadata.child_count = splits.length;
-                    // Replace parent document with updated metadata
-                    const query = {
-                        term: {
-                            "metadata.document_id": documentId
-                        }
+                    const updatedParentMetadata = {
+                        ...parentDocument.metadata,
+                        has_children: true,
+                        child_count: splits.length
                     };
+                    // Create updated parent document
+                    const updatedParentDocument = {
+                        pageContent: parentDocument.pageContent,
+                        metadata: updatedParentMetadata
+                    };
+                    // Replace parent document with updated metadata
                     try {
-                        // The delete method expects an object with an ids array
+                        // Delete the existing document
                         await vectorStore.delete({
                             ids: [documentId]
                         });
+                        // Add updated parent document back
+                        await vectorStore.addDocuments([updatedParentDocument]);
+                        // Update our tracking array with the updated document
+                        documents[0] = updatedParentDocument;
                     }
                     catch (error) {
-                        console.error("Error deleting document for metadata update:", error);
+                        console.error("Error updating parent document metadata:", error);
                         console.log("Continuing with document update without deletion");
                     }
-                    await vectorStore.addDocuments([parentDocument]);
-                    // Create child documents
+                    // Create child documents with FIXED metadata
                     const childDocuments = splits.map((split, index) => ({
                         pageContent: split.pageContent,
                         metadata: {
-                            ...split.metadata,
+                            // Only copy specific fields from parent to avoid inconsistency
+                            source: parentDocument.metadata.source,
+                            file_format: parentDocument.metadata.file_format,
+                            languages: parentDocument.metadata.languages,
+                            description: parentDocument.metadata.description,
+                            created_at: parentDocument.metadata.created_at,
+                            document_id: `${documentId}-chunk-${index}`, // Unique ID for each chunk
+                            component_name: parentDocument.metadata.component_name,
+                            component_type: parentDocument.metadata.component_type,
+                            framework: parentDocument.metadata.framework,
+                            responsive: parentDocument.metadata.responsive,
+                            features: parentDocument.metadata.features,
+                            // Set correct parent-child relationship
                             is_parent: false,
+                            has_children: false, // Children NEVER have children
+                            child_count: 0, // Children NEVER have children
+                            // Add child-specific metadata
                             parent_id: documentId,
                             chunk_id: randomUUID(),
                             chunk_index: index,

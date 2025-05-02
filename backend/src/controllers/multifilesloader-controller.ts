@@ -233,205 +233,254 @@ class IntelligentCodeSplitter {
  * Using a hierarchical approach to maintain complete code while improving search
  */
 export const EmbeddingsVectorStore = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const { 
-            name, 
-            content, 
-            index,
-            description = "",
-            languages = [],
-            file_format = "HTML"
-        } = req.body;
-        
-        console.log("Processing file:", name);
-        console.log("Target index:", index);
+  try {
+      const { 
+          name, 
+          content, 
+          index,
+          description = "",
+          languages = [],
+          file_format = "HTML"
+      } = req.body;
+      
+      console.log("Processing file:", name);
+      console.log("Target index:", index);
 
-        // Generate unique document ID
-        const documentId = randomUUID();
-        
-        // Create timestamp for embedding
-        const embeddingTimestamp = new Date().toISOString();
-        
-        // Process metadata (same as original)
-        const detectedLanguages = detectLanguages(content, file_format);
-        const componentLanguages = languages.length > 0 ? languages : detectedLanguages;
-        const componentName = name || generateComponentName(content, file_format);
-        const componentDescription = description || generateComponentDescription(content, file_format);
-        const features = extractFeatures(content, file_format);
-        const isResponsive = checkIfResponsive(content);
-        const framework = detectFramework(content);
-        const componentType = detectComponentType(content);
+      // Generate unique document ID
+      const documentId = randomUUID();
+      
+      // Create timestamp for embedding
+      const embeddingTimestamp = new Date().toISOString();
+      
+      // Process metadata (same as original)
+      const detectedLanguages = detectLanguages(content, file_format);
+      const componentLanguages = languages.length > 0 ? languages : detectedLanguages;
+      const componentName = name || generateComponentName(content, file_format);
+      const componentDescription = description || generateComponentDescription(content, file_format);
+      const features = extractFeatures(content, file_format);
+      const isResponsive = checkIfResponsive(content);
+      const framework = detectFramework(content);
+      const componentType = detectComponentType(content);
 
-        // Create the PARENT document with full content and complete metadata
-        const parentDocument: Document = {
-            pageContent: content,
-            metadata: {
-                source: componentName,
-                file_format: file_format,
-                languages: componentLanguages,
-                description: componentDescription,
-                created_at: embeddingTimestamp,
-                document_id: documentId,
-                component_name: componentName,
-                component_type: componentType,
-                framework: framework,
-                responsive: isResponsive,
-                features: features,
-                is_parent: true,      // Flag to identify parent documents
-                has_children: false,  // Will be set to true if we create child documents
-                child_count: 0        // Will be updated if we create child documents
-            },
-        };
-        
-        console.log("Prepared parent document with metadata:", parentDocument.metadata);
+      // Create the PARENT document with full content and complete metadata
+      const parentDocument: Document = {
+          pageContent: content,
+          metadata: {
+              source: componentName,
+              file_format: file_format,
+              languages: componentLanguages,
+              description: componentDescription,
+              created_at: embeddingTimestamp,
+              document_id: documentId,
+              component_name: componentName,
+              component_type: componentType,
+              framework: framework,
+              responsive: isResponsive,
+              features: features,
+              is_parent: true,      // Flag to identify parent documents
+              has_children: false,  // Will be set to true if we create child documents
+              child_count: 0        // Will be updated if we create child documents
+          },
+      };
+      
+      console.log("Prepared parent document with metadata:", parentDocument.metadata);
 
-        // Initialize vector store
-        const clientArgs: ElasticClientArgs = {
-            client: new Client(config),
-            indexName: process.env.ELASTIC_INDEX ?? `${index}`,
-        };
-        
-        const vectorStore = new ElasticVectorSearch(embeddingsOpenAI, clientArgs);
+      // Initialize vector store
+      const clientArgs: ElasticClientArgs = {
+          client: new Client(config),
+          indexName: process.env.ELASTIC_INDEX ?? `${index}`,
+      };
+      
+      const vectorStore = new ElasticVectorSearch(embeddingsOpenAI, clientArgs);
 
-        // First, add the COMPLETE parent document to Elasticsearch
-        await vectorStore.addDocuments([parentDocument]);
-        
-        // Create array to track all documents
-        const documents: Document[] = [parentDocument]; // Start with the parent document
-        
-        // Only split large documents (e.g., over 3000 characters)
-        if (content.length > 3000) {
-            // Try intelligent splitting first
-            const codeChunks = IntelligentCodeSplitter.splitCodeDocument(content, file_format);
-            
-            // If we have multiple chunks after intelligent splitting
-            if (codeChunks.length > 1) {
-                // Update parent document metadata
-                parentDocument.metadata.has_children = true;
-                parentDocument.metadata.child_count = codeChunks.length;
-                
-                // We need to replace the parent document to update metadata
-                // ElasticSearch doesn't allow direct metadata updates, so delete and re-add
-                const query = {
-                    term: {
-                        "metadata.document_id": documentId
-                    }
-                };
-                // Use the appropriate method for deletion based on the ElasticSearch client
-                try {
-                    // If using bulk delete API (if available)
-                    await vectorStore.delete({
-                        ids: [documentId]
-                    });
-                } catch (error) {
-                    console.error("Error deleting document for metadata update:", error);
-                    // If delete method fails, just continue with adding updated document
-                }
-                
-                // Add updated parent document back
-                await vectorStore.addDocuments([parentDocument]);
-                
-                // Prepare child documents with links to parent
-                const childDocuments: Document[] = codeChunks.map((chunk, index) => ({
-                    pageContent: chunk,
-                    metadata: { 
-                        ...parentDocument.metadata,
-                        is_parent: false,
-                        parent_id: documentId,
-                        chunk_id: randomUUID(),
-                        chunk_index: index,
-                        total_chunks: codeChunks.length,
-                        snippet_type: "code_chunk"
-                    },
-                }));
-                
-                // Add child documents to Elasticsearch
-                await vectorStore.addDocuments(childDocuments);
-                
-                // Add child documents to our result array
-                documents.push(...childDocuments);
-                
-                console.log(`Added ${codeChunks.length} intelligent chunks as child documents`);
-            } else {
-                // Fall back to original splitting method if intelligent splitting didn't produce multiple chunks
-                const splits = await textSplitter.splitDocuments([parentDocument]);
-                
-                if (splits.length > 1) {
-                    // Update parent document metadata
-                    parentDocument.metadata.has_children = true;
-                    parentDocument.metadata.child_count = splits.length;
-                    
-                    // Replace parent document with updated metadata
-                    const query = {
-                        term: {
-                            "metadata.document_id": documentId
-                        }
-                    };
-                    
-                    try {
-                        // The delete method expects an object with an ids array
-                        await vectorStore.delete({
-                            ids: [documentId]
-                        });
-                    } catch (error) {
-                        console.error("Error deleting document for metadata update:", error);
-                        console.log("Continuing with document update without deletion");
-                    }
-                    
-                    await vectorStore.addDocuments([parentDocument]);
-                    
-                    // Create child documents
-                    const childDocuments: Document[] = splits.map((split, index) => ({
-                        pageContent: split.pageContent,
-                        metadata: { 
-                            ...split.metadata,
-                            is_parent: false,
-                            parent_id: documentId,
-                            chunk_id: randomUUID(),
-                            chunk_index: index,
-                            total_chunks: splits.length,
-                            snippet_type: "code_chunk"
-                        },
-                    }));
-                    
-                    // Add child documents to Elasticsearch
-                    await vectorStore.addDocuments(childDocuments);
-                    
-                    // Add child documents to our result array
-                    documents.push(...childDocuments);
-                    
-                    console.log(`Added ${splits.length} text splitter chunks as child documents`);
-                }
-            }
-        }
+      // First, add the COMPLETE parent document to Elasticsearch
+      await vectorStore.addDocuments([parentDocument]);
+      
+      // Create array to track all documents
+      const documents: Document[] = [parentDocument]; // Start with the parent document
+      
+      // Only split large documents (e.g., over 3000 characters)
+      if (content.length > 3000) {
+          // Try intelligent splitting first
+          const codeChunks = IntelligentCodeSplitter.splitCodeDocument(content, file_format);
+          
+          // If we have multiple chunks after intelligent splitting
+          if (codeChunks.length > 1) {
+              // Update parent document metadata
+              const updatedParentMetadata = {
+                  ...parentDocument.metadata,
+                  has_children: true,
+                  child_count: codeChunks.length
+              };
+              
+              // Create updated parent document
+              const updatedParentDocument: Document = {
+                  pageContent: parentDocument.pageContent,
+                  metadata: updatedParentMetadata
+              };
+              
+              // We need to replace the parent document to update metadata
+              // ElasticSearch doesn't allow direct metadata updates, so delete and re-add
+              try {
+                  // Delete the existing document
+                  await vectorStore.delete({
+                      ids: [documentId]
+                  });
+                  
+                  // Add updated parent document back
+                  await vectorStore.addDocuments([updatedParentDocument]);
+                  
+                  // Update our tracking array with the updated document
+                  documents[0] = updatedParentDocument;
+                  
+              } catch (error) {
+                  console.error("Error updating parent document metadata:", error);
+                  // Continue with child documents, but log the issue
+              }
+              
+              // Prepare child documents with links to parent, but FIXED metadata
+              const childDocuments: Document[] = codeChunks.map((chunk, index) => ({
+                  pageContent: chunk,
+                  metadata: { 
+                      // Only copy specific fields from parent to avoid inconsistency
+                      source: parentDocument.metadata.source,
+                      file_format: parentDocument.metadata.file_format,
+                      languages: parentDocument.metadata.languages,
+                      description: parentDocument.metadata.description,
+                      created_at: parentDocument.metadata.created_at,
+                      document_id: `${documentId}-chunk-${index}`, // Unique ID for each chunk
+                      component_name: parentDocument.metadata.component_name,
+                      component_type: parentDocument.metadata.component_type,
+                      framework: parentDocument.metadata.framework,
+                      responsive: parentDocument.metadata.responsive,
+                      features: parentDocument.metadata.features,
+                      
+                      // Set correct parent-child relationship
+                      is_parent: false,
+                      has_children: false, // Children NEVER have children
+                      child_count: 0,      // Children NEVER have children
+                      
+                      // Add child-specific metadata
+                      parent_id: documentId,
+                      chunk_id: randomUUID(),
+                      chunk_index: index,
+                      total_chunks: codeChunks.length,
+                      snippet_type: "code_chunk"
+                  },
+              }));
+              
+              // Add child documents to Elasticsearch
+              await vectorStore.addDocuments(childDocuments);
+              
+              // Add child documents to our result array
+              documents.push(...childDocuments);
+              
+              console.log(`Added ${codeChunks.length} intelligent chunks as child documents`);
+          } else {
+              // Fall back to original splitting method if intelligent splitting didn't produce multiple chunks
+              const splits = await textSplitter.splitDocuments([parentDocument]);
+              
+              if (splits.length > 1) {
+                  // Update parent document metadata
+                  const updatedParentMetadata = {
+                      ...parentDocument.metadata,
+                      has_children: true,
+                      child_count: splits.length
+                  };
+                  
+                  // Create updated parent document
+                  const updatedParentDocument: Document = {
+                      pageContent: parentDocument.pageContent,
+                      metadata: updatedParentMetadata
+                  };
+                  
+                  // Replace parent document with updated metadata
+                  try {
+                      // Delete the existing document
+                      await vectorStore.delete({
+                          ids: [documentId]
+                      });
+                      
+                      // Add updated parent document back
+                      await vectorStore.addDocuments([updatedParentDocument]);
+                      
+                      // Update our tracking array with the updated document
+                      documents[0] = updatedParentDocument;
+                      
+                  } catch (error) {
+                      console.error("Error updating parent document metadata:", error);
+                      console.log("Continuing with document update without deletion");
+                  }
+                  
+                  // Create child documents with FIXED metadata
+                  const childDocuments: Document[] = splits.map((split, index) => ({
+                      pageContent: split.pageContent,
+                      metadata: { 
+                          // Only copy specific fields from parent to avoid inconsistency
+                          source: parentDocument.metadata.source,
+                          file_format: parentDocument.metadata.file_format,
+                          languages: parentDocument.metadata.languages,
+                          description: parentDocument.metadata.description,
+                          created_at: parentDocument.metadata.created_at,
+                          document_id: `${documentId}-chunk-${index}`, // Unique ID for each chunk
+                          component_name: parentDocument.metadata.component_name,
+                          component_type: parentDocument.metadata.component_type,
+                          framework: parentDocument.metadata.framework,
+                          responsive: parentDocument.metadata.responsive,
+                          features: parentDocument.metadata.features,
+                          
+                          // Set correct parent-child relationship
+                          is_parent: false,
+                          has_children: false, // Children NEVER have children
+                          child_count: 0,      // Children NEVER have children
+                          
+                          // Add child-specific metadata
+                          parent_id: documentId,
+                          chunk_id: randomUUID(),
+                          chunk_index: index,
+                          total_chunks: splits.length,
+                          snippet_type: "code_chunk"
+                      },
+                  }));
+                  
+                  // Add child documents to Elasticsearch
+                  await vectorStore.addDocuments(childDocuments);
+                  
+                  // Add child documents to our result array
+                  documents.push(...childDocuments);
+                  
+                  console.log(`Added ${splits.length} text splitter chunks as child documents`);
+              }
+          }
+      }
 
-        console.log(`Successfully added ${documents.length} vectors to Elasticsearch (1 parent + ${documents.length - 1} children)`);
-        
-        return res.status(200).json({ 
-            message: "Component successfully embedded",
-            component: {
-                id: documentId,
-                name: componentName,
-                description: componentDescription,
-                file_format: file_format,
-                languages: componentLanguages,
-                component_type: componentType,
-                framework: framework,
-                features: features,
-                responsive: isResponsive,
-                embedded_at: embeddingTimestamp,
-                index: index,
-                chunks: documents.length,
-                has_chunks: documents.length > 1
-            }
-        });
-    } catch (error) {
-        console.error("Error embedding component:", error);
-        return res.status(500).json({ 
-            message: "Failed to embed component", 
-            cause: error.message 
-        });
-    }
+      console.log(`Successfully added ${documents.length} vectors to Elasticsearch (1 parent + ${documents.length - 1} children)`);
+      
+      return res.status(200).json({ 
+          message: "Component successfully embedded",
+          component: {
+              id: documentId,
+              name: componentName,
+              description: componentDescription,
+              file_format: file_format,
+              languages: componentLanguages,
+              component_type: componentType,
+              framework: framework,
+              features: features,
+              responsive: isResponsive,
+              embedded_at: embeddingTimestamp,
+              index: index,
+              chunks: documents.length,
+              has_chunks: documents.length > 1
+          }
+      });
+  } catch (error) {
+      console.error("Error embedding component:", error);
+      return res.status(500).json({ 
+          message: "Failed to embed component", 
+          cause: error.message 
+      });
+  }
 };
 
 /**

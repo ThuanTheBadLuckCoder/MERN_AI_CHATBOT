@@ -154,7 +154,7 @@ const Admin = () => {
       backgroundPosition: "center",
       backgroundRepeat: "no-repeat",
     }}>
-      <h1 className="font-serif	text-2xl antialiased font-bold">Retrieval-Augmented Generation</h1>
+      <h1 className="text-2xl antialiased font-bold">Retrieval-Augmented Generation</h1>
       <div className="flex flex-col gap-4">
       {/* <div id="web-loader-container" className="p-2 border rounded-md border-green-500 gap-1.5 flex flex-col">
       <h2 className="underline font-serif text-lg antialiased font-medium">Web Loader</h2>
@@ -187,17 +187,20 @@ const Admin = () => {
               !inputLink || !webSelectedIndex 
                 ? 'bg-gray-500 cursor-not-allowed' 
                 : 'bg-green-500 hover:bg-green-600'
-            }`}
-            disabled={!inputLink || !webSelectedIndex}
-          >
-            Submit
-          </button>
-        </div>
-      </div>
-    </div> */}
+                }`}
+                disabled={!inputLink || !webSelectedIndex}
+                >
+                Submit
+                </button>
+                </div>
+                </div>
+                </div> */}
 
+                <div id="index-list-container" className="p-2 border rounded-md border-green-500 gap-1.5 flex flex-col">
+                  <IndexList />
+                </div>
         <div id="file-loader-container" className="p-2 border rounded-md border-green-500 gap-1.5 flex flex-col">
-          <h2 className="underline font-serif text-lg antialiased font-medium">File Loader</h2>
+          <h2 className="underline text-lg antialiased font-medium">File Loader</h2>
           <div className="flex gap-2">
           <IndexSelector indices={indices} onSelectIndex={setFileSelectedIndex} selectedIndex={fileSelectedIndex} />
           <div className="relative">
@@ -229,7 +232,7 @@ const Admin = () => {
         </div>
 
         <div id="new-index-container" className="p-2 border rounded-md border-green-500 gap-1.5 flex flex-col">
-          <h2 className="underline font-serif text-lg antialiased font-medium">Create a New Index</h2>
+          <h2 className="underline text-lg antialiased font-medium">Create a New Index</h2>
           <div className="w-full flex flex-col">
             <div className="w-full flex gap-1.5 items-center h-10">
               <div className="flex gap-2 size-full">
@@ -261,9 +264,6 @@ const Admin = () => {
           </div>
         </div>
 
-        <div id="index-list-container" className="p-2 border rounded-md border-green-500 gap-1.5 flex flex-col">
-          <IndexList />
-        </div>
       </div>
     </div>
   );
