@@ -1,23 +1,45 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { getAllIndices, getIndexDetails, getIndexSources } from '../../helper/api-communicator';
+import { getAllIndices, getIndexSources } from '../../helper/api-communicator';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CachedIcon from '@mui/icons-material/Cached';
-
 
 // Type definitions
 type Index = {
     index: string;
 };
 
-type IndexDetails = {
-    doc_count: number;
-    key: Key;
+// Updated types based on the actual response from backend
+type Component = {
+    id: string;
+    name: string;
+    description: string;
+    file_format: string;
+    languages: string[];
+    type: string;
+    framework: string;
+    features: string[];
+    responsive: boolean;
+    created_at: string;
+    has_chunks: boolean;
+    chunk_count: number;
 };
 
-type Key = {
-    metadata_source: string;
-}
+type IndexStats = {
+    total: number;
+    component_types: Array<{key: string, doc_count: number}>;
+    frameworks: Array<{key: string, doc_count: number}>;
+    file_formats: Array<{key: string, doc_count: number}>;
+    languages: Array<{key: string, doc_count: number}>;
+    total_parents: number;
+    total_children: number;
+};
+
+type IndexSourcesResponse = {
+    message: string;
+    components: Component[];
+    stats: IndexStats;
+};
 
 // Custom hook for managing index data
 const useIndexData = () => {
@@ -52,59 +74,30 @@ const useIndexData = () => {
 const IndexList = () => {
     const { indexList, isLoading, refreshData } = useIndexData();
     const [chosenIndex, setChosenIndex] = useState<string>('');
-    const [detailsIndex, setDetailsIndex] = useState<IndexDetails[]>([]);
+    const [indexData, setIndexData] = useState<IndexSourcesResponse | null>(null);
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLUListElement | null>(null);
     const refreshInterval = useRef<NodeJS.Timeout>();
     const [isRefreshing, setIsRefreshing] = useState(false);
 
-    // Helper function to determine reader type
-    const getReaderType = (source: string) => {
-        const fileExtensions = ['docx', 'pdf', 'json'];
-        const isFile = fileExtensions.some(ext => source.toLowerCase().endsWith(ext));
-        const isUrl = source.toLowerCase().startsWith('http://') || source.toLowerCase().startsWith('https://');
-
-        if (isFile) return 'File Reader';
-        if (isUrl) return 'Link Reader';
-        return source;
+    // Helper function to truncate descriptions
+    const truncateDescription = (desc: string, maxLength = 100) => {
+        if (!desc) return '';
+        return desc.length > maxLength ? desc.substring(0, maxLength) + '...' : desc;
     };
 
-    // Helper function to process source display
-    const processSource = (source: string) => {
-        const isUrl = source.toLowerCase().startsWith('http://') || source.toLowerCase().startsWith('https://');
-
-        if (isUrl) {
-            try {
-                const url = new URL(source);
-                const pathParts = url.pathname.split('/');
-                const wildcard = pathParts[pathParts.length - 1] || pathParts[pathParts.length - 2] || url.hostname;
-
-                return {
-                    isLink: true,
-                    display: wildcard,
-                    fullPath: source
-                };
-            } catch {
-                return {
-                    isLink: false,
-                    display: source,
-                    fullPath: source
-                };
-            }
-        }
-
-        return {
-            isLink: false,
-            display: source,
-            fullPath: source
-        };
+    // Format date for display
+    const formatDate = (dateString: string) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
     };
 
     // Set up automatic refresh
     useEffect(() => {
         refreshInterval.current = setInterval(() => {
             refreshData();
-        }, 5000);
+        }, 30000); // Refresh every 30 seconds instead of 5
 
         return () => {
             if (refreshInterval.current) {
@@ -120,7 +113,8 @@ const IndexList = () => {
             
             try {
                 const data = await getIndexSources(chosenIndex);
-                setDetailsIndex(data.response.aggregations.unique_metadata_sources.buckets);
+                setIndexData(data);
+                console.log("data: ", data);
             } catch (err) {
                 console.error("Error loading index details:", err);
                 toast.error("Error loading index details");
@@ -150,7 +144,7 @@ const IndexList = () => {
             refreshData();
             if (chosenIndex) {
                 const data = await getIndexSources(chosenIndex);
-                setDetailsIndex(data.response.aggregations.unique_metadata_sources.buckets);
+                setIndexData(data);
             }
         } catch (err) {
             console.error("Error during manual refresh:", err);
@@ -160,10 +154,41 @@ const IndexList = () => {
         }
     };
 
+    // Render component statistics if available
+    const renderStats = () => {
+        if (!indexData || !indexData.stats) return null;
+        
+        const stats = indexData.stats;
+        
+        return (
+            <div className="mb-4 p-4 border border-green-500 rounded-md bg-green-950/20">
+                <h2 className="text-lg font-semibold mb-2">Index Stats</h2>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-green-950/30 p-3 rounded-md">
+                        <div className="text-sm text-gray-400">Total Components</div>
+                        <div className="text-xl font-bold">{stats.total}</div>
+                    </div>
+                    <div className="bg-green-950/30 p-3 rounded-md">
+                        <div className="text-sm text-gray-400">Parent Documents</div>
+                        <div className="text-xl font-bold">{stats.total_parents}</div>
+                    </div>
+                    <div className="bg-green-950/30 p-3 rounded-md">
+                        <div className="text-sm text-gray-400">Child Documents</div>
+                        <div className="text-xl font-bold">{stats.total_children}</div>
+                    </div>
+                    <div className="bg-green-950/30 p-3 rounded-md">
+                        <div className="text-sm text-gray-400">Languages</div>
+                        <div className="text-xl font-bold">{stats.languages.length}</div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className='flex flex-col gap-2'>
             {/* Header with dropdown and refresh button */}
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center mb-4">
                 <div className="flex w-full">
                     <h1 className='border-l border-t border-b border-green-500 rounded-l-md w-fit px-4 flex items-center underline font-serif text-lg antialiased font-medium'>
                         Index
@@ -206,46 +231,61 @@ const IndexList = () => {
                 </div>
             </div>
 
+            {/* Stats Display */}
+            {chosenIndex && indexData && renderStats()}
+
             {/* Index details table */}
-            {chosenIndex && (
-                <ul className='flex flex-col divide-y border border-green-500 divide-green-500 rounded-md overflow-y-auto h-64'>
-                    <li id="index-header" className='flex flex-row bg-green-950 sticky top-0'>
-                        <div className='flex w-1/6 overflow-hidden px-4 justify-left items-center h-10'>Order</div>
-                        <div className='flex w-3/6 overflow-hidden px-4 justify-left items-center h-10'>Source</div>
-                        <div className='flex w-1/6 overflow-hidden px-4 justify-left items-center h-10'>Type</div>
-                        <div className='flex w-1/6 overflow-hidden px-4 justify-left items-center h-10'>Count</div>
-                    </li>
-                    {detailsIndex.map((detail, i) => {
-                        const sourceInfo = processSource(detail.key.metadata_source);
-                        return (
-                            <li key={i} className='flex flex-row h-10 hover:bg-green-950/30'>
-                                <div className='flex h-10 justify-left items-center w-1/6 overflow-hidden px-4 my-auto'>
-                                    {i + 1}
+            {chosenIndex && indexData && (
+                <div className='border border-green-500 rounded-md overflow-hidden'>
+                    <div className='flex flex-row bg-green-950 sticky top-0'>
+                        <div className='flex w-3/12 overflow-hidden px-4 justify-left items-center h-10 font-semibold'>Name</div>
+                        <div className='flex w-2/12 overflow-hidden px-4 justify-left items-center h-10 font-semibold'>Id</div>
+                        <div className='flex w-2/12 overflow-hidden px-4 justify-left items-center h-10 font-semibold'>Framework</div>
+                        <div className='flex w-2/12 overflow-hidden px-4 justify-left items-center h-10 font-semibold'>Format</div>
+                        <div className='flex w-2/12 overflow-hidden px-4 justify-left items-center h-10 font-semibold'>Date</div>
+                        <div className='flex w-1/12 overflow-hidden px-4 justify-left items-center h-10 font-semibold'>Chunks</div>
+                    </div>
+                    
+                    <div className='max-h-96 overflow-y-auto'>
+                        {indexData.components.length > 0 ? (
+                            indexData.components.map((component, i) => (
+                                <div key={i} className='flex flex-row border-t border-green-500 hover:bg-green-950/30'>
+                                    <div className='flex flex-col p-2 w-3/12'>
+                                        <div className='font-medium'>{component.name}</div>
+                                        <div className='text-sm text-gray-400 truncate' title={component.description}>
+                                            {truncateDescription(component.description)}
+                                        </div>
+                                    </div>
+                                    <div className='flex items-center w-2/12 px-4'>{component.id}</div>
+                                    <div className='flex items-center w-2/12 px-4'>{component.framework}</div>
+                                    <div className='flex items-center w-2/12 px-4'>{component.file_format}</div>
+                                    <div className='flex items-center w-2/12 px-4 text-sm'>{formatDate(component.created_at)}</div>
+                                    <div className='flex items-center w-1/12 px-4 justify-center'>
+                                        <span className='bg-green-800 text-white rounded-full px-2 py-1 text-xs'>
+                                            {component.chunk_count}
+                                        </span>
+                                    </div>
                                 </div>
-                                <div className='flex h-10 justify-left items-center w-3/6 truncate px-4 my-auto'>
-                                    {sourceInfo.isLink ? (
-                                        <a
-                                            href={sourceInfo.fullPath}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-blue-500 hover:text-blue-700 underline"
-                                        >
-                                            {sourceInfo.display}
-                                        </a>
-                                    ) : (
-                                        sourceInfo.display
-                                    )}
-                                </div>
-                                <div className='flex h-10 justify-left items-center w-1/6 overflow-hidden px-4 my-auto'>
-                                    {getReaderType(detail.key.metadata_source)}
-                                </div>
-                                <div className='flex h-10 justify-left items-center w-1/6 overflow-hidden px-4 my-auto'>
-                                    {detail.doc_count}
-                                </div>
-                            </li>
-                        );
-                    })}
-                </ul>
+                            ))
+                        ) : (
+                            <div className='p-4 text-center text-gray-400'>No components found in this index</div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* No index selected message */}
+            {!chosenIndex && (
+                <div className='border border-green-500 rounded-md p-6 text-center text-gray-400'>
+                    Select an index to view embedded documents
+                </div>
+            )}
+
+            {/* Loading state */}
+            {isLoading && (
+                <div className='absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center'>
+                    <div className='bg-green-950 p-4 rounded-md'>Loading...</div>
+                </div>
             )}
         </div>
     );
