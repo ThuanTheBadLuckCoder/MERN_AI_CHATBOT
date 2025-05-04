@@ -1,4 +1,4 @@
-import { ChangeEvent, useState } from 'react';
+import { ChangeEvent, useState, useRef, useEffect } from 'react';
 import { sendFileRequest } from '../../helper/api-communicator';
 import toast from 'react-hot-toast';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
@@ -24,6 +24,49 @@ export default function InputFileHTML({ chosenIndices }: InputFileHTMLProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [description, setDescription] = useState<string>("");
   const [descriptionError, setDescriptionError] = useState<boolean>(false);
+  const [previewMode, setPreviewMode] = useState<'code' | 'render'>('render');
+  const previewRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Update the preview content whenever fileContent changes
+    if (fileContent && previewRef.current && previewMode === 'render') {
+      try {
+        // Create a sandboxed iframe to properly render the HTML content
+        const iframe = document.createElement('iframe');
+        iframe.style.width = '100%';
+        iframe.style.height = '100%';
+        iframe.style.border = 'none';
+        iframe.title = 'HTML Preview';
+        
+        // Clear the preview container first
+        while (previewRef.current.firstChild) {
+          previewRef.current.removeChild(previewRef.current.firstChild);
+        }
+        
+        // Add the iframe to the preview container
+        previewRef.current.appendChild(iframe);
+        
+        // Wait for iframe to load, then inject the HTML content
+        iframe.onload = () => {
+          // Get the iframe's document object
+          const iframeDocument = iframe.contentDocument || iframe.contentWindow?.document;
+          
+          if (iframeDocument) {
+            // Write the HTML content to the iframe
+            iframeDocument.open();
+            iframeDocument.write(fileContent.content);
+            iframeDocument.close();
+          }
+        };
+        
+        // Trigger the iframe load event
+        iframe.src = 'about:blank';
+      } catch (error) {
+        console.error('Error rendering HTML preview:', error);
+        previewRef.current.innerHTML = '<div class="p-4 text-red-500">Error rendering HTML preview. See console for details.</div>';
+      }
+    }
+  }, [fileContent, previewMode]);
 
   const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -120,6 +163,10 @@ export default function InputFileHTML({ chosenIndices }: InputFileHTMLProps) {
     }
   };
 
+  const togglePreviewMode = () => {
+    setPreviewMode(prev => prev === 'code' ? 'render' : 'code');
+  };
+
   return (
     <div id="html-receiver" className="size-full flex flex-col gap-2">
       {/* File Upload Section */}
@@ -186,21 +233,41 @@ export default function InputFileHTML({ chosenIndices }: InputFileHTMLProps) {
         )}
       </div>
       
-      {/* File Preview */}
+      {/* File Preview with Toggle */}
       {selectedFile && fileContent && (
         <div className="w-full mt-2">
-          <div className="flex items-center mb-1">
+          <div className="flex items-center justify-between mb-1">
             <label className="block text-sm font-medium text-gray-300">
               HTML Preview
             </label>
+            <div className="flex items-center">
+              <button 
+                onClick={togglePreviewMode}
+                className="text-xs px-2 py-1 rounded-md bg-gray-700 hover:bg-gray-600"
+              >
+                {previewMode === 'code' ? 'Switch to Rendered View' : 'Switch to Code View'}
+              </button>
+            </div>
           </div>
-          <div className="w-full max-h-40 overflow-auto border rounded-md border-green-500 p-2 bg-gray-900">
-            <pre className="text-xs text-gray-300 whitespace-pre-wrap">
-              {fileContent.content.length > 1000 
-                ? fileContent.content.substring(0, 1000) + '...' 
-                : fileContent.content}
-            </pre>
-          </div>
+          
+          {previewMode === 'code' ? (
+            <div className="w-full max-h-60 overflow-auto border rounded-md border-green-500 p-2 bg-gray-900">
+              <pre className="text-xs text-gray-300 whitespace-pre-wrap">
+                {fileContent.content.length > 1000 
+                  ? fileContent.content.substring(0, 1000) + '...' 
+                  : fileContent.content}
+              </pre>
+            </div>
+          ) : (
+            <div className="w-full h-96 overflow-auto border rounded-md border-green-500 p-2 bg-white">
+              <div 
+                ref={previewRef} 
+                className="w-full h-full"
+              >
+                {/* HTML content will be injected here via iframe */}
+              </div>
+            </div>
+          )}
         </div>
       )}
       

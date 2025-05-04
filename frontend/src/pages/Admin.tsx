@@ -3,9 +3,9 @@ import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { getAllIndices, sendLinkRequest, createNewIndex, isExistedLink } from "../helper/api-communicator";
 import toast from "react-hot-toast";
-import InputFileJSON from "../components/upload/InputFileJSON";
-import InputFileDOCX from "../components/upload/InputFileDOCX";
-import InputFilePDF from "../components/upload/InputFilePDF";
+// import InputFileJSON from "../components/upload/InputFileJSON";
+// import InputFileDOCX from "../components/upload/InputFileDOCX";
+// import InputFilePDF from "../components/upload/InputFilePDF";
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import IndexSelector from "../components/shared/IndexSelector";
 import IndexList from "../components/index/IndexList";
@@ -107,10 +107,10 @@ const Admin = () => {
     }
   }, [auth]);
 
-  const handleInputChangeLink = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const value = event.target.value.trim();
-    setInputLink(value);
-  };
+  // const handleInputChangeLink = (event: React.ChangeEvent<HTMLInputElement>) => {
+  //   const value = event.target.value.trim();
+  //   setInputLink(value);
+  // };
 
   const handleInputChangeIndex = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;
@@ -118,16 +118,16 @@ const Admin = () => {
     setIsIndexValid(validateIndex(value));
   };
 
-  const handleKeyPressLink = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      handleSubmitLink(); // Let the submit handler handle all validation
-    }
-  };
+  // const handleKeyPressLink = (event: React.KeyboardEvent<HTMLInputElement>) => {
+  //   if (event.key === "Enter") {
+  //     event.preventDefault();
+  //     handleSubmitLink(); // Let the submit handler handle all validation
+  //   }
+  // };
 
-  const handleCancelLink = () => {
-    setInputLink("");
-  };
+  // const handleCancelLink = () => {
+  //   setInputLink("");
+  // };
 
   const handleCancelIndex = () => {
     setInputIndex("");
