@@ -165,6 +165,7 @@ body {
   font-family: var(--font-figtree);
 }
 
+
 @font-face {
   font-family: 'Power Grotesk';
   src: url('./assets/fonts/PowerGrotesk.woff2') format('woff2');

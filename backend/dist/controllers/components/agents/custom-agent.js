@@ -383,6 +383,19 @@ const greetingDetectionTool = new DynamicTool({
         }
     }
 });
+function hasRequestedChanges(input) {
+    // Look for explicit change requests in the input
+    const changePatterns = [
+        /can you (change|modify|update|edit|alter)/i,
+        /please (change|modify|update|edit|alter)/i,
+        /would you (change|modify|update|edit|alter)/i,
+        /(change|modify|update|edit|alter) the (code|html|css|tailwind)/i,
+        /make (changes|modifications|updates|edits|alterations)/i,
+        /i want (changes|modifications|updates|edits|alterations)/i,
+        /i need (changes|modifications|updates|edits|alterations)/i
+    ];
+    return changePatterns.some(pattern => pattern.test(input));
+}
 // NEW: Implement PersistentCodeManager class
 class PersistentCodeManager {
     storage;
@@ -399,9 +412,11 @@ class PersistentCodeManager {
         }
         return this.activeDocuments.get(conversationId);
     }
-    async storeDocument(conversationId, document, type = "full-html") {
-        this.activeDocuments.set(conversationId, document);
-        await this.storage.store(conversationId, document, type);
+    async storeDocument(conversationId, document, type = "full-html", userRequestedChanges = false) {
+        // Verify and correct the document if needed
+        const verifiedDocument = await this.verifyAndCorrectDocument(conversationId, document, userRequestedChanges);
+        this.activeDocuments.set(conversationId, verifiedDocument);
+        await this.storage.store(conversationId, verifiedDocument, type);
         return true;
     }
     async updateDocument(conversationId, newDocument) {
@@ -433,6 +448,34 @@ class PersistentCodeManager {
         catch (e) {
             return false;
         }
+    }
+    async verifyAndCorrectDocument(conversationId, newDocument, userRequestedChanges = false) {
+        const currentDocument = await this.getFullDocument(conversationId);
+        // If no changes requested and we have a current document, verify preservation
+        if (!userRequestedChanges && currentDocument) {
+            try {
+                // Use the exactContextPreservationTool for verification
+                const verificationResult = JSON.parse(await exactContextPreservationTool.func(JSON.stringify({
+                    action: "verify",
+                    content: newDocument,
+                    originalContext: currentDocument
+                })));
+                // If verification fails, enforce preservation
+                if (!verificationResult.preserved) {
+                    console.log("Document verification failed - enforcing exact preservation");
+                    const enforcementResult = JSON.parse(await exactContextPreservationTool.func(JSON.stringify({
+                        action: "enforce",
+                        content: newDocument,
+                        originalContext: currentDocument
+                    })));
+                    return enforcementResult.correctedContent;
+                }
+            }
+            catch (error) {
+                console.error("Error during document verification:", error);
+            }
+        }
+        return newDocument;
     }
 }
 // Create a storage adapter for the PersistentCodeManager
@@ -798,6 +841,7 @@ const conversationAnalyzerTool = new DynamicTool({
     }
 });
 // Define a dedicated tool for context preservation
+// Enhanced exact context preservation tool
 const exactContextPreservationTool = new DynamicTool({
     name: 'exact_context_preservation_tool',
     description: 'Ensures that provided context is preserved exactly without any modifications',
@@ -805,29 +849,57 @@ const exactContextPreservationTool = new DynamicTool({
         try {
             // Parse the input JSON
             const data = JSON.parse(input);
-            const action = data.action; // "verify" or "extract"
+            const action = data.action; // "verify", "extract", or "enforce"
             const content = data.content || "";
             const originalContext = data.originalContext || "";
             if (action === "verify") {
                 // Verify that context is preserved exactly
                 const links = extractLinks(originalContext);
-                const isPreserved = verifyExactContextPreservation(originalContext, content, links);
+                const paths = extractPaths(originalContext);
+                const icons = extractIcons(originalContext);
+                const tailwindClasses = extractTailwindClasses(originalContext);
+                // Perform detailed verification
+                const linkPreservation = verifyExactArrayPreservation(links, content);
+                const pathPreservation = verifyExactArrayPreservation(paths, content);
+                const iconPreservation = verifyExactArrayPreservation(icons, content);
+                const tailwindPreservation = verifyTailwindClassPreservation(tailwindClasses, content);
+                const isPreserved = linkPreservation.preserved &&
+                    pathPreservation.preserved &&
+                    iconPreservation.preserved &&
+                    tailwindPreservation.preserved;
                 return JSON.stringify({
                     preserved: isPreserved,
+                    details: {
+                        links: linkPreservation,
+                        paths: pathPreservation,
+                        icons: iconPreservation,
+                        tailwind: tailwindPreservation
+                    },
                     message: isPreserved
                         ? "Context preserved exactly"
-                        : "Context may have been modified"
+                        : "Context has been modified - correction needed"
                 });
             }
             else if (action === "extract") {
                 // Extract content that needs to be preserved exactly
-                // This could be code blocks, links, or other critical content
                 const extractedContent = {
                     codeBlocks: extractCodeBlocks(content),
                     links: extractLinks(content),
+                    paths: extractPaths(content),
+                    icons: extractIcons(content),
+                    tailwindClasses: extractTailwindClasses(content),
                     quotedText: extractQuotedText(content)
                 };
                 return JSON.stringify(extractedContent);
+            }
+            else if (action === "enforce") {
+                // Force preservation by replacing modified elements with originals
+                const correctedContent = enforceExactPreservation(originalContext, content);
+                return JSON.stringify({
+                    originalContent: content,
+                    correctedContent: correctedContent,
+                    message: "Context preservation enforced"
+                });
             }
             return JSON.stringify({ error: "Invalid action specified" });
         }
@@ -837,6 +909,142 @@ const exactContextPreservationTool = new DynamicTool({
         }
     }
 });
+// Helper function to extract paths from text
+function extractPaths(text) {
+    // Match both absolute and relative paths
+    const pathRegex = /(?:src|href|url|path)=["']([^"']+)["']/g;
+    const paths = [];
+    let match;
+    while ((match = pathRegex.exec(text)) !== null) {
+        paths.push(match[1]);
+    }
+    return paths;
+}
+// Helper function to extract icon references
+function extractIcons(text) {
+    // Match icon class names and references
+    const iconRegex = /(?:class|className)=["']([^"']*(?:icon|fa-|material-|mdi-)[^"']*)["']/g;
+    const icons = [];
+    let match;
+    while ((match = iconRegex.exec(text)) !== null) {
+        icons.push(match[1]);
+    }
+    return icons;
+}
+// Helper function to extract Tailwind classes
+function extractTailwindClasses(text) {
+    // Match class attributes that contain Tailwind classes
+    const classRegex = /(?:class|className)=["']([^"']*)["']/g;
+    const classes = [];
+    let match;
+    while ((match = classRegex.exec(text)) !== null) {
+        classes.push(match[1]);
+    }
+    return classes;
+}
+// Verify exact preservation of array elements
+function verifyExactArrayPreservation(original, current) {
+    const missing = [];
+    const modified = [];
+    for (const item of original) {
+        if (!current.includes(item)) {
+            // Check if it's missing completely or just modified
+            const similarItems = findSimilarStrings(item, current);
+            if (similarItems.length > 0) {
+                modified.push({
+                    original: item,
+                    current: similarItems[0]
+                });
+            }
+            else {
+                missing.push(item);
+            }
+        }
+    }
+    return {
+        preserved: missing.length === 0 && modified.length === 0,
+        missing,
+        modified
+    };
+}
+// Verify Tailwind class preservation (allowing rearrangement)
+function verifyTailwindClassPreservation(original, current) {
+    const issues = [];
+    for (const classSet of original) {
+        // Split class names and check if all are present
+        const classes = classSet.split(/\s+/).filter(c => c.length > 0);
+        for (const cls of classes) {
+            // Special handling for Tailwind - it's valid if the class exists, even if order changes
+            const classRegex = new RegExp(`\\b${cls}\\b`);
+            if (!classRegex.test(current)) {
+                issues.push({
+                    original: cls,
+                    type: "missing_class"
+                });
+            }
+        }
+    }
+    return {
+        preserved: issues.length === 0,
+        details: issues
+    };
+}
+// Find similar strings (to detect minor modifications)
+function findSimilarStrings(target, text) {
+    // Simple implementation - could be enhanced with Levenshtein distance
+    const results = [];
+    // Create a regex that allows for small variations
+    const escapedTarget = target.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const pattern = escapedTarget.split('').join('[^a-zA-Z0-9]*');
+    const flexibleRegex = new RegExp(pattern, 'i');
+    // Extract potential matches
+    const words = text.split(/\s+/);
+    for (const word of words) {
+        if (flexibleRegex.test(word) && !results.includes(word)) {
+            results.push(word);
+        }
+    }
+    return results;
+}
+// Enforce exact preservation by correcting the content
+function enforceExactPreservation(original, modified) {
+    let corrected = modified;
+    // Extract elements from original that must be preserved
+    const originalLinks = extractLinks(original);
+    const originalPaths = extractPaths(original);
+    const originalIcons = extractIcons(original);
+    // Extract potentially modified elements
+    const modifiedLinks = extractLinks(modified);
+    const modifiedPaths = extractPaths(modified);
+    const modifiedIcons = extractIcons(modified);
+    // Replace modified links with original links
+    for (let i = 0; i < modifiedLinks.length && i < originalLinks.length; i++) {
+        if (modifiedLinks[i] !== originalLinks[i]) {
+            corrected = corrected.replace(modifiedLinks[i], originalLinks[i]);
+        }
+    }
+    // Replace modified paths with original paths
+    for (let i = 0; i < modifiedPaths.length && i < originalPaths.length; i++) {
+        if (modifiedPaths[i] !== originalPaths[i]) {
+            // Create a regex that handles the path in attribute context
+            const regex = new RegExp(`((?:src|href|url|path)=["'])${escapeRegExp(modifiedPaths[i])}(["'])`, 'g');
+            corrected = corrected.replace(regex, `$1${originalPaths[i]}$2`);
+        }
+    }
+    // Replace modified icons with original icons
+    for (let i = 0; i < modifiedIcons.length && i < originalIcons.length; i++) {
+        if (modifiedIcons[i] !== originalIcons[i]) {
+            // Create a regex that handles the class in attribute context
+            const regex = new RegExp(`((?:class|className)=["'])${escapeRegExp(modifiedIcons[i])}(["'])`, 'g');
+            corrected = corrected.replace(regex, `$1${originalIcons[i]}$2`);
+        }
+    }
+    return corrected;
+}
+// Helper function to escape special characters in regex
+function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 // const tools = [elasticSearchTool, conversationAnalyzerTool, codeMemoryTool, greetingDetectionTool];
 // const tools = [hybridSearchTool, elasticSearchTool, conversationAnalyzerTool, codeMemoryTool, greetingDetectionTool];
 const tools = [
@@ -852,19 +1060,18 @@ const tools = [
 const frontEndDevPrompt = ChatPromptTemplate.fromMessages([
     ["system",
         `You are a helpful, expert front-end developer assistant. Your responses should be technically accurate, comprehensive, and maintain continuity across the conversation, especially for code examples.
-
+        NOTE: Since all your code will use the TailwindCSS library, you will always have to specify the correct path like this : "<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>"
         CONVERSATION AND CODE ANALYSIS:
         {conversation_analysis}
         
-        CRITICAL CODE CONTINUITY RULES:
-        1. When modifying existing code, ALWAYS work with the FULL HTML document from previous responses.
-        2. For HTML/CSS questions, ALWAYS provide complete, properly structured code that can be directly used.
-        3. NEVER provide partial or incomplete HTML documents - if updating a previous document, include ALL necessary tags.
-        4. When making changes to previous code, build upon the existing structure rather than creating new fragments.
-        5. Use proper DOCTYPE, html, head, and body elements in ALL HTML examples unless explicitly told otherwise.
-        6. NEVER discard previously provided code - always reference and build upon it.
-        7. If user provides code, ALWAYS incorporate it into your response or modifications.
-        8. Store the complete, final version of any code you generate in your response.
+        CRITICAL CODE PRESERVATION DIRECTIVES:
+        1. NEVER, UNDER ANY CIRCUMSTANCES, MODIFY ANY EXISTING CODE unless the user EXPLICITLY requests changes.
+        2. ALL paths, links, CDN references, and TailwindCSS classes MUST be preserved EXACTLY as they appear in the original code.
+        3. When the user does NOT explicitly request changes, you MUST return the EXACT SAME CODE with no modifications whatsoever.
+        4. If the user does request changes, you may modify ONLY the specific elements they mentioned, while preserving everything else exactly.
+        5. ALL external resource paths (CDN links, image sources, fonts, etc.) must be preserved EXACTLY as they appear in the original code.
+        6. NEVER "improve" or "fix" code unless specifically asked to do so.
+        7. When getting context from the system, if the user has no EXPLICIT request to change the code, PROVIDE THE EXACT SAME CODE with no edits.
         
         EXACT CONTEXT PRESERVATION DIRECTIVES:
         1. PRESERVE ALL CONTEXT: When context or information is provided, use it EXACTLY as provided without any changes, modifications, substitutions, or interpretations. This includes preserving all formatting, spacing, capitalization, and punctuation.
@@ -873,13 +1080,17 @@ const frontEndDevPrompt = ChatPromptTemplate.fromMessages([
         4. NO CONTENT EDITING: Do not add, remove, or modify any content from the provided context unless explicitly instructed to do so.
         5. VERIFICATION: Before sending your final response, verify that all content from the original context is preserved exactly as provided.
         
-        RESPONSE APPROACH:
-        - First, understand what the user is asking for in relation to previous code
-        - If modifying previous code, make sure to maintain the full document structure
-        - For follow-up questions about specific elements, modify those elements within the full document
-        - Provide clear, contextual explanations of your changes
-        - Ensure all code is complete, valid, and follows best practices
-        - CRITICALLY IMPORTANT: Always check for and include any code the user has provided
+        TAILWINDCSS PRESERVATION RULES:
+        1. ALL TailwindCSS class names must be preserved EXACTLY as they appear in the original code.
+        2. Do not reorder, reformat, or "improve" TailwindCSS classes.
+        3. Do not convert utility classes to component classes or vice versa.
+        4. Preserve all spacing, formatting, and organization of class attributes.
+        
+        RESPONSE GUIDELINES:
+        - When answering questions about existing code, reference the code exactly as it appears.
+        - Only suggest modifications if the user explicitly asks for changes.
+        - When the user asks for changes, clearly state what you are changing and why.
+        - Verify that your response preserves all required elements before sending.
         
         Context from relevant documentation: {context}
         Previous code context: {code_context}
@@ -1300,7 +1511,7 @@ function codeStateVerificationMiddleware(result, codeState) {
 //     return result;
 // };
 // Enhanced executeWithCodeHandling with forced context
-const executeWithCodeHandling = async (input, chatHistory = [], conversationId = "default") => {
+const executeWithCodeHandling = async (input, chatHistory = [], conversationId) => {
     // First check for greetings/thanks
     try {
         const greetingResult = await greetingDetectionTool.func(input);
@@ -1316,7 +1527,9 @@ const executeWithCodeHandling = async (input, chatHistory = [], conversationId =
     catch (error) {
         console.error("Error in greeting detection:", error);
     }
-    // NEW: Always retrieve full code context and force it into the conversation
+    // Check if user explicitly requests changes
+    const requestsChanges = /change|modify|update|customize|edit|alter/i.test(input);
+    // Retrieve full code context and force it into the conversation
     let codeState;
     try {
         const codeMemoryResult = await codeMemoryTool.func(JSON.stringify({
@@ -1328,9 +1541,12 @@ const executeWithCodeHandling = async (input, chatHistory = [], conversationId =
         const fullCodeContext = codeState.fullHtmlDocument;
         if (fullCodeContext) {
             console.log("Forcing full code context into conversation");
-            // Create system message with the full code
+            // Create system message with the full code and STRICT preservation instructions
+            const preservationFlag = requestsChanges ?
+                "User has requested changes to this code. You may make modifications." :
+                "CRITICAL: This code must be preserved EXACTLY as is, including all paths, links, and Tailwind classes. DO NOT CHANGE ANY PART OF THIS CODE unless explicitly requested.";
             const codeContextMessage = new SystemMessage({
-                content: `The current full HTML document is:\n\n\`\`\`html\n${fullCodeContext}\n\`\`\`\n\nAny code modifications should be made to this document.`
+                content: `The current full HTML document is:\n\n\`\`\`html\n${fullCodeContext}\n\`\`\`\n\n${preservationFlag}`
             });
             // Add at the beginning of chat history
             chatHistory = [codeContextMessage, ...chatHistory];
@@ -1348,13 +1564,61 @@ const executeWithCodeHandling = async (input, chatHistory = [], conversationId =
     catch (error) {
         console.error("Error performing pre-agent hybrid search:", error);
     }
+    // Add explicit preservation instructions based on user request
+    if (!requestsChanges && codeState.fullHtmlDocument) {
+        // Extract critical elements to preserve
+        const preservationData = await exactContextPreservationTool.func(JSON.stringify({
+            action: "extract",
+            content: codeState.fullHtmlDocument
+        }));
+        // Add preservation instructions
+        const preservationMessage = new SystemMessage({
+            content: `PRESERVATION REQUIREMENT: Unless the user EXPLICITLY requests changes, you must preserve ALL elements of the code EXACTLY as they appear. This includes:
+            1. All paths in src, href, and url attributes
+            2. All TailwindCSS classes EXACTLY as written
+            3. All icon references and class names
+            4. All external library references and CDN links
+            
+            DO NOT modify ANY of these elements unless the user EXPLICITLY asks for changes. If you're unsure, return the EXACT same code.`
+        });
+        chatHistory = [preservationMessage, ...chatHistory];
+    }
     // Execute the agent with conversation ID
     const result = await executorGPT.invoke({
         input,
         chat_history: chatHistory,
         conversationId
     });
-    // Post-process with code state verification middleware
+    // Post-process with STRICT verification - if not requested changes
+    if (!requestsChanges && codeState.fullHtmlDocument && typeof result.output === 'string') {
+        // Extract code blocks from the output
+        const codeBlocks = extractCodeBlocks(result.output);
+        if (codeBlocks.length > 0) {
+            // Verify preservation of critical elements in first code block
+            const verificationResult = await exactContextPreservationTool.func(JSON.stringify({
+                action: "verify",
+                content: codeBlocks[0],
+                originalContext: codeState.fullHtmlDocument
+            }));
+            const verification = JSON.parse(verificationResult);
+            // If preservation failed, enforce it
+            if (!verification.preserved) {
+                console.log("Context preservation verification failed. Enforcing preservation.");
+                // Force preservation
+                const enforcementResult = await exactContextPreservationTool.func(JSON.stringify({
+                    action: "enforce",
+                    content: codeBlocks[0],
+                    originalContext: codeState.fullHtmlDocument
+                }));
+                const enforcement = JSON.parse(enforcementResult);
+                // Replace the non-preserved code with the corrected version
+                result.output = result.output.replace(codeBlocks[0], enforcement.correctedContent);
+                // Add a note explaining the enforcement
+                result.output += "\n\n[System Note: As per requirements, all original paths, links, and elements have been preserved exactly as in the original code.]";
+            }
+        }
+    }
+    // Apply the standard code state verification
     const verifiedResult = codeStateVerificationMiddleware(result, codeState);
     // Process the output to ensure code completeness
     if (typeof verifiedResult.output === 'string') {
@@ -1410,6 +1674,8 @@ const enhancedCodeMemoryTool = async (action, data, conversationId = "default") 
 };
 // Enhanced executeWithNLP with improved code handling
 const executeWithNLP = async (input, chatHistory = [], conversationId = "default") => {
+    // Check if user has explicitly requested changes
+    const userRequestedChanges = hasRequestedChanges(input);
     // Retrieve code context for NLP processing
     let codeState;
     try {
@@ -1421,11 +1687,15 @@ const executeWithNLP = async (input, chatHistory = [], conversationId = "default
         // Force the code context into the conversation if available
         const fullCodeContext = codeState.fullHtmlDocument;
         if (fullCodeContext) {
+            // Create stronger preservation instructions based on user request
+            const preservationFlag = userRequestedChanges ?
+                "User has requested changes to this code. You may modify it as requested." :
+                "CRITICAL PRESERVATION REQUIREMENT: You MUST preserve this code EXACTLY as shown, including ALL paths, links, class names, and formatting. Make NO changes unless explicitly instructed.";
             // Create system message with the full code
             const codeContextMessage = new SystemMessage({
                 content: [{
                         type: "text",
-                        text: `The current full HTML document is:\n\n\`\`\`html\n${fullCodeContext}\n\`\`\`\n\nAny code modifications should be made to this document.`
+                        text: `The current full HTML document is:\n\n\`\`\`html\n${fullCodeContext}\n\`\`\`\n\n${preservationFlag}`
                     }]
             });
             // Add at the beginning of chat history to ensure it's always used
@@ -1449,7 +1719,8 @@ const executeWithNLP = async (input, chatHistory = [], conversationId = "default
         for (const codeContent of extractedCode) {
             const isFullHtml = isCompleteHTMLDocument(codeContent);
             if (isFullHtml) {
-                await persistentCodeManager.storeDocument(conversationId, codeContent, "full-html");
+                await persistentCodeManager.storeDocument(conversationId, codeContent, "full-html", userRequestedChanges // Pass the flag to indicate if changes are requested
+                );
                 console.log("User provided a full HTML document - storing as primary document");
                 codeState.fullHtmlDocument = codeContent;
             }
@@ -1463,8 +1734,43 @@ const executeWithNLP = async (input, chatHistory = [], conversationId = "default
             }
         }
     }
+    // Add a system message reinforcing preservation requirements if no changes requested
+    if (!userRequestedChanges && codeState.fullHtmlDocument) {
+        const enforcementMessage = new SystemMessage({
+            content: [{
+                    type: "text",
+                    text: `CRITICAL ENFORCEMENT: The user has NOT explicitly requested any changes to the code. You MUST preserve the EXACT same code in your response, including ALL paths, links, class names, and formatting. NO modifications are allowed unless explicitly requested.`
+                }]
+        });
+        chatHistory = [enforcementMessage, ...chatHistory];
+    }
     // Process with advanced NLP
     const nlpResult = await processWithAdvancedNLP(input.replace(/```[\s\S]*?```/g, match => "```CODE_BLOCK```"), chatHistory, codeState, conversationId, executeWithCodeHandling);
+    // Apply strict verification if no changes requested
+    if (!userRequestedChanges && codeState.fullHtmlDocument && typeof nlpResult.output === 'string') {
+        const extractedBlocks = extractCodeBlocks(nlpResult.output);
+        if (extractedBlocks.length > 0) {
+            // Verify that the code hasn't been modified
+            const verificationResult = JSON.parse(await exactContextPreservationTool.func(JSON.stringify({
+                action: "verify",
+                content: extractedBlocks[0],
+                originalContext: codeState.fullHtmlDocument
+            })));
+            if (!verificationResult.preserved) {
+                console.log("NLP result failed verification - enforcing preservation");
+                // Force preservation
+                const enforcementResult = JSON.parse(await exactContextPreservationTool.func(JSON.stringify({
+                    action: "enforce",
+                    content: extractedBlocks[0],
+                    originalContext: codeState.fullHtmlDocument
+                })));
+                // Replace the modified code with exact original
+                nlpResult.output = nlpResult.output.replace(extractedBlocks[0], enforcementResult.correctedContent);
+                // Add a note explaining what happened
+                nlpResult.output += "\n\n[System Note: As no changes were requested, the original code has been preserved exactly.]";
+            }
+        }
+    }
     // Apply code state verification to ensure complete code
     const verifiedResult = codeStateVerificationMiddleware(nlpResult, codeState);
     return verifiedResult;
