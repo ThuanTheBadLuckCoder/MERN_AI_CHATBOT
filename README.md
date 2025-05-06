@@ -6,6 +6,8 @@
 
 **Keywords:** MERN Stack, Elasticsearch, LangChain, RAG, ChatBOT, LLMs (GPT, Gemini)
 
+**Data Source:** <a href="https://github.com/ThuanTheBadLuckCoder/DATA">Data</a>
+
 ## Overview
 
 Codfe is a state-of-the-art chatbot application developed using the MERN stack (MongoDB, Express, ReactJS, NodeJS) and powered by cutting-edge Large Language Models (LLMs) such as OpenAI’s GPT models and Gemini. Combining Docker to host Elasticsearch and Kibana. The project serves as a cornerstone for Thesis and Pre-thesis work, showcasing advancements in AI chatbot technology.
