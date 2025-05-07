@@ -411,28 +411,48 @@ const IndexList = () => {
                                     <div className='relative w-48 h-48'>
                                         {getDocumentTypeStats().map((item, idx, arr) => {
                                             const total = arr.reduce((sum, curr) => sum + curr.count, 0);
-                                            const startAngle = idx === 0 ? 0 : arr.slice(0, idx).reduce((sum, curr) => sum + (curr.count / total) * 360, 0);
+                                            
+                                            // Calculate the percentage
+                                            const percentage = (item.count / total) * 100;
+                                            
+                                            // Calculate angles for this segment
+                                            let startAngle = 0;
+                                            for (let i = 0; i < idx; i++) {
+                                                startAngle += (arr[i].count / total) * 360;
+                                            }
                                             const angle = (item.count / total) * 360;
                                             
+                                            // Convert to radians for calculation
+                                            const startRad = (startAngle - 90) * (Math.PI / 180);
+                                            const endRad = (startAngle + angle - 90) * (Math.PI / 180);
+                                            
+                                            // Calculate path for this segment
+                                            const x1 = 96 + 96 * Math.cos(startRad);
+                                            const y1 = 96 + 96 * Math.sin(startRad);
+                                            const x2 = 96 + 96 * Math.cos(endRad);
+                                            const y2 = 96 + 96 * Math.sin(endRad);
+                                            
                                             // Generate a different color for each segment
-                                            const hue = (idx * 137) % 360; // Golden angle approximation for good distribution
+                                            const hue = (idx * 137) % 360; // Golden angle approximation
+                                            
+                                            // Construct the path for this segment
+                                            const largeArcFlag = angle > 180 ? 1 : 0;
+                                            const pathData = `M 96 96 L ${x1} ${y1} A 96 96 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
                                             
                                             return (
                                                 <div 
                                                     key={idx}
                                                     className='absolute w-full h-full'
                                                     style={{
-                                                        clipPath: `path('M 96 96 L 96 0 A 96 96 0 ${angle > 180 ? 1 : 0} 1 ${
-                                                            96 + 96 * Math.cos((startAngle + angle) * Math.PI / 180)
-                                                        } ${
-                                                            96 + 96 * Math.sin((startAngle + angle) * Math.PI / 180)
-                                                        } Z')`,
-                                                        transform: `rotate(${startAngle}deg)`,
-                                                        backgroundColor: `hsl(${hue}, 70%, 50%)`
+                                                        clipPath: `path('${pathData}')`,
+                                                        backgroundColor: `hsl(${hue}, 70%, 50%)`,
+                                                        transition: 'all 0.3s ease-in-out'
                                                     }}
+                                                    title={`${item.type}: ${percentage.toFixed(1)}%`}
                                                 ></div>
                                             );
                                         })}
+                                        {/* Center hole of the donut chart */}
                                         <div className='absolute inset-0 flex items-center justify-center w-16 h-16 bg-gray-900 rounded-full m-auto'></div>
                                     </div>
                                 </div>
@@ -540,7 +560,7 @@ const IndexList = () => {
                                 {expandedSourceIndex === sourceIndex && (
                                     <div className='divide-y divide-green-900'>
                                         {getParentDocuments(source.documents)
-                                        .filter(parent => parent.has_children == true)
+                                        // .filter(parent => parent.has_children == true)
                                         .map((parent, idx) => {
                                             const childDocuments = getChildDocuments(source.documents, parent.id);
                                             const hasChunks = childDocuments.length > 0;

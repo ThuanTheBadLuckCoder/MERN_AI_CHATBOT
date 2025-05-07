@@ -1,9 +1,10 @@
 import { ChangeEvent, useState, useRef, useEffect } from 'react';
 import { sendFileRequest } from '../../helper/api-communicator';
 import toast from 'react-hot-toast';
-import UploadFileIcon from '@mui/icons-material/UploadFile';
+// import UploadFileIcon from '@mui/icons-material/UploadFile';
 import InfoIcon from '@mui/icons-material/Info';
 import CodeIcon from '@mui/icons-material/Code';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy'; // Import the copy icon
 
 interface InputFileHTMLProps {
   chosenIndices: string;
@@ -26,6 +27,7 @@ export default function InputFileHTML({ chosenIndices }: InputFileHTMLProps) {
   const [descriptionError, setDescriptionError] = useState<boolean>(false);
   const [previewMode, setPreviewMode] = useState<'code' | 'render'>('render');
   const previewRef = useRef<HTMLDivElement>(null);
+  const [copySuccess, setCopySuccess] = useState<boolean>(false); // State for copy success indicator
 
   useEffect(() => {
     // Update the preview content whenever fileContent changes
@@ -167,6 +169,26 @@ export default function InputFileHTML({ chosenIndices }: InputFileHTMLProps) {
     setPreviewMode(prev => prev === 'code' ? 'render' : 'code');
   };
 
+  // Function to copy HTML code to clipboard
+  const copyCodeToClipboard = () => {
+    if (fileContent) {
+      navigator.clipboard.writeText(fileContent.content)
+        .then(() => {
+          setCopySuccess(true);
+          toast.success("HTML code copied to clipboard!");
+          
+          // Reset success message after 2 seconds
+          setTimeout(() => {
+            setCopySuccess(false);
+          }, 2000);
+        })
+        .catch((error) => {
+          console.error("Error copying code:", error);
+          toast.error("Failed to copy code");
+        });
+    }
+  };
+
   return (
     <div id="html-receiver" className="size-full flex flex-col gap-2">
       {/* File Upload Section */}
@@ -233,14 +255,28 @@ export default function InputFileHTML({ chosenIndices }: InputFileHTMLProps) {
         )}
       </div>
       
-      {/* File Preview with Toggle */}
+      {/* File Preview with Toggle and Copy Button */}
       {selectedFile && fileContent && (
         <div className="w-full mt-2">
           <div className="flex items-center justify-between mb-1">
             <label className="block text-sm font-medium text-gray-300">
               HTML Preview
             </label>
-            <div className="flex items-center">
+            <div className="flex items-center gap-2">
+              {/* New Copy Button */}
+              <button 
+                onClick={copyCodeToClipboard}
+                className={`text-xs px-2 py-1 rounded-md flex items-center gap-1 ${
+                  copySuccess ? 'bg-green-600' : 'bg-gray-700 hover:bg-gray-600'
+                }`}
+                disabled={copySuccess}
+                title="Copy HTML code to clipboard"
+              >
+                <ContentCopyIcon sx={{ fontSize: 16 }} />
+                {copySuccess ? 'Copied!' : 'Copy Code'}
+              </button>
+              
+              {/* Existing Toggle Button */}
               <button 
                 onClick={togglePreviewMode}
                 className="text-xs px-2 py-1 rounded-md bg-gray-700 hover:bg-gray-600"

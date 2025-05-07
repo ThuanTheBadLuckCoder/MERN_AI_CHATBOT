@@ -1,11 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { getAllIndices, sendLinkRequest, createNewIndex, isExistedLink } from "../helper/api-communicator";
+import { getAllIndices, createNewIndex } from "../helper/api-communicator";
 import toast from "react-hot-toast";
-// import InputFileJSON from "../components/upload/InputFileJSON";
-// import InputFileDOCX from "../components/upload/InputFileDOCX";
-// import InputFilePDF from "../components/upload/InputFilePDF";
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import IndexSelector from "../components/shared/IndexSelector";
 import IndexList from "../components/index/IndexList";
@@ -22,45 +19,19 @@ const Admin = () => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const auth = useAuth();
   const [indices, setIndices] = useState<Indexies[]>([]);
-  const [inputLink, setInputLink] = useState<string>("");
   const [inputIndex, setInputIndex] = useState<string>("");
-  const [isIndexValid, setIsIndexValid] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLUListElement | null>(null);
-  const [webSelectedIndex, setWebSelectedIndex] = useState<string>("");
   const [fileSelectedIndex, setFileSelectedIndex] = useState<string>("");
   const [fileTypeSelectedIndex, setFileTypeSelectedIndex] = useState<string>("");
   const fileTypes: string[] = ["HTML"];
 
-  const handleSubmitLink = async () => {
-    if (!webSelectedIndex) {
-      toast.error("Please select an index");
-      return;
-    }
-  
-    if (!inputLink) {
-      toast.error("Please enter a link");
-      return;
-    }
-  
-    try {
-      const exists = await isExistedLink(inputLink);
-      if (!exists) {
-        toast.error("The URL is not accessible or doesn't exist", { id: "urlCheck" });
-        return;
-      }
-      toast.loading("Processing link...", { id: "linkSubmission" });
-      const linkData = await sendLinkRequest(inputLink, webSelectedIndex);
-      setInputLink("");
-      inputRef.current && (inputRef.current.value = "");
-      toast.success("Successfully added link to Elasticsearch", { id: "linkSubmission" });
-      console.log("Link processed:", linkData);
-    } catch (error) {
-      console.error("Error submitting link:", error);
-      toast.error("Failed to process link. Please try again.", { id: "linkSubmission" });
-    }
-  };
-  
+  // Removed unused state variables:
+  // - isIndexValid (not used but setter was used)
+  // - inputLink (commented out section)
+  // - webSelectedIndex (commented out section)
+  // - handleSubmitLink (commented out section)
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -107,34 +78,18 @@ const Admin = () => {
     }
   }, [auth]);
 
-  // const handleInputChangeLink = (event: React.ChangeEvent<HTMLInputElement>) => {
-  //   const value = event.target.value.trim();
-  //   setInputLink(value);
-  // };
-
   const handleInputChangeIndex = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;
     setInputIndex(value);
-    setIsIndexValid(validateIndex(value));
+    validateIndex(value); // Just validate without storing the result
   };
-
-  // const handleKeyPressLink = (event: React.KeyboardEvent<HTMLInputElement>) => {
-  //   if (event.key === "Enter") {
-  //     event.preventDefault();
-  //     handleSubmitLink(); // Let the submit handler handle all validation
-  //   }
-  // };
-
-  // const handleCancelLink = () => {
-  //   setInputLink("");
-  // };
 
   const handleCancelIndex = () => {
     setInputIndex("");
   };
 
   function validateIndex(input: string): boolean {
-    // Kiểm tra nếu input là chữ thường
+    // Check if input is lowercase
     if (input !== input.toLowerCase()) {
       toast.error("Index must be lower case");
       return false;
@@ -156,49 +111,11 @@ const Admin = () => {
     }}>
       <h1 className="text-2xl antialiased font-bold">Retrieval-Augmented Generation</h1>
       <div className="flex flex-col gap-4">
-      {/* <div id="web-loader-container" className="p-2 border rounded-md border-green-500 gap-1.5 flex flex-col">
-      <h2 className="underline font-serif text-lg antialiased font-medium">Web Loader</h2>
-      <div className="flex gap-2">
-        <IndexSelector 
-          indices={indices} 
-          onSelectIndex={setWebSelectedIndex} 
-          selectedIndex={webSelectedIndex} 
-        />
-        <input
-          ref={inputRef}
-          type="text"
-          value={inputLink}
-          onChange={handleInputChangeLink}
-          onKeyDown={handleKeyPressLink}
-          placeholder="Input a link..."
-          className="flex w-full items-center rounded-md bg-inherit pl-3 outline outline-1 -outline-offset-1 outline-green-600 focus-within:outline focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-green-600"
-        />
-        <div className="flex gap-1.5 w-fit h-full">
-          <button
-            type="button"
-            onClick={handleCancelLink}
-            className="border-2 border-red-500 px-2 py-1 rounded-md hover:bg-red-600 cursor-pointer disabled:cursor-not-allowed"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmitLink}
-            className={`px-2 py-1 rounded-md cursor-pointer ${
-              !inputLink || !webSelectedIndex 
-                ? 'bg-gray-500 cursor-not-allowed' 
-                : 'bg-green-500 hover:bg-green-600'
-                }`}
-                disabled={!inputLink || !webSelectedIndex}
-                >
-                Submit
-                </button>
-                </div>
-                </div>
-                </div> */}
+        {/* Web Loader section was commented out in original code */}
 
-                <div id="index-list-container" className="p-2 border rounded-md border-green-500 gap-1.5 flex flex-col">
-                  <IndexList />
-                </div>
+        <div id="index-list-container" className="p-2 border rounded-md border-green-500 gap-1.5 flex flex-col">
+          <IndexList />
+        </div>
         <div id="file-loader-container" className="p-2 border rounded-md border-green-500 gap-1.5 flex flex-col">
           <h2 className="underline text-lg antialiased font-medium">File Loader</h2>
           <div className="flex gap-2">
@@ -244,7 +161,7 @@ const Admin = () => {
               </div>
               <div className="flex gap-1.5 w-fit h-full">
                 <button
-                  type="button" // Ensure the button does not trigger form submission
+                  type="button"
                   onClick={handleCancelIndex}
                   disabled={!inputIndex}
                   className="border-2 border-red-500 px-2 py-1 rounded-md hover:bg-red-600 cursor-pointer disabled:cursor-not-allowed "
@@ -252,7 +169,7 @@ const Admin = () => {
                   Cancel
                 </button>
                 <button
-                  type="button" // Ensure the button does not trigger form submission
+                  type="button"
                   onClick={handleSubmitIndex}
                   disabled={!inputIndex}
                   className="bg-green-500 px-2 py-1 rounded-md hover:bg-green-600 cursor-pointer disabled:cursor-not-allowed"
@@ -263,7 +180,6 @@ const Admin = () => {
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );
