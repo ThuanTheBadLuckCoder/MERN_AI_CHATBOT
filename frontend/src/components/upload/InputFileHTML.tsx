@@ -125,7 +125,7 @@ export default function InputFileHTML({ chosenIndices }: InputFileHTMLProps) {
     try {
       // Prepare the data with all required fields for the backend
       const { name, content } = fileContent;
-      const index = chosenIndices || fileContent.index || "ui-components";
+      const index = chosenIndices || fileContent.index || "thesis_tailwindcss";
       const languages = fileContent.languages || ["HTML", "CSS", "JavaScript"];
       const file_format = "HTML"; // Always HTML for this component
       

@@ -267,7 +267,7 @@ const LeftNavi: React.FC<LeftNaviProps> = ({ isOpen, setIsOpen }) => {
           <div className="flex flex-col size-full justify-between p-2">
             {auth?.isLoggedIn ? (
               <>
-                <div className="flex justify-between flex-col gap-3">
+                <div className="flex justify-between flex-col gap-3 size-full">
                   
                   {auth.user?.role === "Admin" && (
                     <NavigationLink
@@ -292,8 +292,8 @@ const LeftNavi: React.FC<LeftNaviProps> = ({ isOpen, setIsOpen }) => {
 
                   {/* Display conversation list with a refresh button */}
                   {isOpen && (
-                    <div className="mt-4">
-                      <div className="flex justify-between items-center mb-2">
+                    <div className="size-full overflow-hidden flex flex-wrap flex-row gap-2">
+                      <div className="flex justify-between items-center w-full">
                         <h3 className="text-white text-sm font-medium">Recent</h3>
                         <button 
                           onClick={() => loadConversationList(true, true)} // Force refresh when button is clicked
@@ -303,22 +303,24 @@ const LeftNavi: React.FC<LeftNaviProps> = ({ isOpen, setIsOpen }) => {
                           {isLoading ? "Loading..." : "Refresh"}
                         </button>
                       </div>
-                      
-                      <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
-                        {conversations.length > 0 ? (
-                          conversations.map((conversation) => (
-                            <NavigationLink
-                              key={conversation.id || conversation._id}
-                              bg="#2D3035"
-                              to={`/chat/${conversation.id || conversation._id}`}
-                              text={conversation.title}
-                              textColor="white"
-                              class={location.pathname === `/chat/${conversation.id || conversation._id}` ? "isOnSite" : ""}
-                            />
-                          ))
-                        ) : (
-                          <p className="text-gray-400 text-xs p-2">No recent conversations</p>
-                        )}
+                      <div className="flex size-full overflow-hidden">
+                        <div className="flex flex-col gap-2 max-h-96 overflow-y-auto">
+                          {conversations.length > 0 ? (
+                            conversations.map((conversation) => (
+                              <NavigationLink
+                                key={conversation.id || conversation._id}
+                                bg="#2D3035"
+                                to={`/chat/${conversation.id || conversation._id}`}
+                                text={conversation.title}
+                                textColor="white"
+                                class={location.pathname === `/chat/${conversation.id || conversation._id}` ? "isOnSite" : ""}
+                              />
+                            ))
+                          ) : (
+                            <p className="text-gray-400 text-xs p-2">No recent conversations</p>
+                          )}
+                        </div>
+
                       </div>
                     </div>
                   )}
