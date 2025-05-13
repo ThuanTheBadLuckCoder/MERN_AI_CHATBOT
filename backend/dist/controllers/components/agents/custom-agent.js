@@ -1402,7 +1402,6 @@ function codeStateVerificationMiddleware(result, codeState) {
     }
     return result;
 }
-// Add middleware to handle code formatting and ensure code completeness
 // const executeWithCodeHandling = async (
 //     input: string,
 //     chatHistory: BaseMessage[] = [],
