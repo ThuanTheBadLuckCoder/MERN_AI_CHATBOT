@@ -6,7 +6,8 @@ config();
 
 export const model = new ChatOpenAI({
     model: "gpt-3.5-turbo",
-    temperature: 1,
+    // model: "gpt-4-turbo-2024-04-09",
+    temperature: 0,
 
 });
 

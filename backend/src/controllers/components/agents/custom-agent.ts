@@ -30,7 +30,7 @@ const MEMORY_KEY = "chat_history";
 // ElasticSearch configuration
 const clientArgs: ElasticClientArgs = {
     client: new Client(config),
-    indexName: process.env.ELASTIC_INDEX ?? `*`,
+    indexName: process.env.ELASTIC_INDEX ?? `thesis_tailwindcss`,
 }
 
 const elasticVectorSearch = new ElasticVectorSearch(embeddingsOpenAI, clientArgs);
@@ -1700,133 +1700,8 @@ function codeStateVerificationMiddleware(result: any, codeState: any): any {
     
     return result;
   }
-// const executeWithCodeHandling = async (
-//     input: string,
-//     chatHistory: BaseMessage[] = [],
-//     conversationId: string = "default"
-// ) => {
-//     // NEW: Check for greetings/thanks first before processing the full agent
-//     try {
-//         // Check if this is a greeting or thanks message
-//         const greetingResult = await greetingDetectionTool.func(input);
-//         const greetingData = JSON.parse(greetingResult);
 
-//         // If we detected a greeting or thanks, respond immediately
-//         if (greetingData.type === "greeting" || greetingData.type === "thanks") {
-//             console.log(`Detected ${greetingData.type}, providing immediate response`);
-//             return {
-//                 output: greetingData.response,
-//                 intermediateSteps: []
-//             };
-//         }
-//     } catch (error) {
-//         console.error("Error in greeting detection:", error);
-//         // Continue with normal processing if greeting detection fails
-//     }
 
-//     // Execute the agent with conversationId
-//     const result = await executorGPT.invoke({
-//         input,
-//         chat_history: chatHistory,
-//         conversationId
-//     });
-
-//     // Post-process to ensure code completeness and quality
-//     if (typeof result.output === 'string') {
-//         let modifiedOutput = result.output;
-
-//         // Remove any thinking tags
-//         modifiedOutput = modifiedOutput.replace(/<thinking>[\s\S]*?<\/thinking>/g, '');
-
-//         // Check if output contains HTML code
-//         const containsHtmlCode = modifiedOutput.includes("<html") ||
-//             modifiedOutput.includes("<!DOCTYPE") ||
-//             modifiedOutput.includes("<div") ||
-//             modifiedOutput.includes("<body");
-
-//         // Check if output contains a code block
-//         const containsCodeBlock = modifiedOutput.includes("```");
-
-//         if (containsHtmlCode && containsCodeBlock) {
-//             // Extract the code blocks
-//             const codeBlocks: string[] = [];
-//             const codeRegex = /```[\s\S]*?```/g;
-
-//             modifiedOutput = modifiedOutput.replace(codeRegex, (match) => {
-//                 // Remove the backticks and language identifier to get just the content
-//                 const codeContent = match.replace(/```[\w]*\n/, '').replace(/```$/, '');
-//                 codeBlocks.push(codeContent);
-//                 return '```CODE_PLACEHOLDER```';
-//             });
-
-//             // For each code block, check if it's HTML and ensure it's complete
-//             for (let i = 0; i < codeBlocks.length; i++) {
-//                 let code = codeBlocks[i];
-
-//                 // If code contains HTML elements but not a full document structure, wrap it
-//                 if ((code.includes("<div") || code.includes("<span") || code.includes("<p")) &&
-//                     !code.includes("<!DOCTYPE") && !code.includes("<html")) {
-
-//                     // Only apply this to the main code block if there are multiple
-//                     if (i === 0 || (i > 0 && !codeBlocks[0].includes("<!DOCTYPE"))) {
-//                         code = `<!DOCTYPE html>
-// <html lang="en">
-// <head>
-//   <meta charset="UTF-8">
-//   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-//   <title>Feature Section</title>
-//   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-// </head>
-// <body class="p-4">
-// ${code}
-// </body>
-// </html>`;
-//                     }
-//                 }
-
-//                 codeBlocks[i] = code;
-//             }
-
-//             // Reinsert the processed code blocks
-//             let placeholderIndex = 0;
-//             modifiedOutput = modifiedOutput.replace(/```CODE_PLACEHOLDER```/g, () => {
-//                 const code = codeBlocks[placeholderIndex];
-//                 placeholderIndex++;
-//                 return '```html\n' + code + '\n```';
-//             });
-//         }
-
-//         // Store the code in memory for future reference
-//         try {
-//             if (containsHtmlCode && containsCodeBlock) {
-//                 // Extract the main code block
-//                 const codeMatch = modifiedOutput.match(/```[\s\S]*?```/);
-//                 if (codeMatch) {
-//                     const codeContent = codeMatch[0].replace(/```[\w]*\n/, '').replace(/```$/, '');
-//                     const isFullHtml = codeContent.includes("<!DOCTYPE html>") ||
-//                         (codeContent.includes("<html") && codeContent.includes("<body"));
-
-//                     await codeMemoryTool.func(JSON.stringify({
-//                         action: "store",
-//                         type: isFullHtml ? "full-document" : "component",
-//                         content: codeContent,
-//                         conversationId
-//                     }));
-
-//                     console.log(`Stored ${isFullHtml ? "full HTML document" : "component"} for conversation ${conversationId}`);
-//                 }
-//             }
-//         } catch (error) {
-//             console.error("Error storing code in memory:", error);
-//         }
-
-//         result.output = modifiedOutput;
-//     }
-
-//     return result;
-// };
-
-// Enhanced executeWithCodeHandling with forced context
 const executeWithCodeHandling = async (
     input: string,
     chatHistory: BaseMessage[] = [],

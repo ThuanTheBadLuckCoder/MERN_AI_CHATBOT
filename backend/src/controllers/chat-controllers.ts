@@ -12,10 +12,19 @@ import {
   RunnableSequence,
 } from "@langchain/core/runnables";
 import { retriever } from "./components/model-io/web-loader.js";
-import { queryGeminiVectorStore, queryVectorStore } from "./components/elastic-controller.js";
+import { queryGeminiVectorStore } from "./components/elastic-controller.js";
 import { executor } from "./components/agents/custom-gemini-agent.js";
-import { executeWithCodeHandling, executeWithNLP, executorGPT } from "./components/agents/custom-agent.js";
+// import { combineCodeAndExplanation } from "./components/agents/custom-agent.js";
 import { modelGemini } from "../config/gemini-config.js";
+
+import { 
+  hybridSearchTool, 
+  executeWithCodeHandlingContext, 
+  extractChainOfThought, 
+  combineCodeAndExplanation 
+} from './components/agents/context-agent.js';
+
+import { executeWithCodeHandling } from './components/agents/custom-agent.js'
 
 export const generateChatGeminiMultiCompletion = async (
   req: Request,
@@ -24,7 +33,7 @@ export const generateChatGeminiMultiCompletion = async (
 ) => {
   try {
     const { message, conversationId } = req.body;
-    console.log("Frontend: ", message, conversationId);
+    // console.log("Frontend: ", message, conversationId);
     // Validate input
     if (typeof message !== "string" || !message.trim()) {
       return res
@@ -34,7 +43,7 @@ export const generateChatGeminiMultiCompletion = async (
 
     // Retrieve context using vector store
     const context = await queryVectorStore(req, res, next, message);
-    console.log("Given context: ", context);
+    // console.log("Given context: ", context);
 
     // Fetch user information
     const user = await User.findById(res.locals.jwtData?.id);
@@ -335,6 +344,43 @@ export const generateGoogleMultiCompletion = async (
   }
 };
 
+/**
+ * Query vector store with enhanced parent component resolution and explanation
+ */
+export async function queryVectorStore(req: Request, res: Response, next: NextFunction, message: string): Promise<string[]> {
+  try {
+    console.log("Querying vector store with message:", message);
+    
+    // Call the hybridSearchTool directly
+    const searchResult = await hybridSearchTool.func(message);
+    
+    if (!searchResult) {
+      console.log("No search results found");
+      return [];
+    }
+    
+    try {
+      // Parse the results and extract context and request ID
+      const parsedResult = JSON.parse(searchResult);
+      const context = parsedResult.context || [];
+      
+      // Store the request ID for later access to explanations
+      if (parsedResult.metadata && parsedResult.metadata.requestId) {
+        res.locals.explanationRequestId = parsedResult.metadata.requestId;
+      }
+      
+      console.log(`Found single best matching document`);
+      return context;
+    } catch (e) {
+      console.error("Error parsing search results:", e);
+      return [];
+    }
+  } catch (error) {
+    console.error("Error querying vector store:", error);
+    return [];
+  }
+}
+
 export const generateChatGPTCompletion = async (
   req: Request,
   res: Response,
@@ -440,6 +486,162 @@ export const generateChatGPTCompletion = async (
       content: responseContent,
       role: "assistant",
       createdAt: new Date()
+    };
+
+    // Use Mongoose array methods to ensure middleware triggers
+    user.conversations[conversationIndex].messages.push(assistantMessage);
+
+    // If this is a new conversation and we need a better title
+    if (!conversationId && conversation.title.includes("...")) {
+      user.conversations[conversationIndex].title = input.slice(0, 30) + (input.length > 30 ? "..." : "");
+    }
+
+    // Explicitly set the updatedAt field on the conversation to ensure it's updated
+    user.conversations[conversationIndex].updatedAt = new Date();
+
+    // Save the updated user document
+    await user.save();
+
+    // Return the updated conversation
+    return res.status(200).json({
+      conversation: {
+        id: user.conversations[conversationIndex].id,
+        title: user.conversations[conversationIndex].title,
+        messages: user.conversations[conversationIndex].messages,
+        createdAt: user.conversations[conversationIndex].createdAt,
+        updatedAt: user.conversations[conversationIndex].updatedAt
+      }
+    });
+  } catch (error) {
+    console.error("Error in generateChatGPTCompletion: ", error);
+    return res.status(500).json({ message: "Something went wrong", error: error.message });
+  }
+};
+
+// Update the generateChatGPTCompletion function
+export const generateChatGPTContextCompletion = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { message, conversationId } = req.body;
+    console.log("Frontend: ", message, conversationId);
+    // Validate input
+    if (typeof message !== "string" || !message.trim()) {
+      return res
+        .status(400)
+        .json({ message: "Invalid input: 'message' should be a non-empty string" });
+    }
+
+    // Retrieve context using vector store with enhanced parent resolution and explanations
+    const context = await queryVectorStore(req, res, next, message);
+    console.log("Retrieved best matching component");
+    
+    // Get the explanation request ID that was stored during queryVectorStore
+    const explanationRequestId = res.locals.explanationRequestId;
+
+    // Fetch user information
+    const user = await User.findById(res.locals.jwtData?.id);
+    if (!user) {
+      return res
+        .status(401)
+        .json({ message: "Unauthorized: User not found or token is invalid" });
+    }
+
+    // Find the existing conversation or create a new one
+    let conversation = null;
+    let conversationIndex = -1;
+
+    if (conversationId) {
+      conversationIndex = user.conversations.findIndex(conv => conv.id === conversationId);
+      if (conversationIndex === -1) {
+        return res.status(404).json({ message: "Conversation not found" });
+      }
+      conversation = user.conversations[conversationIndex];
+    }
+
+    // If no conversationId was provided, create a new conversation before proceeding
+    if (!conversation) {
+      conversation = {
+        title: message.slice(0, 30) + (message.length > 30 ? "..." : ""), // Create title from first message
+        messages: [],
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      user.conversations.push(conversation);
+      conversationIndex = user.conversations.length - 1;
+    }
+
+    // Prepare chat history from the specific conversation
+    const chatHistory = conversation.messages
+      .filter((msg) => ["user", "assistant"].includes(msg.role))
+      .map((msg) => {
+        if (msg.role === "user") {
+          return new HumanMessage({ content: msg.content || "" });
+        }
+        if (msg.role === "assistant") {
+          return new AIMessage({ content: msg.content || "" });
+        }
+        return null;
+      })
+      .filter(Boolean);
+
+    // Add the current message to conversation messages
+    const input = message.trim();
+    const userMessage = {
+      content: input,
+      role: "user",
+      createdAt: new Date()
+    };
+
+    // Use Mongoose array methods to ensure middleware triggers
+    user.conversations[conversationIndex].messages.push(userMessage);
+
+    // Save the updated user document before invoking the model
+    await user.save();
+
+    // Generate response using executeWithCodeHandling
+    const response = await executeWithCodeHandling(
+      input,
+      chatHistory.length > 0 ? chatHistory : [],
+      conversationId || "default"
+    );
+
+    // Extract the explanation from the response
+    let explanation = '';
+    if (typeof response.output === 'string') {
+      explanation = response.output;
+    } else if (response.output && typeof response.output === 'object') {
+      explanation = response.output.content || JSON.stringify(response.output);
+    } else {
+      explanation = "No valid explanation generated.";
+    }
+
+    // Extract chain of thought and update explanation if needed
+    const { chainOfThought, updatedExplanation } = extractChainOfThought(response, explanation);
+    
+    // If extractChainOfThought returned an updated explanation, use it
+    if (updatedExplanation) {
+      explanation = updatedExplanation;
+    }
+
+    // Use combineCodeAndExplanation to get properly formatted response with component explanations
+    // Pass the explanation request ID to access stored explanations
+    const combinedResponse = combineCodeAndExplanation(
+      context.join('\n\n'), 
+      explanation, 
+      chainOfThought,
+      explanationRequestId
+    );
+
+    // Add assistant's response to conversation messages
+    const assistantMessage = {
+      content: combinedResponse.formattedResponse,
+      role: "assistant",
+      createdAt: new Date(),
+      // Store structured data separately for advanced frontends
+      structuredContent: combinedResponse.structuredContent
     };
 
     // Use Mongoose array methods to ensure middleware triggers

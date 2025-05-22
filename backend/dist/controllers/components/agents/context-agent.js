@@ -24,30 +24,197 @@ const clientArgs = {
     indexName: process.env.ELASTIC_INDEX ?? `thesis_tailwindcss`,
 };
 const elasticVectorSearch = new ElasticVectorSearch(embeddingsOpenAI, clientArgs);
-// ElasticSearch tool for retrieving relevant context
+// REPLACE your existing elasticSearchTool with this:
 const elasticSearchTool = new DynamicTool({
     name: 'elastic_search_tool',
-    description: 'This tool retrieves documents using ElasticSearch vector search',
+    description: 'This tool retrieves documents using ElasticSearch vector search with automatic parent document resolution',
     func: async (input) => {
-        // Validate the input using Zod schema (expecting input to be a string)
-        const schema = z.string();
-        const filter = [
-            {
-                operator: "wildcard",
-                field: "source",
-                value: "*",
-            },
-        ];
-        const validationResult = schema.safeParse(input);
-        if (!validationResult.success) {
-            throw new Error("Invalid input: " + validationResult.error.message);
+        try {
+            // Validate the input
+            const schema = z.string();
+            const validationResult = schema.safeParse(input);
+            if (!validationResult.success) {
+                throw new Error("Invalid input: " + validationResult.error.message);
+            }
+            // Basic filter for documents
+            const filter = [
+                {
+                    operator: "wildcard",
+                    field: "source",
+                    value: "*",
+                },
+            ];
+            // First get initial search results
+            const initialResults = await elasticVectorSearch.similaritySearch(input, 1, filter);
+            console.log(`Initial search returned ${initialResults.length} results`);
+            // Process results to find and resolve parent documents
+            const resolvedResults = await resolveParentDocuments(initialResults);
+            console.log(`After parent resolution: ${resolvedResults.length} final documents`);
+            // Extract and return page content
+            const context = resolvedResults.map((result) => result.pageContent);
+            return context.length > 0 ? context : null;
         }
-        // Use input directly as the query string
-        const similaritySearchResults = await elasticVectorSearch.similaritySearch(input, 3, filter);
-        const context = similaritySearchResults.map((result) => result.pageContent);
-        return context.length > 0 ? context : null;
+        catch (error) {
+            console.error("Error in elasticSearchTool:", error);
+            return null;
+        }
     }
 });
+async function enhancedParentExplanation(document) {
+    try {
+        // Extract metadata for better explanation
+        const metadata = document.metadata || {};
+        const fileFormat = metadata.file_format || "Unknown";
+        // Create a structured explanation
+        let explanation = `# Component Analysis: ${metadata.component_name || "Unknown Component"}\n\n`;
+        // Add component details
+        explanation += `## Component Details\n`;
+        explanation += `- Type: ${metadata.component_type || "UI Component"}\n`;
+        explanation += `- Framework: ${metadata.framework || "Unknown"}\n`;
+        explanation += `- Languages: ${metadata.languages?.join(", ") || fileFormat}\n`;
+        explanation += `- Responsive: ${metadata.responsive ? "Yes" : "No"}\n`;
+        if (metadata.features && metadata.features.length > 0) {
+            explanation += `- Features: ${metadata.features.join(", ")}\n`;
+        }
+        // Add description if available
+        if (metadata.description) {
+            explanation += `\n## Description\n${metadata.description}\n`;
+        }
+        return explanation;
+    }
+    catch (error) {
+        console.error("Error generating enhanced explanation:", error);
+        return "Unable to generate enhanced explanation for this component.";
+    }
+}
+// MODIFY your existing resolveParentDocuments function to this (don't add it as a new function):
+/**
+ * Resolves parent documents for any child chunks found in search results
+ * This ensures complete code is always returned instead of partial chunks
+ */
+async function resolveParentDocuments(documents) {
+    const result = [];
+    const processedParentIds = new Set();
+    // First pass: identify and fetch all parent documents
+    for (const doc of documents) {
+        if (!doc.metadata)
+            continue;
+        // If this is a child document, add its parent to the list
+        if (doc.metadata.parent_id && !processedParentIds.has(doc.metadata.parent_id)) {
+            try {
+                // Direct fetch by ID (most efficient)
+                const parentDoc = await fetchDocumentById(doc.metadata.parent_id);
+                if (parentDoc) {
+                    result.push(parentDoc);
+                    processedParentIds.add(doc.metadata.parent_id);
+                    console.log(`Resolved parent document: ${doc.metadata.parent_id}`);
+                }
+                else {
+                    // Fallback to filter-based search
+                    const filter = [
+                        { operator: "equals", field: "metadata.document_id", value: doc.metadata.parent_id },
+                        { operator: "equals", field: "metadata.is_parent", value: true }
+                    ];
+                    const parentResults = await elasticVectorSearch.similaritySearch("", 1, filter);
+                    if (parentResults.length > 0) {
+                        result.push(parentResults[0]);
+                        processedParentIds.add(doc.metadata.parent_id);
+                    }
+                }
+            }
+            catch (error) {
+                console.error(`Error fetching parent document ${doc.metadata.parent_id}:`, error);
+            }
+        }
+        // If it's a parent document, add it directly
+        else if (doc.metadata.is_parent === true) {
+            result.push(doc);
+            if (doc.metadata.document_id) {
+                processedParentIds.add(doc.metadata.document_id);
+            }
+        }
+    }
+    // Second pass: add any child documents that didn't have their parents found
+    // Only if we want to include them alongside their parents
+    for (const doc of documents) {
+        if (!doc.metadata) {
+            result.push(doc);
+            continue;
+        }
+        if (!doc.metadata.is_parent && doc.metadata.parent_id) {
+            // Only add if we couldn't find its parent
+            if (!processedParentIds.has(doc.metadata.parent_id)) {
+                result.push(doc);
+            }
+            // Otherwise this child is already represented by the parent
+        }
+        else if (!doc.metadata.is_parent && !doc.metadata.parent_id) {
+            // Independent document with no parent, add it
+            result.push(doc);
+        }
+    }
+    return result;
+}
+// Make sure your fetchDocumentById function looks like this:
+/**
+ * Helper function to fetch a document directly by ID
+ * This is a fallback method if filters don't work as expected
+ */
+async function fetchDocumentById(documentId) {
+    try {
+        const indexName = process.env.ELASTIC_INDEX || "thesis_tailwindcss";
+        // First, try an exact document_id match
+        const response = await client.search({
+            index: indexName,
+            body: {
+                query: {
+                    bool: {
+                        must: [
+                            { term: { "metadata.document_id": documentId } },
+                            { term: { "metadata.is_parent": true } }
+                        ]
+                    }
+                }
+            }
+        });
+        if (response.hits.hits.length > 0) {
+            const hit = response.hits.hits[0];
+            const source = hit._source;
+            return {
+                pageContent: source.text || source.pageContent || "",
+                metadata: source.metadata || {}
+            };
+        }
+        // If exact match fails, try a more flexible search
+        const fallbackResponse = await client.search({
+            index: indexName,
+            body: {
+                query: {
+                    match: {
+                        "metadata.document_id": documentId
+                    }
+                },
+                size: 5 // Retrieve more potential matches
+            }
+        });
+        // Look for parent documents in the results
+        for (const hit of fallbackResponse.hits.hits) {
+            const source = hit._source;
+            const metadata = source.metadata || {};
+            if (metadata.is_parent === true) {
+                return {
+                    pageContent: source.text || source.pageContent || "",
+                    metadata: metadata
+                };
+            }
+        }
+        return null;
+    }
+    catch (error) {
+        console.error("Error in direct document fetch:", error);
+        return null;
+    }
+}
 // Helper function to perform BM25 search
 async function performBM25Search(query, documents, k = 3) {
     try {
@@ -115,55 +282,276 @@ function mergeAndRerank(vectorResults, keywordResults, query) {
         .sort((a, b) => b.score - a.score)
         .map(item => item.doc);
 }
+// Enhanced resolver for parent components with explanation
+async function resolveAndExplainParentDocument(documents) {
+    // Create arrays for results and track processed parent IDs
+    const result = [];
+    const processedParentIds = new Set();
+    const explanations = new Map();
+    // Check each document to see if it needs parent resolution
+    for (const doc of documents) {
+        // Skip if no metadata
+        if (!doc.metadata) {
+            result.push(doc);
+            continue;
+        }
+        // If this is already a parent document, add it directly
+        if (doc.metadata.is_parent === true) {
+            result.push(doc);
+            // Store document id for later reference
+            if (doc.metadata.document_id) {
+                processedParentIds.add(doc.metadata.document_id);
+                // Get explanation for this parent document immediately
+                try {
+                    const explanation = await explainComponentCode(doc.pageContent, doc.metadata.document_id);
+                    explanations.set(doc.metadata.document_id, explanation);
+                }
+                catch (error) {
+                    console.error(`Error generating explanation for parent ${doc.metadata.document_id}:`, error);
+                }
+            }
+            continue;
+        }
+        // This is a child document, fetch its parent
+        if (doc.metadata.parent_id && !processedParentIds.has(doc.metadata.parent_id)) {
+            try {
+                // Use direct document fetch by parent ID - most efficient approach
+                const parentDoc = await fetchDocumentById(doc.metadata.parent_id);
+                if (parentDoc) {
+                    // Add parent document and mark as processed
+                    result.push(parentDoc);
+                    processedParentIds.add(doc.metadata.parent_id);
+                    console.log(`Resolved parent document: ${doc.metadata.parent_id}`);
+                    // Get explanation for this parent document immediately
+                    try {
+                        const explanation = await explainComponentCode(parentDoc.pageContent, doc.metadata.parent_id);
+                        explanations.set(doc.metadata.parent_id, explanation);
+                    }
+                    catch (error) {
+                        console.error(`Error generating explanation for parent ${doc.metadata.parent_id}:`, error);
+                    }
+                    // Skip adding the child since we have the parent
+                    continue;
+                }
+                else {
+                    // Fallback to filter-based search if direct fetch fails
+                    const filter = [
+                        {
+                            operator: "equals",
+                            field: "metadata.document_id",
+                            value: doc.metadata.parent_id
+                        },
+                        {
+                            operator: "equals",
+                            field: "metadata.is_parent",
+                            value: true
+                        }
+                    ];
+                    const parentResults = await elasticVectorSearch.similaritySearch("", 1, filter);
+                    if (parentResults.length > 0) {
+                        // Add parent and mark as processed
+                        result.push(parentResults[0]);
+                        processedParentIds.add(doc.metadata.parent_id);
+                        console.log(`Resolved parent via filter: ${doc.metadata.parent_id}`);
+                        // Get explanation for this parent document
+                        try {
+                            const explanation = await explainComponentCode(parentResults[0].pageContent, doc.metadata.parent_id);
+                            explanations.set(doc.metadata.parent_id, explanation);
+                        }
+                        catch (error) {
+                            console.error(`Error generating explanation for parent ${doc.metadata.parent_id}:`, error);
+                        }
+                        // Skip adding the child
+                        continue;
+                    }
+                }
+            }
+            catch (error) {
+                console.error(`Error fetching parent document ${doc.metadata.parent_id}:`, error);
+                // Continue to add the child document if parent fetch fails
+            }
+        }
+        // If we couldn't find the parent or this is a document without parent info,
+        // add the original document
+        result.push(doc);
+    }
+    return { resolvedDocuments: result, explanations };
+}
+/**
+ * Generates an explanation for a component's code using the LLM
+ */
+async function explainComponentCode(codeContent, documentId) {
+    try {
+        // Create a prompt for the LLM to explain the code
+        const messages = [
+            new SystemMessage({
+                content: `You are an expert front-end code explainer. Your task is to analyze and explain the provided code in a clear, educational manner. 
+        
+        Follow these guidelines:
+        1. Break down what the component does and its key features
+        2. Explain the structure and main sections
+        3. Highlight important patterns or techniques used
+        4. Focus on being educational and helpful
+        5. Keep your explanation clear and concise
+        
+        DO NOT modify or rewrite the code - your task is purely explanatory.`
+            }),
+            new HumanMessage({
+                content: `Please explain this code component (ID: ${documentId}):\n\n\`\`\`\n${codeContent}\n\`\`\``
+            })
+        ];
+        // Get explanation from the model
+        const response = await model.invoke(messages);
+        const explanation = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
+        return explanation;
+    }
+    catch (error) {
+        console.error("Error generating code explanation:", error);
+        return "Unable to generate explanation for this component.";
+    }
+}
+// Updated hybrid search tool with parent document resolution and explanation
+async function enhancedHybridSearchWithExplanations(input) {
+    try {
+        console.log("Performing enhanced hybrid search for query:", input);
+        // Basic filter for documents
+        const filter = [
+            {
+                operator: "wildcard",
+                field: "source",
+                value: "*",
+            },
+        ];
+        // Step 1: Perform dense vector search
+        const vectorResults = await elasticVectorSearch.similaritySearch(input, 3, filter);
+        console.log(`Dense vector search returned ${vectorResults.length} results`);
+        // Step 2: Collect documents for BM25 search
+        const allDocuments = await elasticVectorSearch.similaritySearch("*", 30, filter);
+        // Step 3: Perform BM25 search
+        const keywordResults = await performEnhancedBM25Search(input, allDocuments);
+        console.log(`BM25 search returned ${keywordResults.length} results`);
+        // Step 4: Merge and re-rank results
+        let combinedResults = mergeAndRerank(vectorResults, keywordResults, input);
+        console.log(`Initial hybrid search returned ${combinedResults.length} unique results after merging`);
+        // Step 5: Resolve parent documents and get explanations in one step
+        const { resolvedDocuments, explanations } = await resolveAndExplainParentDocument(combinedResults);
+        console.log(`After parent resolution: ${resolvedDocuments.length} total documents with ${explanations.size} explanations`);
+        // Extract page content for response
+        const context = resolvedDocuments.map(doc => doc.pageContent);
+        // Add debug info in metadata
+        const metadata = {
+            vectorResultCount: vectorResults.length,
+            keywordResultCount: keywordResults.length,
+            combinedResultCount: combinedResults.length,
+            resolvedResultCount: resolvedDocuments.length,
+            explanationCount: explanations.size,
+            containsFullDocuments: resolvedDocuments.some(doc => doc.metadata?.is_parent === true)
+        };
+        return {
+            context,
+            explanations,
+            metadata
+        };
+    }
+    catch (error) {
+        console.error("Error in hybrid search with explanations:", error);
+        return {
+            context: [],
+            explanations: new Map(),
+            metadata: { error: error.message }
+        };
+    }
+}
+// Update the combineCodeAndExplanation function to use the stored explanations
+function enhancedCombineCodeAndExplanation(originalCode, aiExplanation, storedExplanations, chainOfThought = null) {
+    // Try to identify which document this is by looking at the first few lines
+    let documentId = null;
+    if (originalCode) {
+        const firstLine = originalCode.split('\n')[0];
+        // Extract documentId from originalCode if available in comments
+        const idMatch = originalCode.match(/\/\/\s*Document ID:\s*([a-zA-Z0-9-_]+)/);
+        if (idMatch) {
+            documentId = idMatch[1];
+        }
+    }
+    // Get the stored explanation if we have an ID match
+    let componentExplanation = "";
+    if (documentId && storedExplanations.has(documentId)) {
+        componentExplanation = storedExplanations.get(documentId);
+    }
+    else if (storedExplanations.size > 0) {
+        // If no direct match but we have explanations, use the first one
+        const firstKey = storedExplanations.keys().next().value;
+        componentExplanation = storedExplanations.get(firstKey);
+    }
+    // Create a combined explanation using both the AI response and the stored explanation
+    const finalExplanation = componentExplanation ?
+        `${aiExplanation}\n\n## Component Detailed Analysis\n\n${componentExplanation}` :
+        aiExplanation;
+    // Create a structured response object
+    const structuredContent = {
+        originalCode: originalCode,
+        explanation: finalExplanation,
+        chainOfThought: chainOfThought
+    };
+    // For backward compatibility with existing frontend, also create a formatted string
+    const formattedResponse = `
+# Code Explanation
+
+${finalExplanation}
+
+# Original Source Code
+
+\`\`\`
+${originalCode}
+\`\`\`
+${chainOfThought ? `
+# Reasoning Process
+
+${chainOfThought}
+` : ''}
+`;
+    return {
+        structuredContent: structuredContent,
+        formattedResponse: formattedResponse
+    };
+}
 // Updated hybrid search tool with parent document resolution
 const hybridSearchTool = new DynamicTool({
     name: 'hybrid_search_tool',
-    description: 'Performs hybrid search combining dense vector embeddings and sparse BM25 with parent document resolution',
+    description: 'Performs hybrid search and returns the single best parent component',
     func: async (input) => {
         try {
-            // Validate input
-            const schema = z.string();
-            const validationResult = schema.safeParse(input);
-            if (!validationResult.success) {
-                throw new Error("Invalid input: " + validationResult.error.message);
+            // Initial search to get potential matches
+            const searchResults = await elasticVectorSearch.similaritySearch(input, 1, [
+                { operator: "wildcard", field: "source", value: "*" }
+            ]);
+            // Determine the best result with parent resolution
+            const bestResult = await findBestParentComponent(searchResults, input);
+            if (!bestResult) {
+                console.log("No suitable results found");
+                return null;
             }
-            console.log("Performing hybrid search for query:", input);
-            // Basic filter for documents
-            const filter = [
-                {
-                    operator: "wildcard",
-                    field: "source",
-                    value: "*",
-                },
-            ];
-            // Step 1: Perform dense vector search
-            const vectorResults = await elasticVectorSearch.similaritySearch(input, 5, filter);
-            console.log(`Dense vector search returned ${vectorResults.length} results`);
-            // Step 2: Collect documents for BM25 search
-            const allDocuments = await elasticVectorSearch.similaritySearch("*", 30, filter);
-            // Step 3: Perform BM25 search
-            const keywordResults = await performEnhancedBM25Search(input, allDocuments);
-            console.log(`BM25 search returned ${keywordResults.length} results`);
-            // Step 4: Merge and re-rank results
-            let combinedResults = mergeAndRerank(vectorResults, keywordResults, input);
-            console.log(`Initial hybrid search returned ${combinedResults.length} unique results after merging`);
-            // Step 5: Resolve parent documents when chunks are returned
-            const resolvedResults = await resolveParentDocuments(combinedResults);
-            console.log(`After parent resolution: ${resolvedResults.length} total documents`);
-            // Extract page content for response
-            const context = resolvedResults.map(doc => doc.pageContent);
-            // Add debug info in metadata
+            // Generate explanation for the best result
+            const explanation = await explainComponentCode(bestResult.pageContent, bestResult.metadata?.document_id || "unknown");
+            // Store explanation for later access
+            if (!global.componentExplanations) {
+                global.componentExplanations = new Map();
+            }
+            const requestId = Date.now().toString();
+            const explanationMap = new Map();
+            explanationMap.set(bestResult.metadata?.document_id || "unknown", explanation);
+            global.componentExplanations.set(requestId, explanationMap);
+            // Return a response with just the single best result
             const responseWithMetadata = {
-                context: context,
+                context: [bestResult.pageContent],
                 metadata: {
-                    vectorResultCount: vectorResults.length,
-                    keywordResultCount: keywordResults.length,
-                    combinedResultCount: combinedResults.length,
-                    resolvedResultCount: resolvedResults.length,
-                    containsFullDocuments: resolvedResults.some(doc => doc.metadata?.is_parent === true)
+                    resultCount: 1,
+                    containsFullDocument: bestResult.metadata?.is_parent === true,
+                    requestId: requestId
                 }
             };
-            return context.length > 0 ? JSON.stringify(responseWithMetadata) : null;
+            return JSON.stringify(responseWithMetadata);
         }
         catch (error) {
             console.error("Error in hybrid search:", error);
@@ -172,116 +560,73 @@ const hybridSearchTool = new DynamicTool({
     }
 });
 /**
- * Resolves parent documents for any child chunks found in search results
- * This ensures complete code is always available when needed
+ * Finds the single best parent component from a set of search results
+ * Prioritizes matches from parent documents and resolves child documents to their parents
  */
-async function resolveParentDocuments(documents) {
-    // Create an array for results and keep track of processed parent IDs
-    const result = [];
-    const processedParentIds = new Set();
-    // Check each document to see if it's a child that needs parent resolution
+async function findBestParentComponent(documents, query) {
+    if (!documents || documents.length === 0)
+        return null;
+    // Create a scoring system for the results
+    const scoredResults = [];
+    // First pass: score all documents
     for (const doc of documents) {
-        // Skip documents without metadata
         if (!doc.metadata) {
-            result.push(doc);
+            scoredResults.push({ doc, score: 0.1 }); // Low score for documents without metadata
             continue;
         }
-        // If this is a parent document, add it directly and mark it as processed
+        // Calculate the relevance score
+        let score = 0;
+        // Prioritize parent documents
         if (doc.metadata.is_parent === true) {
-            result.push(doc);
-            if (doc.metadata.document_id) {
-                processedParentIds.add(doc.metadata.document_id);
-            }
-            continue;
+            score += 0.5; // Significant boost for being a parent
         }
-        // This is a child document, check if we need to fetch its parent
-        if (doc.metadata.parent_id && !processedParentIds.has(doc.metadata.parent_id)) {
-            try {
-                // Create a filter for ElasticSearch
-                const filter = [
-                    {
-                        operator: "equals",
-                        field: "metadata.document_id",
-                        value: doc.metadata.parent_id
-                    },
-                    {
-                        operator: "equals",
-                        field: "metadata.is_parent",
-                        value: true
-                    }
-                ];
-                // Search for the parent document
-                // Note: Don't use minScore as it's not a valid parameter
-                const parentResults = await elasticVectorSearch.similaritySearch("", 1, filter);
-                if (parentResults.length > 0) {
-                    // Add parent document to results and mark it as processed
-                    result.push(parentResults[0]);
-                    processedParentIds.add(doc.metadata.parent_id);
-                    console.log(`Resolved parent document: ${doc.metadata.parent_id}`);
-                }
-                else {
-                    console.log(`No parent document found for ID: ${doc.metadata.parent_id}`);
-                    // Try an alternative approach: direct fetch by ID if supported
-                    try {
-                        // Use the direct fetch method
-                        const directResults = await fetchDocumentById(doc.metadata.parent_id);
-                        if (directResults) {
-                            result.push(directResults);
-                            processedParentIds.add(doc.metadata.parent_id);
-                            console.log(`Directly fetched parent document: ${doc.metadata.parent_id}`);
-                        }
-                    }
-                    catch (directError) {
-                        console.error(`Failed direct fetch for parent: ${doc.metadata.parent_id}`, directError);
-                    }
-                }
-            }
-            catch (error) {
-                console.error(`Error fetching parent document ${doc.metadata.parent_id}:`, error);
-            }
-        }
-        // Always add the child document
-        result.push(doc);
-    }
-    return result;
-}
-/**
- * Helper function to fetch a document directly by ID
- * This is a fallback method if filters don't work as expected
- */
-async function fetchDocumentById(documentId) {
-    try {
-        // This is a direct ElasticSearch query using the client
-        const indexName = process.env.ELASTIC_INDEX || "*";
-        const response = await client.search({
-            index: indexName,
-            body: {
-                query: {
-                    bool: {
-                        must: [
-                            { term: { "metadata.document_id": documentId } },
-                            { term: { "metadata.is_parent": true } }
-                        ]
-                    }
-                }
+        // Check content relevance to query
+        const queryTerms = query.toLowerCase().split(/\s+/).filter(term => term.length > 2);
+        const contentLower = doc.pageContent.toLowerCase();
+        // Count matching terms
+        queryTerms.forEach(term => {
+            if (contentLower.includes(term)) {
+                score += 0.1; // Boost for each matching term
             }
         });
-        // Extract the document from the response
-        if (response.hits.hits.length > 0) {
-            const hit = response.hits.hits[0];
-            const source = hit._source; // Using 'any' for flexibility
-            // Convert to Document format
-            return {
-                pageContent: source.text || source.pageContent || "",
-                metadata: source.metadata || {}
-            };
+        // Check metadata relevance
+        if (doc.metadata.component_name &&
+            doc.metadata.component_name.toLowerCase().includes(query.toLowerCase())) {
+            score += 0.3; // Significant boost for name match
         }
-        return null;
+        if (doc.metadata.component_type &&
+            doc.metadata.component_type.toLowerCase().includes(query.toLowerCase())) {
+            score += 0.2; // Good boost for component type match
+        }
+        if (doc.metadata.features && Array.isArray(doc.metadata.features)) {
+            const featureMatches = doc.metadata.features.filter(feature => feature.toLowerCase().includes(query.toLowerCase())).length;
+            score += featureMatches * 0.1; // Boost for each matching feature
+        }
+        scoredResults.push({ doc, score });
     }
-    catch (error) {
-        console.error("Error in direct document fetch:", error);
-        return null;
+    // Sort by score descending
+    scoredResults.sort((a, b) => b.score - a.score);
+    // Get the highest scoring document
+    const bestMatch = scoredResults[0].doc;
+    // If it's a parent document, return it directly
+    if (bestMatch.metadata?.is_parent === true) {
+        return bestMatch;
     }
+    // If it's a child document, resolve its parent
+    if (bestMatch.metadata?.parent_id) {
+        try {
+            // Try to fetch the parent document
+            const parentDoc = await fetchDocumentById(bestMatch.metadata.parent_id);
+            if (parentDoc) {
+                return parentDoc;
+            }
+        }
+        catch (error) {
+            console.error(`Error fetching parent for best match:`, error);
+        }
+    }
+    // If we couldn't find a parent, return the best match anyway
+    return bestMatch;
 }
 // NEW: Greeting and thanks detection tool
 // NEW: Greeting and thanks detection tool with direct response templates
@@ -1059,39 +1404,45 @@ const tools = [
 // to the system message part:
 const frontEndDevPrompt = ChatPromptTemplate.fromMessages([
     ["system",
-        `You are a helpful, expert front-end developer assistant. Your responses should be technically accurate, comprehensive, and maintain continuity across the conversation, especially for code examples.
-        NOTE: Since all your code will use the TailwindCSS library, you will always have to specify the correct path like this : "<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>"
-        CONVERSATION AND CODE ANALYSIS:
-        {conversation_analysis}
-        
-        CRITICAL CODE PRESERVATION DIRECTIVES:
-        1. NEVER, UNDER ANY CIRCUMSTANCES, MODIFY ANY EXISTING CODE unless the user EXPLICITLY requests changes.
-        2. ALL paths, links, CDN references, and TailwindCSS classes MUST be preserved EXACTLY as they appear in the original code.
-        3. When the user does NOT explicitly request changes, you MUST return the EXACT SAME CODE with no modifications whatsoever.
-        4. If the user does request changes, you may modify ONLY the specific elements they mentioned, while preserving everything else exactly.
-        5. ALL external resource paths (CDN links, image sources, fonts, etc.) must be preserved EXACTLY as they appear in the original code.
-        6. NEVER "improve" or "fix" code unless specifically asked to do so.
-        7. When getting context from the system, if the user has no EXPLICIT request to change the code, PROVIDE THE EXACT SAME CODE with no edits.
-        
-        EXACT CONTEXT PRESERVATION DIRECTIVES:
-        1. PRESERVE ALL CONTEXT: When context or information is provided, use it EXACTLY as provided without any changes, modifications, substitutions, or interpretations. This includes preserving all formatting, spacing, capitalization, and punctuation.
-        2. QUOTE LINKS PRECISELY: All links must be quoted VERBATIM without any modifications. Do not change URLs in any way, do not add or remove characters, and do not modify protocols (http vs https).
-        3. NO CORRECTIONS: Do not attempt to "fix" or "improve" any information that is provided. If you believe there is an error in the provided context, you must still reproduce it exactly as given.
-        4. NO CONTENT EDITING: Do not add, remove, or modify any content from the provided context unless explicitly instructed to do so.
-        5. VERIFICATION: Before sending your final response, verify that all content from the original context is preserved exactly as provided.
-        
-        TAILWINDCSS PRESERVATION RULES:
-        1. ALL TailwindCSS class names must be preserved EXACTLY as they appear in the original code.
-        2. Do not reorder, reformat, or "improve" TailwindCSS classes.
-        3. Do not convert utility classes to component classes or vice versa.
-        4. Preserve all spacing, formatting, and organization of class attributes.
-        
-        RESPONSE GUIDELINES:
-        - When answering questions about existing code, reference the code exactly as it appears.
-        - Only suggest modifications if the user explicitly asks for changes.
-        - When the user asks for changes, clearly state what you are changing and why.
-        - Verify that your response preserves all required elements before sending.
-        
+        `You are a helpful, expert code EXPLAINER. Your role is EXCLUSIVELY to EXPLAIN code, NEVER to modify or generate complete replacements for existing code.
+        JUST EXPLAIN GIVEN CODE, DO NOT GIVE ANY CODE
+
+        CORE MISSION:
+        1. EXPLAIN code clearly, step by step, with educational insights
+        2. NEVER provide complete replacement code
+        3. Present a chain of thought reasoning for your explanations
+        4. When code snippets are needed, only provide SMALL, focused examples
+
+        CRITICAL BOUNDARIES:
+        1. You CANNOT modify the original source code from Elasticsearch
+        2. You CANNOT generate complete replacements for existing code
+        3. You CANNOT suggest fixes unless specifically asked about problems
+        4. You MUST always refer users to the original code for implementation
+
+        EXPLANATION GUIDELINES:
+        - Break down complex concepts step-by-step
+        - Explain the purpose and functionality of different components
+        - Highlight important patterns and architectural decisions
+        - When code snippets are needed, provide ONLY minimal examples (under 10 lines)
+        - Use simple language while maintaining technical accuracy
+        - Focus on helping users understand their code, not changing it
+
+        CHAIN OF THOUGHT:
+        - Present your reasoning process clearly in a <thinking> section
+        - Explain WHY certain code patterns were used
+        - Discuss potential implications of the code structure
+        - Consider different perspectives on the implementation
+
+        RESPONSE FORMAT:
+        1. Start with a clear, concise overview of what the code does
+        2. Break down your explanation into logical sections
+        3. Use <thinking>...</thinking> tags to show your reasoning process
+        4. Keep code snippets minimal and focused on illustrating concepts
+        5. Conclude with a summary of key points
+
+        The system will handle providing the complete original code to the user separately.
+        Your ONLY job is to provide the educational explanation with minimal illustrative snippets.
+
         Context from relevant documentation: {context}
         Previous code context: {code_context}
         `],
@@ -1099,6 +1450,104 @@ const frontEndDevPrompt = ChatPromptTemplate.fromMessages([
     ["human", "{input}"],
     new MessagesPlaceholder("agent_scratchpad"),
 ]);
+// Function to combine code and explanation
+// Add this utility function to your codebase
+/**
+ * Combines original code from Elasticsearch with explanation from Agent
+ * @param {string} originalCode - The code retrieved from Elasticsearch
+ * @param {string} explanation - The explanation generated by the Agent
+ * @param {string} chainOfThought - Optional reasoning steps from the Agent
+ * @returns {object} Combined response with structured and formatted content
+ */
+export function combineCodeAndExplanation(originalCode, aiExplanation, chainOfThought = null, requestId = null) {
+    // Get stored explanations if we have a request ID
+    let componentExplanation = "";
+    if (requestId && global.componentExplanations && global.componentExplanations.has(requestId)) {
+        const explanations = global.componentExplanations.get(requestId);
+        // Try to identify which document this is by looking at the first few lines
+        let documentId = null;
+        if (originalCode) {
+            // Extract documentId from originalCode if available in comments
+            const idMatch = originalCode.match(/\/\/\s*Document ID:\s*([a-zA-Z0-9-_]+)/);
+            if (idMatch) {
+                documentId = idMatch[1];
+            }
+        }
+        // Get the stored explanation if we have an ID match
+        if (documentId && explanations.has(documentId)) {
+            componentExplanation = explanations.get(documentId);
+        }
+        else if (explanations.size > 0) {
+            // If no direct match but we have explanations, use the first one
+            const firstKey = Array.from(explanations.keys())[0];
+            componentExplanation = explanations.get(firstKey);
+        }
+    }
+    // Create a combined explanation using both the AI response and the stored explanation
+    const finalExplanation = componentExplanation ?
+        `${aiExplanation}\n\n## Component Detailed Analysis\n\n${componentExplanation}` :
+        aiExplanation;
+    // Create a structured response object
+    const structuredContent = {
+        originalCode: originalCode,
+        explanation: finalExplanation,
+        chainOfThought: chainOfThought
+    };
+    // For backward compatibility with existing frontend, also create a formatted string
+    const formattedResponse = `
+# Code Explanation
+
+${finalExplanation}
+
+# Original Source Code
+
+\`\`\`
+${originalCode}
+\`\`\`
+${chainOfThought ? `
+# Reasoning Process
+
+${chainOfThought}
+` : ''}
+`;
+    return {
+        structuredContent: structuredContent,
+        formattedResponse: formattedResponse
+    };
+}
+/**
+ * Extracts chain of thought reasoning from Agent response
+ * @param {object} response - The response from the Agent
+ * @param {string} explanation - The explanation text to check for thinking tags
+ * @returns {string|null} The extracted chain of thought or null if none found
+ */
+function extractChainOfThought(response, explanation) {
+    // Check if response has intermediateSteps
+    if (response.intermediateSteps && response.intermediateSteps.length > 0) {
+        // Look for chainOfThought in any step that has it
+        for (const step of response.intermediateSteps) {
+            if (step.chainOfThought) {
+                return step.chainOfThought;
+            }
+        }
+    }
+    // If no intermediateSteps, look for thinking tags
+    if (typeof explanation === 'string') {
+        const thinkingMatch = explanation.match(/<thinking>([\s\S]*?)<\/thinking>/);
+        if (thinkingMatch && thinkingMatch[1]) {
+            // Remove thinking tags from the explanation when we extract it
+            const updatedExplanation = explanation.replace(/<thinking>[\s\S]*?<\/thinking>/g, '').trim();
+            return {
+                chainOfThought: thinkingMatch[1].trim(),
+                updatedExplanation: updatedExplanation
+            };
+        }
+    }
+    return {
+        chainOfThought: null,
+        updatedExplanation: explanation
+    };
+}
 // Function to ensure context is preserved exactly
 function verifyExactContextPreservation(originalContext, responseOutput, links = []) {
     // Check if all original context is preserved exactly
@@ -1125,13 +1574,13 @@ function countOccurrences(text, searchString) {
     }
     return count;
 }
-// Add this to the executeWithCodeHandling function to enforce context preservation
+// Add this to the executeWithCodeHandlingContext function to enforce context preservation
 const executeWithExactContext = async (input, chatHistory = [], conversationId = "default") => {
     // Extract links from input for verification
     const linkRegex = /(https?:\/\/[^\s]+)/g;
     const links = input.match(linkRegex) || [];
     // Normal execution
-    const result = await executeWithCodeHandling(input, chatHistory, conversationId);
+    const result = await executeWithCodeHandlingContext(input, chatHistory, conversationId);
     // Verify context preservation in the output
     if (typeof result.output === 'string' && !verifyExactContextPreservation(input, result.output, links)) {
         // If verification fails, add a warning
@@ -1402,7 +1851,8 @@ function codeStateVerificationMiddleware(result, codeState) {
     }
     return result;
 }
-const executeWithCodeHandling = async (input, chatHistory = [], conversationId) => {
+// Enhanced executeWithCodeHandlingContext with forced context
+const executeWithCodeHandlingContext = async (input, chatHistory = [], conversationId) => {
     // First check for greetings/thanks
     try {
         const greetingResult = await greetingDetectionTool.func(input);
@@ -1602,7 +2052,7 @@ const executeWithNLP = async (input, chatHistory = [], conversationId = "default
     }
     // Handle disambiguation responses
     if (isDisambiguationResponse(input, chatHistory, conversationId)) {
-        return processDisambiguationResponse(input, chatHistory, codeState, conversationId, executeWithCodeHandling);
+        return processDisambiguationResponse(input, chatHistory, codeState, conversationId, executeWithCodeHandlingContext);
     }
     // Extract and store code from user input
     const extractedCode = extractCodeBlocks(input);
@@ -1636,7 +2086,7 @@ const executeWithNLP = async (input, chatHistory = [], conversationId = "default
         chatHistory = [enforcementMessage, ...chatHistory];
     }
     // Process with advanced NLP
-    const nlpResult = await processWithAdvancedNLP(input.replace(/```[\s\S]*?```/g, match => "```CODE_BLOCK```"), chatHistory, codeState, conversationId, executeWithCodeHandling);
+    const nlpResult = await processWithAdvancedNLP(input.replace(/```[\s\S]*?```/g, match => "```CODE_BLOCK```"), chatHistory, codeState, conversationId, executeWithCodeHandlingContext);
     // Apply strict verification if no changes requested
     if (!userRequestedChanges && codeState.fullHtmlDocument && typeof nlpResult.output === 'string') {
         const extractedBlocks = extractCodeBlocks(nlpResult.output);
@@ -1683,5 +2133,5 @@ function extractQuotedText(text) {
 }
 // Add this tool to your tools array
 // Export the executor and the code handling function
-export { executorGPT, executeWithCodeHandling, executeWithNLP, executeWithExactContext };
-//# sourceMappingURL=custom-agent.js.map
+export { executorGPT, executeWithCodeHandlingContext, executeWithNLP, executeWithExactContext, hybridSearchTool, extractChainOfThought, explainComponentCode, resolveAndExplainParentDocument, enhancedHybridSearchWithExplanations };
+//# sourceMappingURL=context-agent.js.map
