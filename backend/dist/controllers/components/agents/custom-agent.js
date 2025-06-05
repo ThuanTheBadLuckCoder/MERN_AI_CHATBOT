@@ -1065,7 +1065,7 @@ const frontEndDevPrompt = ChatPromptTemplate.fromMessages([
         {conversation_analysis}
         
         CRITICAL CODE PRESERVATION DIRECTIVES:
-        1. NEVER, UNDER ANY CIRCUMSTANCES, MODIFY ANY EXISTING CODE unless the user EXPLICITLY requests changes.
+        1. 1. NEVER, UNDER ANY CIRCUMSTANCES, MODIFY ANY EXISTING CODE (UNLESS IT IS ADMITTED, ABSOLUTELY DO NOT ADD, REMOVE, DELETE CODE) unless the user EXPRESSLY requests a change.
         2. ALL paths, links, CDN references, and TailwindCSS classes MUST be preserved EXACTLY as they appear in the original code.
         3. When the user does NOT explicitly request changes, you MUST return the EXACT SAME CODE with no modifications whatsoever.
         4. If the user does request changes, you may modify ONLY the specific elements they mentioned, while preserving everything else exactly.
