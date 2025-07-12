@@ -1,7 +1,10 @@
 
-.isOnSite > div > div {
+#start-newchat.isOnSite > div > div {
     border-color: rgb(34 197 94 / var(--tw-border-opacity, 1)) !important;
-    background-color: #1D2025 !important;
+}
+
+.isOnSite > div > div {
+  background-color: #1D2025 !important;
 }
 
 .logout {

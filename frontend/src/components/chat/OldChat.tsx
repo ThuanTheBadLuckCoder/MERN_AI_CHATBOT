@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { deleteUserChats, getUserChats, sendChatRequestGemini } from '../../helper/api-communicator';
+import { deleteUserChats, getUserChats, sendChatRequest, sendChatRequestGemini, sendChatRequestGoogle } from '../../helper/api-communicator';
 import toast from 'react-hot-toast';
 import ChatBox from './ChatBox';
 
@@ -57,7 +57,7 @@ const OldChat = ({ conversationId }: ChatGeminiProps) => {
         setIsLoading(true);
         
         try {
-          const chatData = await sendChatRequestGemini(content, conversationId);
+          const chatData = await sendChatRequest(content, conversationId);
           
           if (chatData.conversation && chatData.conversation.messages) {
             const messages = chatData.conversation.messages;

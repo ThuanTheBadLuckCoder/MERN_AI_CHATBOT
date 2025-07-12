@@ -1,6 +1,7 @@
 import React, { ChangeEvent, KeyboardEvent, RefObject, useEffect } from 'react';
-import CodeIcon from '@mui/icons-material/Code';
-import CodeOffIcon from '@mui/icons-material/CodeOff';
+import MessageIcon from '../../../public/message-text.svg';
+import SearchIcon from '../../../public/Vector.svg';
+
 
 interface QuestionInputProps {
   inputRef: RefObject<HTMLTextAreaElement>;
@@ -48,10 +49,8 @@ const QuestionInput: React.FC<QuestionInputProps> = ({
   return (
     <div className="flex flex-col w-full gap-1.5 items-center">
       <div className="flex w-full gap-1.5 items-center justify-center">
-        <div className="flex flex-col w-full items-center justify-between gap-1.5 p-4 rounded-2xl bg-inherit outline outline-1 -outline-offset-1 outline-[#515357] focus-within:outline focus-within:outline-1 focus-within:-outline-offset-1">
-          <div className='w-full pl-3'>
-            <span>Codfe 3.5</span>
-          </div>
+        <div className="flex flex-col w-full items-center justify-between gap-2 p-4 rounded-xl bg-inherit outline outline-1 -outline-offset-1 outline-[#515357] focus-within:outline focus-within:outline-1 focus-within:-outline-offset-1">
+          
           <div className="flex size-full">
             <textarea
               ref={inputRef}
@@ -60,14 +59,14 @@ const QuestionInput: React.FC<QuestionInputProps> = ({
               onKeyDown={handleKeyPress}
               placeholder="Type your question here..."
               rows={1}
-              className="flex w-full text-lg items-center border border-transparent bg-inherit pl-3 outline-none resize-none min-h-[40px] py-1 leading-normal scrollbar-thin scrollbar-thumb-green-900 scrollbar-track-transparent"
+              className="flex w-full text-lg items-center border border-transparent bg-inherit outline-none resize-none min-h-[40px] leading-normal scrollbar-thin scrollbar-thumb-green-900 scrollbar-track-transparent"
               style={{
                 height: 'auto',
                 maxHeight: '300px',
                 overflowY: 'hidden' // Initial state, will be updated by adjustHeight
               }}
             />
-            <div className='flex size-fit'>
+            {/* <div className='flex size-fit'>
               <div className='size-fit'>
                 <button
                   onClick={handleSubmit}
@@ -77,10 +76,31 @@ const QuestionInput: React.FC<QuestionInputProps> = ({
                   <CodeIcon className="size-5" />
                 </button>
               </div>
-            </div>
+            </div> */}
           </div>
 
+          <div className='w-full flex justify-between'>
+            {/* <span>Codfe 3.5</span> */}
+            <div id="rag-selector" className="flex gap-2">
 
+              <button className="flex gap-2 text-white font-semibold py-2 px-3
+              rounded-lg opacity-50 cursor-not-allowed bg-neutral-900 border border-neutral-500">
+                <img src={MessageIcon} />
+                Search
+                </button>
+              <button className="flex gap-2 text-white font-semibold py-2 px-3
+              rounded-lg opacity-100 bg-green-600 border border-green-500">
+                <img src={MessageIcon} />
+                Chain of Thought
+                </button>
+            </div>
+            <div id="model-selector" className="bg-neutral-900 px-2 py-1 rounded-md">
+              <select className="bg-inherit h-full">
+                <option>Codfe 3.5</option>
+              </select>
+
+            </div>
+          </div>
         </div>
       </div>
       <span>Codfe can make mistakes. Check information info.</span>

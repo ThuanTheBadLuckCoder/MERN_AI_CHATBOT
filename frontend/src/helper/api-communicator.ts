@@ -62,8 +62,8 @@ export const checkAuthStatus = async () => {
   return data;
 };
 
-export const sendChatRequest = async (message: string) => {
-  const res = await axios.post("/chat/new-gpt", { message });
+export const sendChatRequest = async (message: string, conversationId: string) => {
+  const res = await axios.post("/chat/new-gpt", { message, conversationId });
   if (res.status !== 200) {
     throw new Error("Unable to send chat");
   }
@@ -80,6 +80,15 @@ export const sendChatRequestGemini = async (message: string, conversationId: str
   return data;
 }
 
+export const sendChatRequestGoogle = async (message: string, conversationId: string) => {
+  const res = await axios.post("/chat/new-basic", { message, conversationId });
+  if (res.status !== 200) {
+    throw new Error("Unable to send chat");
+  }
+  const data = await res.data;
+  return data;
+}
+
 export const sendLinkRequest = async (link: string, index: string) => {
   const res = await axios.post("/link/new", { link, index });
   if (res.status !== 200) {
@@ -89,14 +98,23 @@ export const sendLinkRequest = async (link: string, index: string) => {
   return data;
 };
 
-export const sendFileRequest = async (name: string, content: Object, index: string) => {
-  const res = await axios.post("/file/new", {name, content, index});
-
+export const sendFileRequest = async (
+  name: string, 
+  content: string, index: string,
+  description: string = "", 
+  languages: string[] = ["HTML", "CSS", "JavaScript"], 
+  file_format: string = "HTML") => {
+  const res = await axios.post("/file/new", {
+    name,
+    content,
+    index,
+    description,
+    languages,
+    file_format
+  });
   if (res.status !== 200) {
-    throw new Error("Unable to send file");
-  } 
-  const data = await res.data;
-  return data;
+    throw new Error(`Request failed with status: ${res.status}`);
+  }
 };
 
 export const createNewIndex = async (indexName: string) => {

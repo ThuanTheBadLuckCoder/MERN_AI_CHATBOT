@@ -1,7 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@100..900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-@import url('https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@100..900&display=swap');
 
 html,
 body {
@@ -87,13 +88,6 @@ input:-webkit-autofill:focus {
   transition: background-color 5000s ease-in-out 0s;
 }
 
-/* Style the autocomplete suggestions dropdown */
-input:-webkit-autofill::-webkit-credentials-auto-fill-button {
-  /* Hide the credentials button if desired */
-  /* visibility: hidden; */
-  /* display: none; */
-}
-
 /* Style the autocomplete dropdown menu */
 input::-webkit-calendar-picker-indicator {
   filter: invert(1);
@@ -155,4 +149,24 @@ input:-ms-input-placeholder {
 }
 .text-green-custom {
   color: rgba(1, 245, 140, 1);
+}
+
+:root {
+  --font-figtree: 'Figtree', sans-serif;
+}
+
+body {
+  font-family: var(--font-figtree);
+}
+
+
+@font-face {
+  font-family: 'Power Grotesk';
+  src: url('./assets/fonts/PowerGrotesk.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+}
+
+.power-grotesk {
+  font-family: 'Power Grotesk', sans-serif !important;
 }

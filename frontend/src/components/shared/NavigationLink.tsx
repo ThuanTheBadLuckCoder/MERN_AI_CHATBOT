@@ -19,7 +19,7 @@ const NavigationLink = (props: Props) => {
       to={props.to}
       id={props.id}>
       <div id="nav-container" className="flex flex-row size-full overflow-hidden ">
-        <div className="flex flex-row w-full h-8 border border-transparent bg-inherit rounded-lg hover:border-green-500 hover:bg-[#1D2025] justify-start items-center px-4 gap-1.5 overflow-hidden">
+        <div className="flex flex-row w-full h-10 border border-transparent bg-inherit rounded-xl hover:bg-[#1D2025] justify-start items-center px-4 gap-1.5 overflow-hidden">
           {props.icon && <span className="size-fit">{props.icon}</span>}
           <p className="text-lg font-bold truncate">{props.text}</p>
 

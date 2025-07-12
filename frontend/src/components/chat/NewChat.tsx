@@ -1,12 +1,14 @@
 import React, { useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { sendChatRequestGemini } from "../../helper/api-communicator";
+import { sendChatRequest, sendChatRequestGemini, sendChatRequestGoogle } from "../../helper/api-communicator";
 import toast from "react-hot-toast";
 import logo from "../../../public/codfe_logo.svg"
 import bg from '../../../public/main_bg.png'
 import CodeIcon from '@mui/icons-material/Code';
 import CircleIcon from '@mui/icons-material/Circle';
+import MessageIcon from '../../../public/message-text.svg';
+import SearchIcon from '../../../public/Vector.svg';
 
 const NewChat = () => {
   const navigate = useNavigate();
@@ -80,16 +82,15 @@ const NewChat = () => {
       return;
     }
 
-    setIsLoading(true);
-    toast.loading("Creating new conversation...", { id: "newchat" });
+    setIsLoading(false);
 
     try {
-      const chatData = await sendChatRequestGemini(content, "");
+      const chatData = await sendChatRequest(content, "");
       console.log("Chat response data:", chatData);
 
       if (chatData.conversation && (chatData.conversation._id || chatData.conversation.id)) {
         const conversationId = chatData.conversation._id || chatData.conversation.id;
-        toast.success("Conversation created!", { id: "newchat" });
+        // toast.success("Conversation created!", { id: "newchat" });
 
         setInputValue("");
 
@@ -146,14 +147,14 @@ const NewChat = () => {
         <img src={logo} />{greeting}, {auth?.user?.name || "User"}!
       </h2>
       <div className="flex h-16 w-full justify-center h-fit">
-        <div className="border border-neutral-900 items-center flex flex-col gap-5 rounded-3xl bg-neutral-900/1 backdrop-blur flex flex-col w-[750px] h-fit items-center justify-between gap-1.5 p-2 rounded-2xl bg-inherit outline outline-1 -outline-offset-1 outline-[#515357] focus-within:outline focus-within:outline-1 focus-within:-outline-offset-1">
+        <div className="border border-neutral-900 items-center flex flex-col gap-5 bg-neutral-900/1 backdrop-blur flex flex-col w-[750px] h-fit items-center justify-between gap-1.5 p-4 rounded-xl bg-inherit outline outline-1 -outline-offset-1 outline-[#515357] focus-within:outline focus-within:outline-1 focus-within:-outline-offset-1">
           
           <div className="flex size-full">
             <textarea
               ref={inputRef}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              className="flex flex-col w-full text-lg items-center justify-center border border-transparent bg-transparent pl-2 outline-none resize-none min-h-[40px] py-1 leading-normal scrollbar-thin scrollbar-thumb-green-900 scrollbar-track-transparent"
+              className="flex flex-col w-full text-lg items-center justify-center border border-transparent bg-transparent outline-none resize-none min-h-[40px] leading-normal scrollbar-thin scrollbar-thumb-green-900 scrollbar-track-transparent"
               placeholder="How can Codfe assist you today?"
               rows={1}
               disabled={isLoading}
@@ -164,16 +165,35 @@ const NewChat = () => {
                 overflowY: 'hidden' // Initial state, will be updated by adjustHeight
               }}
             />
-            <button
+            {/* <button
               onClick={handleSubmit}
               className="flex flex-col items-center justify-center rounded-full size-10 disabled:cursor-not-allowed disabled:opacity-75 bg-green-900 border border-green-800 shrink-0"
               disabled={isLoading}
             >
               <CodeIcon className="size-5" />
-            </button>
+            </button> */}
           </div>
-          <div className='w-full pl-2 flex justify-between'>
-            <span>Codfe 3.5</span>
+          <div className='w-full flex justify-between'>
+          <div id="rag-selector" className="flex gap-2">
+
+              <button className="flex gap-2 text-white font-semibold py-2 px-3
+rounded-lg opacity-50 cursor-not-allowed bg-neutral-900 border border-neutral-500">
+                <img src={MessageIcon} />
+                Search
+              </button>
+
+
+              <button className="flex gap-2 items-center justify-center text-white font-semibold py-2 px-3 text-base leading-[150%] rounded-lg opacity-100 bg-green-600 border border-green-500 font-figtree">
+                <img src={MessageIcon} className="size-5" />
+                Chain of Thought
+              </button>
+            </div>
+            <div id="model-selector" className="bg-neutral-900 px-2 py-1 rounded-md">
+            <select className="bg-inherit h-full">
+              <option>Codfe 3.5</option>
+            </select>
+
+            </div>
             {/* Display loading message with animated dots if waiting for response */}
             {isLoading && (
               <div>
