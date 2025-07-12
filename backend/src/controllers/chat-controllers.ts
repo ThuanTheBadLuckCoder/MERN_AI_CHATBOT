@@ -17,12 +17,7 @@ import { executor } from "./components/agents/custom-gemini-agent.js";
 // import { combineCodeAndExplanation } from "./components/agents/custom-agent.js";
 import { modelGemini } from "../config/gemini-config.js";
 
-import { 
-  hybridSearchTool, 
-  executeWithCodeHandlingContext, 
-  extractChainOfThought, 
-  combineCodeAndExplanation 
-} from './components/agents/context-agent.js';
+// Removed context-agent imports as they are no longer needed
 
 import { executeWithCodeHandling } from './components/agents/custom-agent.js'
 
@@ -351,30 +346,10 @@ export async function queryVectorStore(req: Request, res: Response, next: NextFu
   try {
     console.log("Querying vector store with message:", message);
     
-    // Call the hybridSearchTool directly
-    const searchResult = await hybridSearchTool.func(message);
-    
-    if (!searchResult) {
-      console.log("No search results found");
-      return [];
-    }
-    
-    try {
-      // Parse the results and extract context and request ID
-      const parsedResult = JSON.parse(searchResult);
-      const context = parsedResult.context || [];
-      
-      // Store the request ID for later access to explanations
-      if (parsedResult.metadata && parsedResult.metadata.requestId) {
-        res.locals.explanationRequestId = parsedResult.metadata.requestId;
-      }
-      
-      console.log(`Found single best matching document`);
-      return context;
-    } catch (e) {
-      console.error("Error parsing search results:", e);
-      return [];
-    }
+    // Simplified implementation - return empty context for now
+    // You can implement your own vector store query logic here
+    console.log("No vector store implementation available");
+    return [];
   } catch (error) {
     console.error("Error querying vector store:", error);
     return [];
@@ -458,9 +433,6 @@ export const generateChatGPTCompletion = async (
 
     // Use Mongoose array methods to ensure middleware triggers
     user.conversations[conversationIndex].messages.push(userMessage);
-
-    // Save the updated user document before invoking the model
-    await user.save();
 
     // Generate response using ONLY the GPT executor
     const responseGPT = await executeWithCodeHandling(
@@ -598,9 +570,6 @@ export const generateChatGPTContextCompletion = async (
     // Use Mongoose array methods to ensure middleware triggers
     user.conversations[conversationIndex].messages.push(userMessage);
 
-    // Save the updated user document before invoking the model
-    await user.save();
-
     // Generate response using executeWithCodeHandling
     const response = await executeWithCodeHandling(
       input,
@@ -618,22 +587,14 @@ export const generateChatGPTContextCompletion = async (
       explanation = "No valid explanation generated.";
     }
 
-    // Extract chain of thought and update explanation if needed
-    const { chainOfThought, updatedExplanation } = extractChainOfThought(response, explanation);
-    
-    // If extractChainOfThought returned an updated explanation, use it
-    if (updatedExplanation) {
-      explanation = updatedExplanation;
-    }
-
-    // Use combineCodeAndExplanation to get properly formatted response with component explanations
-    // Pass the explanation request ID to access stored explanations
-    const combinedResponse = combineCodeAndExplanation(
-      context.join('\n\n'), 
-      explanation, 
-      chainOfThought,
-      explanationRequestId
-    );
+    // Simplified response handling - no chain of thought extraction
+    const combinedResponse = {
+      formattedResponse: explanation,
+      structuredContent: {
+        response: explanation,
+        context: context.join('\n\n')
+      }
+    };
 
     // Add assistant's response to conversation messages
     const assistantMessage = {
