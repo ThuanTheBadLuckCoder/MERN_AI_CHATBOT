@@ -65,6 +65,8 @@ const LeftNavi: React.FC<LeftNaviProps> = ({ isOpen, setIsOpen }) => {
     
     try {
       const data = await getConversationList();
+
+      // console.log("data: ", data);
       
       // Store the conversations in state
       if (data && data.conversations && Array.isArray(data.conversations)) {

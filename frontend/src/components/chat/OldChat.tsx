@@ -1,18 +1,32 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { deleteUserChats, getUserChats, sendChatRequest, sendChatRequestGemini, sendChatRequestGoogle } from '../../helper/api-communicator';
+import { deleteUserChats, getUserChats, sendChatRequest } from '../../helper/api-communicator';
 import toast from 'react-hot-toast';
 import ChatBox from './ChatBox';
+
 
 interface ChatGeminiProps {
     conversationId: string;
 }
 
+interface Reference {
+  id: string;
+  type: 'component' | 'link' | 'document';
+  title: string;
+  description: string;
+  originalCode?: string;
+  source?: string;
+  relevanceScore?: number;
+  usedAt?: string;
+}
+
+// Update your existing Message type
 type Message = {
   role: "user" | "assistant";
   content: string;
-  id?: string; // Optional ID for tracking purposes
+  id?: string;
+  references?: Reference[]; // Add this line
 };
 
 const OldChat = ({ conversationId }: ChatGeminiProps) => {
@@ -33,6 +47,7 @@ const OldChat = ({ conversationId }: ChatGeminiProps) => {
         
         try {
             const data = await getUserChats(conversationId);
+            console.log("Chats: ", data);
             setChatMessages([...data.chats]);
             toast.success("Successfully loaded chats", { id: "loadchats" });
         } catch (err) {

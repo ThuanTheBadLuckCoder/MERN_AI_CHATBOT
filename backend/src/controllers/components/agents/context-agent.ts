@@ -451,7 +451,7 @@ async function explainComponentCode(codeContent: string, documentId: string): Pr
         4. Focus on being educational and helpful
         5. Keep your explanation clear and concise
         
-        DO NOT modify or rewrite the code - your task is purely explanatory.`
+        DO NOT modify or rewrite the code AND link the images (MUST taken from the reference) ABSOLUTELY DO NOT EDIT OR PLACEHOLD THE IMAGE LINK - your TASKS is to explain only.`
       }),
       new HumanMessage({
         content: `Please explain this code component (ID: ${documentId}):\n\n\`\`\`\n${codeContent}\n\`\`\``

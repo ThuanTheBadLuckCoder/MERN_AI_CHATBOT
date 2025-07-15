@@ -1,3 +1,4 @@
+//chat-controllers.ts
 import User from "../models/User.js";
 import { model } from "../config/openai-config.js";
 import { AIMessage, HumanMessage } from "@langchain/core/messages";
@@ -5,7 +6,7 @@ import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { executor } from "./components/agents/custom-gemini-agent.js";
 // import { combineCodeAndExplanation } from "./components/agents/custom-agent.js";
 import { modelGemini } from "../config/gemini-config.js";
-import { hybridSearchTool, extractChainOfThought, combineCodeAndExplanation } from './components/agents/context-agent.js';
+import { hybridSearchTool } from './components/agents/context-agent.js';
 import { executeWithCodeHandling } from './components/agents/custom-agent.js';
 export const generateChatGeminiMultiCompletion = async (req, res, next) => {
     try {
@@ -371,12 +372,11 @@ export const generateChatGPTCompletion = async (req, res, next) => {
         };
         // Use Mongoose array methods to ensure middleware triggers
         user.conversations[conversationIndex].messages.push(userMessage);
-        // Save the updated user document before invoking the model
-        await user.save();
-        // Generate response using ONLY the GPT executor
-        const responseGPT = await executeWithCodeHandling(input, chatHistory.length > 0 ? chatHistory : [], conversationId // Make sure this variable is defined in your scope
+        // Generate response using ONLY the GPT executor with reference tracking
+        const responseGPT = await executeWithCodeHandling(input, chatHistory.length > 0 ? chatHistory : [], conversationId || user.conversations[conversationIndex].id // Use the conversation ID
         );
         console.log("responseGPT: ", responseGPT);
+        console.log("References used: ", responseGPT.references?.length || 0);
         // Extract response content from GPT
         let responseContent;
         if (typeof responseGPT.output === 'string') {
@@ -388,11 +388,12 @@ export const generateChatGPTCompletion = async (req, res, next) => {
         else {
             responseContent = "No valid response generated.";
         }
-        // Add assistant's response to conversation messages
+        // Add assistant's response to conversation messages with references
         const assistantMessage = {
             content: responseContent,
             role: "assistant",
-            createdAt: new Date()
+            createdAt: new Date(),
+            references: responseGPT.references || [] // Add references to the message
         };
         // Use Mongoose array methods to ensure middleware triggers
         user.conversations[conversationIndex].messages.push(assistantMessage);
@@ -411,7 +412,8 @@ export const generateChatGPTCompletion = async (req, res, next) => {
                 title: user.conversations[conversationIndex].title,
                 messages: user.conversations[conversationIndex].messages,
                 createdAt: user.conversations[conversationIndex].createdAt,
-                updatedAt: user.conversations[conversationIndex].updatedAt
+                updatedAt: user.conversations[conversationIndex].updatedAt,
+                allReferences: user.conversations[conversationIndex].allReferences // Include aggregated references
             }
         });
     }
@@ -486,10 +488,8 @@ export const generateChatGPTContextCompletion = async (req, res, next) => {
         };
         // Use Mongoose array methods to ensure middleware triggers
         user.conversations[conversationIndex].messages.push(userMessage);
-        // Save the updated user document before invoking the model
-        await user.save();
-        // Generate response using executeWithCodeHandling
-        const response = await executeWithCodeHandling(input, chatHistory.length > 0 ? chatHistory : [], conversationId || "default");
+        // Generate response using executeWithCodeHandling with references
+        const response = await executeWithCodeHandling(input, chatHistory.length > 0 ? chatHistory : [], conversationId || user.conversations[conversationIndex].id);
         // Extract the explanation from the response
         let explanation = '';
         if (typeof response.output === 'string') {
@@ -501,22 +501,22 @@ export const generateChatGPTContextCompletion = async (req, res, next) => {
         else {
             explanation = "No valid explanation generated.";
         }
-        // Extract chain of thought and update explanation if needed
-        const { chainOfThought, updatedExplanation } = extractChainOfThought(response, explanation);
-        // If extractChainOfThought returned an updated explanation, use it
-        if (updatedExplanation) {
-            explanation = updatedExplanation;
-        }
-        // Use combineCodeAndExplanation to get properly formatted response with component explanations
-        // Pass the explanation request ID to access stored explanations
-        const combinedResponse = combineCodeAndExplanation(context.join('\n\n'), explanation, chainOfThought, explanationRequestId);
-        // Add assistant's response to conversation messages
+        // Simplified response handling - no chain of thought extraction
+        const combinedResponse = {
+            formattedResponse: explanation,
+            structuredContent: {
+                response: explanation,
+                context: context.join('\n\n')
+            }
+        };
+        // Add assistant's response to conversation messages with references
         const assistantMessage = {
             content: combinedResponse.formattedResponse,
             role: "assistant",
             createdAt: new Date(),
             // Store structured data separately for advanced frontends
-            structuredContent: combinedResponse.structuredContent
+            structuredContent: combinedResponse.structuredContent,
+            references: response.references || [] // Add references
         };
         // Use Mongoose array methods to ensure middleware triggers
         user.conversations[conversationIndex].messages.push(assistantMessage);
@@ -535,7 +535,8 @@ export const generateChatGPTContextCompletion = async (req, res, next) => {
                 title: user.conversations[conversationIndex].title,
                 messages: user.conversations[conversationIndex].messages,
                 createdAt: user.conversations[conversationIndex].createdAt,
-                updatedAt: user.conversations[conversationIndex].updatedAt
+                updatedAt: user.conversations[conversationIndex].updatedAt,
+                allReferences: user.conversations[conversationIndex].allReferences
             }
         });
     }

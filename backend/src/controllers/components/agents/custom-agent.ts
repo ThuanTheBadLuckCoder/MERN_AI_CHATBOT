@@ -1,5 +1,3 @@
-//custom-agent.ts
-
 import { DynamicTool } from "@langchain/core/tools";
 import { model } from "../../../config/openai-config.js";
 import { modelGemini } from "../../../config/gemini-config.js";
@@ -28,6 +26,23 @@ import { parse as parseHTML } from 'node-html-parser';
 
 const MEMORY_KEY = "chat_history";
 
+// Interface for tracking references
+interface Reference {
+    id?: string;
+    type: 'documentation' | 'code_example' | 'component' | 'api_reference' | 'style_guide' | 'best_practice';
+    title: string;
+    description: string;
+    originalCode?: string;
+    source?: string;
+    relevanceScore?: number;
+    usedAt?: Date;
+}
+
+// Global reference tracking
+if (!global.referenceTracker) {
+    global.referenceTracker = {};
+}
+
 // ElasticSearch configuration
 const clientArgs: ElasticClientArgs = {
     client: new Client(config),
@@ -36,12 +51,77 @@ const clientArgs: ElasticClientArgs = {
 
 const elasticVectorSearch = new ElasticVectorSearch(embeddingsOpenAI, clientArgs);
 
-// ElasticSearch tool for retrieving relevant context
+// Reference tracking tool
+const referenceTrackingTool = new DynamicTool({
+    name: 'reference_tracking_tool',
+    description: 'Tracks and stores references used during response generation',
+    func: async (input: string) => {
+        try {
+            const data = JSON.parse(input);
+            const action = data.action;
+            const conversationId = data.conversationId || "default";
+            
+            if (!global.referenceTracker[conversationId]) {
+                global.referenceTracker[conversationId] = [];
+            }
+            
+            if (action === "add") {
+                const reference: Reference = {
+                    type: data.type,
+                    title: data.title,
+                    description: data.description,
+                    originalCode: data.originalCode,
+                    source: data.source,
+                    relevanceScore: data.relevanceScore || 0,
+                    usedAt: new Date()
+                };
+                
+                global.referenceTracker[conversationId].push(reference);
+                
+                return JSON.stringify({
+                    success: true,
+                    reference: reference,
+                    totalReferences: global.referenceTracker[conversationId].length
+                });
+            }
+            
+            if (action === "get") {
+                return JSON.stringify({
+                    references: global.referenceTracker[conversationId] || [],
+                    count: global.referenceTracker[conversationId]?.length || 0
+                });
+            }
+            
+            if (action === "clear") {
+                global.referenceTracker[conversationId] = [];
+                return JSON.stringify({ success: true, message: "References cleared" });
+            }
+            
+            return JSON.stringify({ error: "Invalid action" });
+        } catch (error) {
+            console.error("Error in reference tracking tool:", error);
+            return JSON.stringify({ error: "Error tracking references" });
+        }
+    }
+});
+
+// ElasticSearch tool for retrieving relevant context with reference tracking
 const elasticSearchTool = new DynamicTool({
     name: 'elastic_search_tool',
-    description: 'This tool retrieves documents using ElasticSearch vector search',
+    description: 'This tool retrieves documents using ElasticSearch vector search and tracks references',
     func: async (input: string) => {
-        const schema = z.string();
+        const schema = z.object({
+            query: z.string(),
+            conversationId: z.string().optional()
+        });
+        
+        const validationResult = schema.safeParse(JSON.parse(input));
+        if (!validationResult.success) {
+            throw new Error("Invalid input: " + validationResult.error.message);
+        }
+
+        const { query, conversationId = "default" } = validationResult.data;
+        
         const filter = [
             {
                 operator: "wildcard",
@@ -50,25 +130,50 @@ const elasticSearchTool = new DynamicTool({
             },
         ];
 
-        const validationResult = schema.safeParse(input);
-        if (!validationResult.success) {
-            throw new Error("Invalid input: " + validationResult.error.message);
+        const similaritySearchResults = await elasticVectorSearch.similaritySearch(query, 3, filter);
+        
+        // Track references from search results
+        for (const result of similaritySearchResults) {
+            await referenceTrackingTool.func(JSON.stringify({
+                action: "add",
+                conversationId: conversationId,
+                type: determineReferenceType(result),
+                title: extractTitle(result),
+                description: result.pageContent.substring(0, 200) + "...",
+                originalCode: extractCode(result.pageContent),
+                source: result.metadata?.source || "ElasticSearch",
+                relevanceScore: result.metadata?.score || 0.5
+            }));
         }
-
-        const similaritySearchResults = await elasticVectorSearch.similaritySearch(input, 3, filter);
+        
         const context = similaritySearchResults.map((result) => result.pageContent);
         return context.length > 0 ? context : null;
     }
 });
 
-// Helper function to perform BM25 search
-async function performBM25Search(query: string, documents: Document[], k: number = 3): Promise<Document[]> {
+// Helper function to perform BM25 search with reference tracking
+async function performBM25Search(query: string, documents: Document[], k: number = 3, conversationId: string = "default"): Promise<Document[]> {
     try {
         const bm25Retriever = await BM25Retriever.fromDocuments(documents, {
             k: k
         });
         
         const results = await bm25Retriever.getRelevantDocuments(query);
+        
+        // Track BM25 references
+        for (const result of results) {
+            await referenceTrackingTool.func(JSON.stringify({
+                action: "add",
+                conversationId: conversationId,
+                type: determineReferenceType(result),
+                title: extractTitle(result),
+                description: result.pageContent.substring(0, 200) + "...",
+                originalCode: extractCode(result.pageContent),
+                source: result.metadata?.source || "BM25 Search",
+                relevanceScore: 0.7 // BM25 relevance
+            }));
+        }
+        
         return results;
     } catch (error) {
         console.error("Error in BM25 search:", error);
@@ -76,11 +181,81 @@ async function performBM25Search(query: string, documents: Document[], k: number
     }
 }
 
-// Merge and re-rank search results
+// Helper functions for reference extraction
+function determineReferenceType(document: Document): Reference['type'] {
+    const content = document.pageContent.toLowerCase();
+    const metadata = document.metadata || {};
+    
+    if (content.includes('class=') || content.includes('classname=') || metadata.type === 'component') {
+        return 'component';
+    } else if (content.includes('function') || content.includes('const') || content.includes('let')) {
+        return 'code_example';
+    } else if (content.includes('api') || content.includes('endpoint')) {
+        return 'api_reference';
+    } else if (content.includes('style') || content.includes('css') || content.includes('tailwind')) {
+        return 'style_guide';
+    } else if (content.includes('best practice') || content.includes('recommendation')) {
+        return 'best_practice';
+    }
+    
+    return 'documentation';
+}
+
+function extractTitle(document: Document): string {
+    // Try to extract from metadata first
+    if (document.metadata?.title) {
+        return document.metadata.title;
+    }
+    
+    // Try to extract from content
+    const content = document.pageContent;
+    
+    // Look for headings
+    const headingMatch = content.match(/^#+\s+(.+)$/m) || 
+                        content.match(/<h[1-6][^>]*>([^<]+)<\/h[1-6]>/i);
+    if (headingMatch) {
+        return headingMatch[1].trim();
+    }
+    
+    // Look for component names
+    const componentMatch = content.match(/(?:class|function|const)\s+(\w+)/);
+    if (componentMatch) {
+        return componentMatch[1];
+    }
+    
+    // Fallback to first line or truncated content
+    const firstLine = content.split('\n')[0].trim();
+    return firstLine.length > 50 ? firstLine.substring(0, 50) + '...' : firstLine;
+}
+
+function extractCode(content: string): string | undefined {
+    // Extract code blocks
+    const codeBlockMatch = content.match(/```[\s\S]*?```/);
+    if (codeBlockMatch) {
+        return codeBlockMatch[0].replace(/```\w*\n?/g, '').trim();
+    }
+    
+    // Extract HTML/JSX code
+    const htmlMatch = content.match(/<[^>]+>[\s\S]*?<\/[^>]+>/);
+    if (htmlMatch) {
+        return htmlMatch[0];
+    }
+    
+    // Extract JavaScript code patterns
+    const jsMatch = content.match(/(?:function|const|let|var|class)\s+\w+[\s\S]*?(?:\n\n|$)/);
+    if (jsMatch) {
+        return jsMatch[0].trim();
+    }
+    
+    return undefined;
+}
+
+// Merge and re-rank search results with reference tracking
 function mergeAndRerank(
     vectorResults: Document[], 
     keywordResults: Document[], 
-    query: string
+    query: string,
+    conversationId: string = "default"
 ): Document[] {
     const uniqueDocuments = new Map<string, { doc: Document; score: number }>();
     
@@ -123,19 +298,25 @@ function mergeAndRerank(
         .map(item => item.doc);
 }
 
-// Updated hybrid search tool with parent document resolution
+// Updated hybrid search tool with parent document resolution and reference tracking
 const hybridSearchTool = new DynamicTool({
     name: 'hybrid_search_tool',
-    description: 'Performs hybrid search combining dense vector embeddings and sparse BM25 with parent document resolution',
+    description: 'Performs hybrid search combining dense vector embeddings and sparse BM25 with parent document resolution and reference tracking',
     func: async (input: string) => {
         try {
-            const schema = z.string();
-            const validationResult = schema.safeParse(input);
+            const schema = z.object({
+                query: z.string(),
+                conversationId: z.string().optional()
+            });
+            
+            const validationResult = schema.safeParse(JSON.parse(input));
             if (!validationResult.success) {
                 throw new Error("Invalid input: " + validationResult.error.message);
             }
             
-            console.log("Performing hybrid search for query:", input);
+            const { query, conversationId = "default" } = validationResult.data;
+            
+            console.log("Performing hybrid search for query:", query);
             
             const filter = [
                 {
@@ -145,17 +326,31 @@ const hybridSearchTool = new DynamicTool({
                 },
             ];
             
-            const vectorResults = await elasticVectorSearch.similaritySearch(input, 5, filter);
+            const vectorResults = await elasticVectorSearch.similaritySearch(query, 5, filter);
             console.log(`Dense vector search returned ${vectorResults.length} results`);
             
+            // Track vector search references
+            for (const result of vectorResults) {
+                await referenceTrackingTool.func(JSON.stringify({
+                    action: "add",
+                    conversationId: conversationId,
+                    type: determineReferenceType(result),
+                    title: extractTitle(result),
+                    description: result.pageContent.substring(0, 200) + "...",
+                    originalCode: extractCode(result.pageContent),
+                    source: result.metadata?.source || "Vector Search",
+                    relevanceScore: result.metadata?.score || 0.8
+                }));
+            }
+            
             const allDocuments = await elasticVectorSearch.similaritySearch("*", 30, filter);
-            const keywordResults = await performEnhancedBM25Search(input, allDocuments);
+            const keywordResults = await performEnhancedBM25Search(query, allDocuments);
             console.log(`BM25 search returned ${keywordResults.length} results`);
             
-            let combinedResults = mergeAndRerank(vectorResults, keywordResults, input);
+            let combinedResults = mergeAndRerank(vectorResults, keywordResults, query, conversationId);
             console.log(`Initial hybrid search returned ${combinedResults.length} unique results after merging`);
             
-            const resolvedResults = await resolveParentDocuments(combinedResults);
+            const resolvedResults = await resolveParentDocuments(combinedResults, conversationId);
             console.log(`After parent resolution: ${resolvedResults.length} total documents`);
             
             const context = resolvedResults.map(doc => doc.pageContent);
@@ -169,7 +364,8 @@ const hybridSearchTool = new DynamicTool({
                     resolvedResultCount: resolvedResults.length,
                     containsFullDocuments: resolvedResults.some(doc => 
                         doc.metadata?.is_parent === true)
-                }
+                },
+                conversationId: conversationId
             };
             
             return context.length > 0 ? JSON.stringify(responseWithMetadata) : null;
@@ -180,8 +376,8 @@ const hybridSearchTool = new DynamicTool({
     }
 });
 
-// Resolve parent documents for any child chunks found in search results
-async function resolveParentDocuments(documents: Document[]): Promise<Document[]> {
+// Resolve parent documents for any child chunks found in search results with reference tracking
+async function resolveParentDocuments(documents: Document[], conversationId: string = "default"): Promise<Document[]> {
     const result: Document[] = [];
     const processedParentIds = new Set<string>();
     
@@ -220,6 +416,18 @@ async function resolveParentDocuments(documents: Document[]): Promise<Document[]
                     result.push(parentResults[0]);
                     processedParentIds.add(doc.metadata.parent_id);
                     console.log(`Resolved parent document: ${doc.metadata.parent_id}`);
+                    
+                    // Track parent document reference
+                    await referenceTrackingTool.func(JSON.stringify({
+                        action: "add",
+                        conversationId: conversationId,
+                        type: 'component',
+                        title: `Parent: ${extractTitle(parentResults[0])}`,
+                        description: "Parent document containing full component implementation",
+                        originalCode: extractCode(parentResults[0].pageContent),
+                        source: parentResults[0].metadata?.source || "Parent Document",
+                        relevanceScore: 0.9
+                    }));
                 } else {
                     console.log(`No parent document found for ID: ${doc.metadata.parent_id}`);
                     try {
@@ -677,7 +885,8 @@ const tools = [
     elasticSearchTool, 
     codeMemoryTool, 
     greetingDetectionTool,
-    contextValidationTool  // Replaces overly strict preservation tools
+    contextValidationTool,  // Replaces overly strict preservation tools
+    referenceTrackingTool   // New reference tracking tool
 ];
 
 // BALANCED: More flexible prompt that encourages context usage without being overly restrictive
@@ -691,6 +900,7 @@ const frontEndDevPrompt = ChatPromptTemplate.fromMessages([
         3. You may intelligently modify, improve, or adapt code from the context to better suit user requests
         4. Do NOT create information that contradicts or goes beyond what's provided in the context
         5. If you need to add something not in the context, clearly indicate it as your own addition
+        6. TRACK all references you use from the context for documentation purposes
         
         CONTENT CREATION RULES:
         1. NO PLACEHOLDER CONTENT: Never create placeholder images, dummy links, or fake URLs
@@ -711,9 +921,13 @@ const frontEndDevPrompt = ChatPromptTemplate.fromMessages([
         - Never hallucinate resources or create virtual content
         - Be helpful and creative within the bounds of what's provided
         - If context is insufficient for a request, explain what additional information you would need
+
+        IMPORTANTS:
+        - DO NOT modify or rewrite the code AND link the images (MUST taken from the reference) ABSOLUTELY DO NOT EDIT OR PLACEHOLD THE IMAGE LINK!!!
         
         Context from relevant documentation: {context}
         Previous code context: {code_context}
+        Conversation ID: {conversation_id}
         `],
     new MessagesPlaceholder(MEMORY_KEY),
     ["human", "{input}"],
@@ -738,8 +952,14 @@ const runnableAgent = RunnableSequence.from([
         input: (i: { input: string; steps: AgentStep[]; conversationId?: string }) => i.input,
         agent_scratchpad: (i: { input: string; steps: AgentStep[] }) =>
             formatToOpenAIFunctionMessages(i.steps),
-        context: async (i: { input: string; steps: AgentStep[] }) => {
-            const searchResult = await hybridSearchTool.func(i.input);
+        context: async (i: { input: string; steps: AgentStep[]; conversationId?: string }) => {
+            const conversationId = i.conversationId || "default";
+            const searchInput = JSON.stringify({ 
+                query: i.input, 
+                conversationId: conversationId 
+            });
+            
+            const searchResult = await hybridSearchTool.func(searchInput);
             let contextResults = [];
             
             if (searchResult) {
@@ -798,7 +1018,8 @@ const runnableAgent = RunnableSequence.from([
                 console.error("Error retrieving code context:", error);
                 return "No previous code context available. Create new code as needed.";
             }
-        }
+        },
+        conversation_id: (i: { input: string; steps: AgentStep[]; conversationId?: string }) => i.conversationId || "default"
     },
     frontEndDevPrompt,
     modelWithFunctions,
@@ -834,6 +1055,12 @@ const executeWithCodeHandling = async (
     chatHistory: BaseMessage[] = [],
     conversationId: string
 ) => {
+    // Clear references for this response
+    await referenceTrackingTool.func(JSON.stringify({
+        action: "clear",
+        conversationId
+    }));
+    
     // Check for greetings/thanks
     try {
         const greetingResult = await greetingDetectionTool.func(input);
@@ -843,7 +1070,8 @@ const executeWithCodeHandling = async (
             console.log(`Detected ${greetingData.type}, providing immediate response`);
             return {
                 output: greetingData.response,
-                intermediateSteps: []
+                intermediateSteps: [],
+                references: []
             };
         }
     } catch (error) {
@@ -868,6 +1096,18 @@ const executeWithCodeHandling = async (
             });
             
             chatHistory = [codeContextMessage, ...chatHistory];
+            
+            // Track code context as a reference
+            await referenceTrackingTool.func(JSON.stringify({
+                action: "add",
+                conversationId: conversationId,
+                type: "code_example",
+                title: "Previous Code Context",
+                description: "Code from previous interaction in this conversation",
+                originalCode: fullCodeContext,
+                source: "Conversation History",
+                relevanceScore: 1.0
+            }));
         }
     } catch (error) {
         console.error("Error retrieving code context:", error);
@@ -944,8 +1184,17 @@ const executeWithCodeHandling = async (
         result.output = result.output.replace(/<thinking>[\s\S]*?<\/thinking>/g, '');
     }
 
+    // Get all references used in this response
+    const referencesResult = await referenceTrackingTool.func(JSON.stringify({
+        action: "get",
+        conversationId
+    }));
+    
+    const referencesData = JSON.parse(referencesResult);
+    result.references = referencesData.references || [];
+
     return result;
 };
 
 // Export the main functions
-export { executorGPT, executeWithCodeHandling };
+export { executorGPT, executeWithCodeHandling, Reference };

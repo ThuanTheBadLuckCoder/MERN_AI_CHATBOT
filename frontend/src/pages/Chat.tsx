@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import OldChat from "../components/chat/OldChat";
 import { useParams } from "react-router-dom";
 import NewChat from "../components/chat/NewChat";

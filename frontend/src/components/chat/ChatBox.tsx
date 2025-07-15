@@ -1,16 +1,17 @@
+import { Message } from '../../types/chat';
+import ReferenceDisplay from './ReferenceDisplay';
 import React, { useEffect, useRef, useState } from 'react';
-import ChatItem from './ChatItem';
 import './styles/chat-component.css';
 import QuestionInput from './QuestionInput';
 import logo from '../../../public/codfe_logo.svg'
 import CircleIcon from '@mui/icons-material/Circle';
+import ChatItem from './ChatItem';
 
-
-type Message = {
-    role: 'user' | 'assistant';
-    content: string;
-    id?: string;
-};
+// type Message = {
+//     role: 'user' | 'assistant';
+//     content: string;
+//     id?: string;
+// };
 
 interface ChatBoxProps {
     chatMessages: Message[];
@@ -129,8 +130,25 @@ function ChatBox({
                 id="chat-history"
                 className="h-full overflow-auto px-2"
             >
+
+                {/* 
                 {chatMessages.map((chat, index) => (
                     <ChatItem content={chat.content} role={chat.role} key={index} />
+                ))}
+                */}
+                {chatMessages.map((message, index) => (
+                    <div key={index} className="message-container">
+                        {/* Your existing message rendering */}
+                        <ChatItem content={message.content} role={message.role} key={index} />
+
+                        {/* Add references display for assistant messages */}
+                        {message.role === 'assistant' && message.references && message.references.length > 0 && (
+                            <ReferenceDisplay
+                                references={message.references}
+                                className="mt-4"
+                            />
+                        )}
+                    </div>
                 ))}
                 
                 {/* Loading indicator with bouncing dots */}
