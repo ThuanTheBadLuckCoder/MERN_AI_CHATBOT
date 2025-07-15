@@ -1,3 +1,5 @@
+//User.ts
+
 import mongoose from "mongoose";
 import { randomUUID } from "crypto";
 
@@ -19,6 +21,8 @@ const messageSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   }
+
+  //references feature goes here
 });
 
 // Schema for chat conversations
