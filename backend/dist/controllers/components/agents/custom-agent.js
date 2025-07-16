@@ -786,7 +786,7 @@ const frontEndDevPrompt = ChatPromptTemplate.fromMessages([
         - If context is insufficient for a request, explain what additional information you would need
 
         IMPORTANTS:
-        - DO NOT modify or rewrite the code AND link the images (MUST taken from the reference) ABSOLUTELY DO NOT EDIT OR PLACEHOLD THE IMAGE LINK!!!
+        - DO NOT modify or rewrite the code AND link images (MUST be taken from the reference) ABSOLUTELY DO NOT EDIT OR PUT FAKE IMAGE LINKS (SUCH AS example.com, background-image.jpg!!!)
         
         Context from relevant documentation: {context}
         Previous code context: {code_context}
