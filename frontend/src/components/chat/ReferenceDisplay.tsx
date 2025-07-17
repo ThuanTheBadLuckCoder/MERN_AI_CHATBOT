@@ -8,6 +8,7 @@ interface ReferenceDisplayProps {
 }
 
 const ReferenceDisplay: React.FC<ReferenceDisplayProps> = ({ references, className }) => {
+  console.log("reference: ", references);
   const [expandedRef, setExpandedRef] = useState<string | null>(null);
 
   const toggleReference = (refId: string) => {

@@ -32,11 +32,10 @@ interface Reference {
     type: 'documentation' | 'code_example' | 'component' | 'api_reference' | 'style_guide' | 'best_practice';
     title: string;
     description: string;
-    documentId?: string;  // Add this - just store the ID
+    originalCode?: string;
     source?: string;
     relevanceScore?: number;
     usedAt?: Date;
-    // Remove: originalCode?: string;  // Remove this heavy field
 }
 
 // Global reference tracking
@@ -62,39 +61,22 @@ const referenceTrackingTool = new DynamicTool({
             const action = data.action;
             const conversationId = data.conversationId || "default";
             
-            if (!global.referenceTracker) {
-                global.referenceTracker = {};
-            }
-            
             if (!global.referenceTracker[conversationId]) {
                 global.referenceTracker[conversationId] = [];
             }
             
             if (action === "add") {
-                // Validate and map the type to schema-compatible value
-                const mappedType = mapToSchemaType(data.type || 'documentation');
-                
-                const reference = {
-                    type: mappedType,  // Use schema-compatible type
-                    title: data.title || 'Untitled',
-                    description: data.description || '',
+                const reference: Reference = {
+                    type: data.type,
+                    title: data.title,
+                    description: data.description,
                     originalCode: data.originalCode,
-                    source: data.source || 'Unknown',
+                    source: data.source,
                     relevanceScore: data.relevanceScore || 0,
                     usedAt: new Date()
                 };
                 
-                // Check for duplicates
-                const existingRef = global.referenceTracker[conversationId].find(ref => 
-                    ref.title === reference.title && ref.type === reference.type
-                );
-                
-                if (!existingRef) {
-                    global.referenceTracker[conversationId].push(reference);
-                    console.log(`✅ Added reference: ${reference.title} (${reference.type})`);
-                } else {
-                    console.log(`⏭️  Duplicate reference skipped: ${reference.title}`);
-                }
+                global.referenceTracker[conversationId].push(reference);
                 
                 return JSON.stringify({
                     success: true,
@@ -123,36 +105,6 @@ const referenceTrackingTool = new DynamicTool({
     }
 });
 
-const addContextVerification = `
-// CONTEXT VERIFICATION - Add this before returning result
-try {
-    const referencesResult = await referenceTrackingTool.func(JSON.stringify({
-        action: "get",
-        conversationId
-    }));
-    
-    const referencesData = JSON.parse(referencesResult);
-    result.references = referencesData.references || [];
-    
-    console.log(\`📊 EXECUTION: \${result.references.length} references used\`);
-    
-    if (result.references.length === 0) {
-        console.log("⚠️  EXECUTION WARNING: No references found - context may not have been properly used");
-        // Don't add warning to output to avoid validation issues
-    } else {
-        console.log("✅ EXECUTION SUCCESS: References properly tracked");
-        // Log reference details
-        result.references.forEach((ref, index) => {
-            console.log(\`   Reference \${index + 1}: \${ref.title} (\${ref.type})\`);
-        });
-    }
-} catch (error) {
-    console.error("❌ EXECUTION: Error verifying references:", error);
-}
-`;
-
-
-
 // ElasticSearch tool for retrieving relevant context with reference tracking
 const elasticSearchTool = new DynamicTool({
     name: 'elastic_search_tool',
@@ -178,23 +130,20 @@ const elasticSearchTool = new DynamicTool({
             },
         ];
 
-        const similaritySearchResults = await elasticVectorSearch.similaritySearch(query, 1, filter);
+        const similaritySearchResults = await elasticVectorSearch.similaritySearch(query, 3, filter);
         
         // Track references from search results
         for (const result of similaritySearchResults) {
-          await referenceTrackingTool.func(
-            JSON.stringify({
-              action: "add",
-              conversationId: conversationId,
-              type: determineReferenceType(result),
-              title: extractTitle(result),
-              description: result.pageContent.substring(0, 200) + "...",
-              documentId: result.metadata?.document_id || result.metadata?.id, // ADD THIS LINE
-              source: result.metadata?.source || "ElasticSearch",
-              relevanceScore: result.metadata?.score || 0.5,
-              // originalCode: extractCode(result.pageContent), // REMOVE THIS LINE
-            })
-          );
+            await referenceTrackingTool.func(JSON.stringify({
+                action: "add",
+                conversationId: conversationId,
+                type: determineReferenceType(result),
+                title: extractTitle(result),
+                description: result.pageContent.substring(0, 200) + "...",
+                originalCode: extractCode(result.pageContent),
+                source: result.metadata?.source || "ElasticSearch",
+                relevanceScore: result.metadata?.score || 0.5
+            }));
         }
         
         const context = similaritySearchResults.map((result) => result.pageContent);
@@ -213,19 +162,16 @@ async function performBM25Search(query: string, documents: Document[], k: number
         
         // Track BM25 references
         for (const result of results) {
-          await referenceTrackingTool.func(
-            JSON.stringify({
-              action: "add",
-              conversationId: conversationId,
-              type: determineReferenceType(result),
-              title: extractTitle(result),
-              description: result.pageContent.substring(0, 200) + "...",
-              documentId: result.metadata?.document_id || result.metadata?.id, // Store just the ID
-              source: result.metadata?.source || "BM25 Search",
-              relevanceScore: 0.7,
-              // Remove: originalCode: extractCode(result.pageContent),
-            })
-          );
+            await referenceTrackingTool.func(JSON.stringify({
+                action: "add",
+                conversationId: conversationId,
+                type: determineReferenceType(result),
+                title: extractTitle(result),
+                description: result.pageContent.substring(0, 200) + "...",
+                originalCode: extractCode(result.pageContent),
+                source: result.metadata?.source || "BM25 Search",
+                relevanceScore: 0.7 // BM25 relevance
+            }));
         }
         
         return results;
@@ -283,39 +229,26 @@ function extractTitle(document: Document): string {
 }
 
 function extractCode(content: string): string | undefined {
-    // Just return a brief indicator instead of full content
-    if (content.includes('<!DOCTYPE html>') && content.includes('</html>')) {
-        return '[HTML_DOCUMENT]';
+    // Extract code blocks
+    const codeBlockMatch = content.match(/```[\s\S]*?```/);
+    if (codeBlockMatch) {
+        return codeBlockMatch[0].replace(/```\w*\n?/g, '').trim();
     }
     
-    if (content.includes('```')) {
-        return '[CODE_BLOCK]';
+    // Extract HTML/JSX code
+    const htmlMatch = content.match(/<[^>]+>[\s\S]*?<\/[^>]+>/);
+    if (htmlMatch) {
+        return htmlMatch[0];
     }
     
-    if (content.includes('<') && content.includes('>')) {
-        return '[HTML_SNIPPET]';
-    }
-    
-    if (content.match(/(?:function|const|let|var|class)/)) {
-        return '[JAVASCRIPT]';
+    // Extract JavaScript code patterns
+    const jsMatch = content.match(/(?:function|const|let|var|class)\s+\w+[\s\S]*?(?:\n\n|$)/);
+    if (jsMatch) {
+        return jsMatch[0].trim();
     }
     
     return undefined;
 }
-
-const enhancedParentReferenceTracking = async (parentDoc: Document, conversationId: string) => {
-    await referenceTrackingTool.func(JSON.stringify({
-        action: "add",
-        conversationId: conversationId,
-        type: mapToSchemaType('parent_document'),
-        title: `Parent Document: ${extractTitle(parentDoc)}`,
-        description: `Complete parent document resolved from child references`,
-        documentId: parentDoc.metadata?.document_id || parentDoc.metadata?.id, // Store just the ID
-        source: parentDoc.metadata?.source || 'Parent Resolution',
-        relevanceScore: 1.0
-        // Remove: originalCode: parentDoc.pageContent,
-    }));
-};
 
 // Merge and re-rank search results with reference tracking
 function mergeAndRerank(
@@ -365,26 +298,10 @@ function mergeAndRerank(
         .map(item => item.doc);
 }
 
-function mapToSchemaType(enhancedType: string): string {
-    const typeMapping = {
-        'parent_document': 'component',      // Parent documents are usually components
-        'child_document': 'code_example',    // Child documents are usually code examples
-        'standalone_document': 'documentation', // Standalone docs are documentation
-        'component': 'component',
-        'code_example': 'code_example',
-        'documentation': 'documentation',
-        'api_reference': 'api_reference',
-        'style_guide': 'style_guide',
-        'best_practice': 'best_practice'
-    };
-    
-    return typeMapping[enhancedType] || 'documentation';
-}
-
 // Updated hybrid search tool with parent document resolution and reference tracking
 const hybridSearchTool = new DynamicTool({
     name: 'hybrid_search_tool',
-    description: 'Performs hybrid search with guaranteed parent document resolution',
+    description: 'Performs hybrid search combining dense vector embeddings and sparse BM25 with parent document resolution and reference tracking',
     func: async (input: string) => {
         try {
             const schema = z.object({
@@ -392,21 +309,14 @@ const hybridSearchTool = new DynamicTool({
                 conversationId: z.string().optional()
             });
             
-            let parsedInput;
-            try {
-                parsedInput = typeof input === 'string' ? JSON.parse(input) : input;
-            } catch {
-                parsedInput = { query: input };
-            }
-            
-            const validationResult = schema.safeParse(parsedInput);
+            const validationResult = schema.safeParse(JSON.parse(input));
             if (!validationResult.success) {
                 throw new Error("Invalid input: " + validationResult.error.message);
             }
             
             const { query, conversationId = "default" } = validationResult.data;
             
-            console.log(`🔍 HYBRID SEARCH: Starting for query: "${query}"`);
+            console.log("Performing hybrid search for query:", query);
             
             const filter = [
                 {
@@ -416,114 +326,61 @@ const hybridSearchTool = new DynamicTool({
                 },
             ];
             
-            // Vector search
-            console.log("📊 Vector search starting...");
-            const vectorResults = await elasticVectorSearch.similaritySearch(query, 8, filter);
-            console.log(`📊 Vector search completed: ${vectorResults.length} results`);
+            const vectorResults = await elasticVectorSearch.similaritySearch(query, 5, filter);
+            console.log(`Dense vector search returned ${vectorResults.length} results`);
             
-            // Track vector results with CORRECT enum types
+            // Track vector search references
             for (const result of vectorResults) {
-    const enhancedType = result.metadata?.is_parent ? 'parent_document' : 'child_document';
-    const schemaType = mapToSchemaType(enhancedType);
-    
-    await referenceTrackingTool.func(JSON.stringify({
-        action: "add",
-        conversationId: conversationId,
-        type: schemaType,
-        title: extractTitle(result),
-        description: result.pageContent.substring(0, 200) + "...",
-        documentId: result.metadata?.document_id || result.metadata?.id, // Store just the ID
-        source: result.metadata?.source || "Vector Search",
-        relevanceScore: result.metadata?.score || 0.8
-        // Remove: originalCode: extractCode(result.pageContent),
-    }));
-}
+                await referenceTrackingTool.func(JSON.stringify({
+                    action: "add",
+                    conversationId: conversationId,
+                    type: determineReferenceType(result),
+                    title: extractTitle(result),
+                    description: result.pageContent.substring(0, 200) + "...",
+                    originalCode: extractCode(result.pageContent),
+                    source: result.metadata?.source || "Vector Search",
+                    relevanceScore: result.metadata?.score || 0.8
+                }));
+            }
             
-            // BM25 search
-            console.log("📊 BM25 search starting...");
-            const allDocuments = await elasticVectorSearch.similaritySearch("*", 50, filter);
-            const keywordResults = await performBM25Search(query, allDocuments, 5, conversationId);
-            console.log(`📊 BM25 search completed: ${keywordResults.length} results`);
+            const allDocuments = await elasticVectorSearch.similaritySearch("*", 30, filter);
+            const keywordResults = await performEnhancedBM25Search(query, allDocuments);
+            console.log(`BM25 search returned ${keywordResults.length} results`);
             
-            // Merge and re-rank
-            console.log("🔀 Merging and ranking results...");
             let combinedResults = mergeAndRerank(vectorResults, keywordResults, query, conversationId);
-            console.log(`📊 Combined results: ${combinedResults.length} unique documents`);
+            console.log(`Initial hybrid search returned ${combinedResults.length} unique results after merging`);
             
-            // ENHANCED parent document resolution
-            console.log("🔗 Starting ENHANCED parent document resolution...");
-            const resolvedResults = await enhancedResolveParentDocuments(combinedResults, conversationId);
-            console.log(`📊 Parent resolution completed: ${resolvedResults.length} total documents`);
+            const resolvedResults = await resolveParentDocuments(combinedResults, conversationId);
+            console.log(`After parent resolution: ${resolvedResults.length} total documents`);
             
-            // Document breakdown
-            const parentDocs = resolvedResults.filter(doc => doc.metadata?.is_parent === true);
-            const childDocs = resolvedResults.filter(doc => doc.metadata?.is_parent === false && doc.metadata?.parent_id);
-            
-            console.log(`📊 Final document breakdown:`);
-            console.log(`   - Parent documents: ${parentDocs.length}`);
-            console.log(`   - Child documents: ${childDocs.length}`);
-            console.log(`   - Standalone documents: ${resolvedResults.length - parentDocs.length - childDocs.length}`);
-            
-            // Extract context with markers
-            const context = resolvedResults.map(doc => {
-                const docType = doc.metadata?.is_parent ? '[PARENT DOCUMENT]' : 
-                              doc.metadata?.parent_id ? '[CHILD DOCUMENT]' : '[DOCUMENT]';
-                const docId = doc.metadata?.document_id || doc.metadata?.parent_id || 'unknown';
-                return `${docType} (ID: ${docId})\n${doc.pageContent}`;
-            });
+            const context = resolvedResults.map(doc => doc.pageContent);
             
             const responseWithMetadata = {
                 context: context,
                 metadata: {
-                    query: query,
-                    conversationId: conversationId,
-                    searchResults: {
-                        vectorResultCount: vectorResults.length,
-                        keywordResultCount: keywordResults.length,
-                        combinedResultCount: combinedResults.length,
-                        resolvedResultCount: resolvedResults.length,
-                        parentDocumentsFound: parentDocs.length,
-                        childDocumentsFound: childDocs.length,
-                        standaloneDocumentsFound: resolvedResults.length - parentDocs.length - childDocs.length
-                    },
-                    parentResolution: {
-                        attempted: childDocs.length,
-                        successful: parentDocs.length,
-                        childrenWithParents: childDocs.filter(child => 
-                            parentDocs.some(parent => parent.metadata?.document_id === child.metadata?.parent_id)
-                        ).length
-                    },
-                    containsFullDocuments: parentDocs.length > 0,
-                    timestamp: new Date().toISOString()
-                }
+                    vectorResultCount: vectorResults.length,
+                    keywordResultCount: keywordResults.length,
+                    combinedResultCount: combinedResults.length,
+                    resolvedResultCount: resolvedResults.length,
+                    containsFullDocuments: resolvedResults.some(doc => 
+                        doc.metadata?.is_parent === true)
+                },
+                conversationId: conversationId
             };
             
-            console.log("✅ Hybrid search completed successfully");
             return context.length > 0 ? JSON.stringify(responseWithMetadata) : null;
         } catch (error) {
-            console.error("❌ Error in hybrid search:", error);
-            return JSON.stringify({
-                error: "Search failed",
-                details: error.message,
-                context: [],
-                metadata: { error: true }
-            });
+            console.error("Error in hybrid search:", error);
+            return null;
         }
     }
 });
 
 // Resolve parent documents for any child chunks found in search results with reference tracking
-async function enhancedResolveParentDocuments(
-    documents: Document[], 
-    conversationId: string = "default"
-): Promise<Document[]> {
-    console.log(`🔗 PARENT RESOLUTION: Starting for ${documents.length} documents`);
-    
+async function resolveParentDocuments(documents: Document[], conversationId: string = "default"): Promise<Document[]> {
     const result: Document[] = [];
     const processedParentIds = new Set<string>();
-    const parentRequests = new Map<string, Document[]>();
     
-    // Categorize documents
     for (const doc of documents) {
         if (!doc.metadata) {
             result.push(doc);
@@ -535,198 +392,62 @@ async function enhancedResolveParentDocuments(
             if (doc.metadata.document_id) {
                 processedParentIds.add(doc.metadata.document_id);
             }
-            console.log(`✅ Added existing parent: ${doc.metadata.document_id}`);
-        } else if (doc.metadata.parent_id) {
-            if (!parentRequests.has(doc.metadata.parent_id)) {
-                parentRequests.set(doc.metadata.parent_id, []);
-            }
-            parentRequests.get(doc.metadata.parent_id)!.push(doc);
-            result.push(doc);
-        } else {
-            result.push(doc);
-        }
-    }
-    
-    console.log(`📊 Parent resolution analysis:`);
-    console.log(`   - Documents already parents: ${processedParentIds.size}`);
-    console.log(`   - Parent IDs needed: ${parentRequests.size}`);
-    console.log(`   - Children needing parents: ${Array.from(parentRequests.values()).flat().length}`);
-    
-    // Resolve each required parent using multiple strategies
-    for (const [parentId, children] of parentRequests) {
-        if (processedParentIds.has(parentId)) {
             continue;
         }
         
-        console.log(`🔍 Resolving parent: ${parentId} (needed by ${children.length} children)`);
-        
-        let parentDoc: Document | null = null;
-        
-        // Strategy 1: ElasticSearch filter
-        try {
-            const filter = [
-                {
-                    operator: "equals",
-                    field: "metadata.document_id",
-                    value: parentId
-                },
-                {
-                    operator: "equals",
-                    field: "metadata.is_parent",
-                    value: true
-                }
-            ];
-            
-            const filterResults = await elasticVectorSearch.similaritySearch("", 1, filter);
-            if (filterResults.length > 0) {
-                parentDoc = filterResults[0];
-                console.log(`✅ Strategy 1 (filter) found parent: ${parentId}`);
-            }
-        } catch (error) {
-            console.log(`❌ Strategy 1 failed for ${parentId}: ${error.message}`);
-        }
-        
-        // Strategy 2: Direct client query
-        if (!parentDoc) {
+        if (doc.metadata.parent_id && !processedParentIds.has(doc.metadata.parent_id)) {
             try {
-                const indexName = process.env.ELASTIC_INDEX || "thesis_tailwindcss";
-                const response = await client.search({
-                    index: indexName,
-                    body: {
-                        query: {
-                            bool: {
-                                must: [
-                                    { term: { "metadata.document_id": parentId } },
-                                    { term: { "metadata.is_parent": true } }
-                                ]
-                            }
-                        },
-                        size: 1
+                const filter = [
+                    {
+                        operator: "equals",
+                        field: "metadata.document_id",
+                        value: doc.metadata.parent_id
+                    },
+                    {
+                        operator: "equals",
+                        field: "metadata.is_parent",
+                        value: true
                     }
-                });
+                ];
                 
-                if (response.hits.hits.length > 0) {
-                    const hit = response.hits.hits[0];
-                    const source = hit._source as any;
-                    parentDoc = {
-                        pageContent: source.text || source.pageContent || "",
-                        metadata: source.metadata || {}
-                    };
-                    console.log(`✅ Strategy 2 (direct query) found parent: ${parentId}`);
+                const parentResults = await elasticVectorSearch.similaritySearch("", 1, filter);
+                
+                if (parentResults.length > 0) {
+                    result.push(parentResults[0]);
+                    processedParentIds.add(doc.metadata.parent_id);
+                    console.log(`Resolved parent document: ${doc.metadata.parent_id}`);
+                    
+                    // Track parent document reference
+                    await referenceTrackingTool.func(JSON.stringify({
+                        action: "add",
+                        conversationId: conversationId,
+                        type: 'component',
+                        title: `Parent: ${extractTitle(parentResults[0])}`,
+                        description: "Parent document containing full component implementation",
+                        originalCode: extractCode(parentResults[0].pageContent),
+                        source: parentResults[0].metadata?.source || "Parent Document",
+                        relevanceScore: 0.9
+                    }));
+                } else {
+                    console.log(`No parent document found for ID: ${doc.metadata.parent_id}`);
+                    try {
+                        const directResults = await fetchDocumentById(doc.metadata.parent_id);
+                        if (directResults) {
+                            result.push(directResults);
+                            processedParentIds.add(doc.metadata.parent_id);
+                            console.log(`Directly fetched parent document: ${doc.metadata.parent_id}`);
+                        }
+                    } catch (directError) {
+                        console.error(`Failed direct fetch for parent: ${doc.metadata.parent_id}`, directError);
+                    }
                 }
             } catch (error) {
-                console.log(`❌ Strategy 2 failed for ${parentId}: ${error.message}`);
+                console.error(`Error fetching parent document ${doc.metadata.parent_id}:`, error);
             }
         }
         
-        // Strategy 3: Partial match search
-        if (!parentDoc) {
-            try {
-                const indexName = process.env.ELASTIC_INDEX || "thesis_tailwindcss";
-                const response = await client.search({
-                    index: indexName,
-                    body: {
-                        query: {
-                            bool: {
-                                should: [
-                                    { wildcard: { "metadata.document_id": `*${parentId}*` } },
-                                    { wildcard: { "metadata.document_id": `${parentId}*` } },
-                                    { wildcard: { "metadata.document_id": `*${parentId}` } }
-                                ],
-                                must: [
-                                    { term: { "metadata.is_parent": true } }
-                                ],
-                                minimum_should_match: 1
-                            }
-                        },
-                        size: 5
-                    }
-                });
-                
-                if (response.hits.hits.length > 0) {
-                    const hit = response.hits.hits[0];
-                    const source = hit._source as any;
-                    parentDoc = {
-                        pageContent: source.text || source.pageContent || "",
-                        metadata: source.metadata || {}
-                    };
-                    console.log(`✅ Strategy 3 (partial match) found parent: ${parentId}`);
-                }
-            } catch (error) {
-                console.log(`❌ Strategy 3 failed for ${parentId}: ${error.message}`);
-            }
-        }
-        
-        // Strategy 4: Fuzzy search
-        if (!parentDoc) {
-            try {
-                const indexName = process.env.ELASTIC_INDEX || "thesis_tailwindcss";
-                const response = await client.search({
-                    index: indexName,
-                    body: {
-                        query: {
-                            bool: {
-                                should: [
-                                    {
-                                        fuzzy: {
-                                            "metadata.document_id": {
-                                                value: parentId,
-                                                fuzziness: "AUTO"
-                                            }
-                                        }
-                                    }
-                                ],
-                                must: [
-                                    { term: { "metadata.is_parent": true } }
-                                ]
-                            }
-                        },
-                        size: 3
-                    }
-                });
-                
-                if (response.hits.hits.length > 0) {
-                    const hit = response.hits.hits[0];
-                    const source = hit._source as any;
-                    parentDoc = {
-                        pageContent: source.text || source.pageContent || "",
-                        metadata: source.metadata || {}
-                    };
-                    console.log(`✅ Strategy 4 (fuzzy search) found parent: ${parentId}`);
-                }
-            } catch (error) {
-                console.log(`❌ Strategy 4 failed for ${parentId}: ${error.message}`);
-            }
-        }
-        
-        // Add parent if found
-        if (parentDoc) {
-            result.push(parentDoc);
-            processedParentIds.add(parentId);
-            
-            // Track the resolved parent with CORRECT enum type
-            await referenceTrackingTool.func(JSON.stringify({
-                action: "add",
-                conversationId: conversationId,
-                type: mapToSchemaType('parent_document'),  // Use schema-compatible type
-                title: `Resolved Parent: ${extractTitle(parentDoc)}`,
-                description: `Parent document for ${children.length} child documents`,
-                originalCode: extractCode(parentDoc.pageContent),
-                source: parentDoc.metadata?.source || 'Parent Resolution',
-                relevanceScore: 1.0
-            }));
-            
-            console.log(`✅ Successfully resolved and added parent: ${parentId}`);
-        } else {
-            console.log(`❌ FAILED to resolve parent: ${parentId} after all strategies`);
-        }
+        result.push(doc);
     }
-    
-    console.log(`🔗 PARENT RESOLUTION COMPLETE:`);
-    console.log(`   - Total documents: ${result.length}`);
-    console.log(`   - Parent documents: ${result.filter(d => d.metadata?.is_parent === true).length}`);
-    console.log(`   - Child documents: ${result.filter(d => d.metadata?.is_parent === false && d.metadata?.parent_id).length}`);
-    console.log(`   - Standalone documents: ${result.filter(d => !d.metadata?.is_parent && !d.metadata?.parent_id).length}`);
     
     return result;
 }
@@ -1158,30 +879,14 @@ function mergeWithTemplate(fragment: string, template: string): string {
     return template.replace(/<body[^>]*>([\s\S]*?)<\/body>/i, `<body class="p-4">\n${fragment}\n</body>`);
 }
 
-const testIntegration = async () => {
-    console.log("🧪 TESTING INTEGRATION...");
-    
-    // Test context retrieval
-    await debugContext("tailwind css button component", "test-conversation");
-    
-    // Test execution
-    const result = await executeWithCodeHandling(
-        "Show me a tailwind button component",
-        [],
-        "test-conversation"
-    );
-    
-    console.log("Test result:", result);
-    console.log("References found:", result.references?.length || 0);
-};
-
 // BALANCED: Tools array with less restrictive validation
 const tools = [
-    hybridSearchTool,  // This should now be your updated version
+    hybridSearchTool, 
     elasticSearchTool, 
     codeMemoryTool, 
     greetingDetectionTool,
-    referenceTrackingTool 
+    contextValidationTool,  // Replaces overly strict preservation tools
+    referenceTrackingTool   // New reference tracking tool
 ];
 
 // BALANCED: More flexible prompt that encourages context usage without being overly restrictive
@@ -1218,8 +923,7 @@ const frontEndDevPrompt = ChatPromptTemplate.fromMessages([
         - If context is insufficient for a request, explain what additional information you would need
 
         IMPORTANTS:
-        - DO NOT modify or rewrite the code AND link images (MUST be taken from the context) ABSOLUTELY DO NOT EDIT OR PUT FAKE IMAGE LINKS (SUCH AS example.com, background-image.jpg!!!)
-        DO NOT GENERATE ANY LINKS (example: demo.com,.etc..) OR VIRTUAL IMAGES (example: background.jpg,.etc...). ONLY USE LINK THAT MIGHT BE PROVIDES BY USER OR USES IN CONTEXT HIGHLY REQUIRES
+        - DO NOT modify or rewrite the code AND link images (MUST be taken from the reference) ABSOLUTELY DO NOT EDIT OR PUT FAKE IMAGE LINKS (SUCH AS example.com, background-image.jpg!!!)
         
         Context from relevant documentation: {context}
         Previous code context: {code_context}
@@ -1344,8 +1048,6 @@ const strictFrontEndDevPrompt = ChatPromptTemplate.fromMessages([
         *** FINAL REMINDER ***:
         Your primary function is to serve as a PRESERVATION AGENT for source code, not a modification agent. 
         Treat all code from context as IMMUTABLE HISTORICAL ARTIFACTS that must be preserved exactly.
-        DO NOT GENERATE ANY LINKS (example: demo.com,.etc..) OR VIRTUAL IMAGES (example: background.jpg,.etc...). ONLY USE LINK THAT MIGHT BE PROVIDES BY USER OR USES IN CONTEXT HIGHLY REQUIRES
-        
         
         Context from relevant documentation: {context}
         Previous code context: {code_context}
@@ -1469,52 +1171,36 @@ const runnableAgent = RunnableSequence.from([
             formatToOpenAIFunctionMessages(i.steps),
         context: async (i: { input: string; steps: AgentStep[]; conversationId?: string }) => {
             const conversationId = i.conversationId || "default";
-            
-            console.log(`🔍 CONTEXT RETRIEVAL: Starting for input: "${i.input}"`);
-            
             const searchInput = JSON.stringify({ 
                 query: i.input, 
                 conversationId: conversationId 
             });
             
             const searchResult = await hybridSearchTool.func(searchInput);
+            let contextResults = [];
             
-            if (!searchResult) {
-                console.log("❌ CONTEXT RETRIEVAL: No search result returned");
-                return "No relevant context found.";
+            if (searchResult) {
+                try {
+                    const parsedResult = JSON.parse(searchResult);
+                    contextResults = parsedResult.context;
+                    console.log("Hybrid search metadata:", parsedResult.metadata);
+                } catch (e) {
+                    console.error("Error parsing hybrid search results:", e);
+                }
             }
             
-            try {
-                const parsedResult = JSON.parse(searchResult);
-                
-                if (parsedResult.error) {
-                    console.log(`❌ CONTEXT RETRIEVAL: Search error: ${parsedResult.details}`);
-                    return "Error retrieving context.";
-                }
-                
-                const contextResults = parsedResult.context || [];
-                
-                if (contextResults.length === 0) {
-                    console.log("❌ CONTEXT RETRIEVAL: No context in search results");
-                    return "No relevant context found.";
-                }
-                
-                console.log(`✅ CONTEXT RETRIEVAL SUCCESS:`);
-                console.log(`   - Documents retrieved: ${contextResults.length}`);
-                console.log(`   - Parent documents: ${parsedResult.metadata?.searchResults?.parentDocumentsFound || 0}`);
-                console.log(`   - Child documents: ${parsedResult.metadata?.searchResults?.childDocumentsFound || 0}`);
-                console.log(`   - Total context size: ${contextResults.join('\n').length} characters`);
-                
-                return contextResults.join("\n\n---DOCUMENT SEPARATOR---\n\n");
-                
-            } catch (error) {
-                console.error("❌ CONTEXT RETRIEVAL: Error parsing search results:", error);
-                return "Error parsing context.";
-            }
+            console.log("Context retrieved: ", contextResults ? contextResults.length : 0, "documents");
+            return contextResults && contextResults.length > 0 ? 
+                contextResults.join("\n") : 
+                "No relevant context found.";
         },
         chat_history: (i: { input: string; steps: AgentStep[]; chat_history: BaseMessage[]; conversationId?: string }) =>
             i.chat_history || [],
-        code_context: async (i: { input: string; steps: AgentStep[]; conversationId?: string }) => {
+        code_context: async (i: {
+            input: string;
+            steps: AgentStep[];
+            conversationId?: string
+        }) => {
             const conversationId = i.conversationId || "default";
             try {
                 const codeMemoryResult = await codeMemoryTool.func(JSON.stringify({
@@ -1525,31 +1211,35 @@ const runnableAgent = RunnableSequence.from([
                 const codeState = JSON.parse(codeMemoryResult);
 
                 if (codeState.fullHtmlDocument) {
-                    console.log("✅ CODE CONTEXT: Full HTML document available");
-                    return `Previous complete HTML document:\n\n${codeState.fullHtmlDocument}`;
+                    return `Reference this previous HTML document. You may modify and improve it as needed:\n\n${codeState.fullHtmlDocument}`;
                 } else if (codeState.codeHistory && codeState.codeHistory.length > 0) {
                     const relevantCode = codeState.codeHistory
                         .filter(entry => entry.type === "full-document" || entry.type === "component")
                         .pop();
 
                     if (relevantCode) {
-                        console.log("✅ CODE CONTEXT: Previous code available");
-                        return `Previous code:\n\n${relevantCode.content}`;
+                        return `Reference this previous code. You may build upon or modify it:\n\n${relevantCode.content}`;
                     }
                 }
 
-                console.log("ℹ️  CODE CONTEXT: No previous code available");
-                return "No previous code context available.";
+                const codeBlockRegex = /```[\s\S]*?```/g;
+                const codeMatches = i.input.match(codeBlockRegex);
+
+                if (codeMatches && codeMatches.length > 0) {
+                    const userCode = codeMatches[0].replace(/```[\w]*\n/, '').replace(/```$/, '');
+                    return `The user has provided this code as a starting point:\n\n${userCode}`;
+                }
+
+                return "No previous code context available. Create new code as needed.";
             } catch (error) {
-                console.error("❌ CODE CONTEXT: Error retrieving code context:", error);
-                return "Error retrieving code context.";
+                console.error("Error retrieving code context:", error);
+                return "No previous code context available. Create new code as needed.";
             }
         },
         conversation_id: (i: { input: string; steps: AgentStep[]; conversationId?: string }) => i.conversationId || "default"
     },
-    // Keep your existing prompt (strictFrontEndDevPrompt or whatever you're using)
-    frontEndDevPrompt,
-    // strictFrontEndDevPrompt,
+    // frontEndDevPrompt,
+    strictFrontEndDevPrompt,
     // ultraStrictFrontEndDevPrompt,
     modelWithFunctions,
     new BalancedOutputParser(),
@@ -1578,50 +1268,6 @@ const executorGPT = AgentExecutor.fromAgentAndTools({
     returnIntermediateSteps: true,
 });
 
-const debugContext = async (input: string, conversationId: string = "default") => {
-    console.log(`🔍 CONTEXT DEBUG: Starting for "${input}"`);
-    
-    const searchInput = JSON.stringify({ query: input, conversationId });
-    const searchResult = await hybridSearchTool.func(searchInput);
-    
-    if (!searchResult) {
-        console.log("❌ CONTEXT DEBUG: No search result");
-        return;
-    }
-    
-    try {
-        const parsedResult = JSON.parse(searchResult);
-        
-        console.log("📊 CONTEXT DEBUG RESULTS:");
-        console.log("   Search metadata:", JSON.stringify(parsedResult.metadata, null, 2));
-        console.log("   Context entries:", parsedResult.context?.length || 0);
-        
-        if (parsedResult.context && parsedResult.context.length > 0) {
-            parsedResult.context.forEach((ctx: string, index: number) => {
-                console.log(`   Context ${index + 1}: ${ctx.substring(0, 100)}...`);
-            });
-        }
-        
-        // Check references
-        const referencesResult = await referenceTrackingTool.func(JSON.stringify({
-            action: "get",
-            conversationId
-        }));
-        
-        const referencesData = JSON.parse(referencesResult);
-        console.log(`   References tracked: ${referencesData.count}`);
-        
-        if (referencesData.references && referencesData.references.length > 0) {
-            referencesData.references.forEach((ref: any, index: number) => {
-                console.log(`   Reference ${index + 1}: ${ref.title} (${ref.type})`);
-            });
-        }
-        
-    } catch (error) {
-        console.error("❌ CONTEXT DEBUG: Error parsing results:", error);
-    }
-};
-
 // BALANCED: Code handling with validation but flexibility
 const executeWithCodeHandling = async (
     input: string,
@@ -1630,16 +1276,9 @@ const executeWithCodeHandling = async (
 ) => {
     // Clear references for this response
     await referenceTrackingTool.func(JSON.stringify({
-    action: "add",
-    conversationId: conversationId,
-    type: "code_example",
-    title: "Previous Code Context",
-    description: "Code from previous interaction in this conversation",
-    documentId: `conversation_${conversationId}_context`, // Generate a simple ID
-    source: "Conversation History",
-    relevanceScore: 1.0
-    // Remove: originalCode: fullCodeContext,
-}));
+        action: "clear",
+        conversationId
+    }));
     
     // Check for greetings/thanks
     try {

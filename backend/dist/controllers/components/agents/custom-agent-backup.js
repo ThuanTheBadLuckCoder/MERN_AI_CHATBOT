@@ -1,175 +1,90 @@
 import { DynamicTool } from "@langchain/core/tools";
 import { model } from "../../../config/openai-config.js";
-import { modelGemini } from "../../../config/gemini-config.js";
 import { ChatPromptTemplate, MessagesPlaceholder, } from "@langchain/core/prompts";
 import { convertToOpenAIFunction } from "@langchain/core/utils/function_calling";
 import { RunnableSequence } from "@langchain/core/runnables";
-import { AgentExecutor, type AgentStep } from "langchain/agents";
+import { AgentExecutor } from "langchain/agents";
 import { formatToOpenAIFunctionMessages } from "langchain/agents/format_scratchpad";
 import { OpenAIFunctionsAgentOutputParser } from "langchain/agents/openai/output_parser";
-import { BaseMessage, HumanMessage, AIMessage, SystemMessage } from "@langchain/core/messages";
-import { ElasticClientArgs, ElasticVectorSearch } from "@langchain/community/vectorstores/elasticsearch";
+import { SystemMessage } from "@langchain/core/messages";
+import { ElasticVectorSearch } from "@langchain/community/vectorstores/elasticsearch";
 import { Client } from "@elastic/elasticsearch";
 import { config, embeddingsOpenAI, client } from "../../../config/elastic-config.js";
 import { z } from "zod";
-import { AgentAction, AgentFinish } from "@langchain/core/agents";
-import { 
-    processWithAdvancedNLP, 
-    isDisambiguationResponse, 
-    processDisambiguationResponse 
-} from './adv-nlp-agent.js';
 import { BM25Retriever } from "@langchain/community/retrievers/bm25";
-import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
-import { Document } from "@langchain/core/documents";
-import { createPatch, applyPatch } from 'diff';
 import { parse as parseHTML } from 'node-html-parser';
-
 const MEMORY_KEY = "chat_history";
-
-// Interface for tracking references
-interface Reference {
-    id?: string;
-    type: 'documentation' | 'code_example' | 'component' | 'api_reference' | 'style_guide' | 'best_practice';
-    title: string;
-    description: string;
-    documentId?: string;  // Add this - just store the ID
-    source?: string;
-    relevanceScore?: number;
-    usedAt?: Date;
-    // Remove: originalCode?: string;  // Remove this heavy field
-}
-
 // Global reference tracking
 if (!global.referenceTracker) {
     global.referenceTracker = {};
 }
-
 // ElasticSearch configuration
-const clientArgs: ElasticClientArgs = {
+const clientArgs = {
     client: new Client(config),
     indexName: process.env.ELASTIC_INDEX ?? `thesis_tailwindcss`,
-}
-
+};
 const elasticVectorSearch = new ElasticVectorSearch(embeddingsOpenAI, clientArgs);
-
 // Reference tracking tool
 const referenceTrackingTool = new DynamicTool({
     name: 'reference_tracking_tool',
     description: 'Tracks and stores references used during response generation',
-    func: async (input: string) => {
+    func: async (input) => {
         try {
             const data = JSON.parse(input);
             const action = data.action;
             const conversationId = data.conversationId || "default";
-            
-            if (!global.referenceTracker) {
-                global.referenceTracker = {};
-            }
-            
             if (!global.referenceTracker[conversationId]) {
                 global.referenceTracker[conversationId] = [];
             }
-            
             if (action === "add") {
-                // Validate and map the type to schema-compatible value
-                const mappedType = mapToSchemaType(data.type || 'documentation');
-                
                 const reference = {
-                    type: mappedType,  // Use schema-compatible type
-                    title: data.title || 'Untitled',
-                    description: data.description || '',
+                    type: data.type,
+                    title: data.title,
+                    description: data.description,
                     originalCode: data.originalCode,
-                    source: data.source || 'Unknown',
+                    source: data.source,
                     relevanceScore: data.relevanceScore || 0,
                     usedAt: new Date()
                 };
-                
-                // Check for duplicates
-                const existingRef = global.referenceTracker[conversationId].find(ref => 
-                    ref.title === reference.title && ref.type === reference.type
-                );
-                
-                if (!existingRef) {
-                    global.referenceTracker[conversationId].push(reference);
-                    console.log(`✅ Added reference: ${reference.title} (${reference.type})`);
-                } else {
-                    console.log(`⏭️  Duplicate reference skipped: ${reference.title}`);
-                }
-                
+                global.referenceTracker[conversationId].push(reference);
                 return JSON.stringify({
                     success: true,
                     reference: reference,
                     totalReferences: global.referenceTracker[conversationId].length
                 });
             }
-            
             if (action === "get") {
                 return JSON.stringify({
                     references: global.referenceTracker[conversationId] || [],
                     count: global.referenceTracker[conversationId]?.length || 0
                 });
             }
-            
             if (action === "clear") {
                 global.referenceTracker[conversationId] = [];
                 return JSON.stringify({ success: true, message: "References cleared" });
             }
-            
             return JSON.stringify({ error: "Invalid action" });
-        } catch (error) {
+        }
+        catch (error) {
             console.error("Error in reference tracking tool:", error);
             return JSON.stringify({ error: "Error tracking references" });
         }
     }
 });
-
-const addContextVerification = `
-// CONTEXT VERIFICATION - Add this before returning result
-try {
-    const referencesResult = await referenceTrackingTool.func(JSON.stringify({
-        action: "get",
-        conversationId
-    }));
-    
-    const referencesData = JSON.parse(referencesResult);
-    result.references = referencesData.references || [];
-    
-    console.log(\`📊 EXECUTION: \${result.references.length} references used\`);
-    
-    if (result.references.length === 0) {
-        console.log("⚠️  EXECUTION WARNING: No references found - context may not have been properly used");
-        // Don't add warning to output to avoid validation issues
-    } else {
-        console.log("✅ EXECUTION SUCCESS: References properly tracked");
-        // Log reference details
-        result.references.forEach((ref, index) => {
-            console.log(\`   Reference \${index + 1}: \${ref.title} (\${ref.type})\`);
-        });
-    }
-} catch (error) {
-    console.error("❌ EXECUTION: Error verifying references:", error);
-}
-`;
-
-
-
 // ElasticSearch tool for retrieving relevant context with reference tracking
 const elasticSearchTool = new DynamicTool({
     name: 'elastic_search_tool',
     description: 'This tool retrieves documents using ElasticSearch vector search and tracks references',
-    func: async (input: string) => {
+    func: async (input) => {
         const schema = z.object({
             query: z.string(),
             conversationId: z.string().optional()
         });
-        
         const validationResult = schema.safeParse(JSON.parse(input));
         if (!validationResult.success) {
             throw new Error("Invalid input: " + validationResult.error.message);
         }
-
         const { query, conversationId = "default" } = validationResult.data;
-        
         const filter = [
             {
                 operator: "wildcard",
@@ -177,181 +92,138 @@ const elasticSearchTool = new DynamicTool({
                 value: "*",
             },
         ];
-
-        const similaritySearchResults = await elasticVectorSearch.similaritySearch(query, 1, filter);
-        
+        const similaritySearchResults = await elasticVectorSearch.similaritySearch(query, 3, filter);
         // Track references from search results
         for (const result of similaritySearchResults) {
-          await referenceTrackingTool.func(
-            JSON.stringify({
-              action: "add",
-              conversationId: conversationId,
-              type: determineReferenceType(result),
-              title: extractTitle(result),
-              description: result.pageContent.substring(0, 200) + "...",
-              documentId: result.metadata?.document_id || result.metadata?.id, // ADD THIS LINE
-              source: result.metadata?.source || "ElasticSearch",
-              relevanceScore: result.metadata?.score || 0.5,
-              // originalCode: extractCode(result.pageContent), // REMOVE THIS LINE
-            })
-          );
+            await referenceTrackingTool.func(JSON.stringify({
+                action: "add",
+                conversationId: conversationId,
+                type: determineReferenceType(result),
+                title: extractTitle(result),
+                description: result.pageContent.substring(0, 200) + "...",
+                originalCode: extractCode(result.pageContent),
+                source: result.metadata?.source || "ElasticSearch",
+                relevanceScore: result.metadata?.score || 0.5
+            }));
         }
-        
         const context = similaritySearchResults.map((result) => result.pageContent);
         return context.length > 0 ? context : null;
     }
 });
-
 // Helper function to perform BM25 search with reference tracking
-async function performBM25Search(query: string, documents: Document[], k: number = 3, conversationId: string = "default"): Promise<Document[]> {
+async function performBM25Search(query, documents, k = 3, conversationId = "default") {
     try {
         const bm25Retriever = await BM25Retriever.fromDocuments(documents, {
             k: k
         });
-        
         const results = await bm25Retriever.getRelevantDocuments(query);
-        
         // Track BM25 references
         for (const result of results) {
-          await referenceTrackingTool.func(
-            JSON.stringify({
-              action: "add",
-              conversationId: conversationId,
-              type: determineReferenceType(result),
-              title: extractTitle(result),
-              description: result.pageContent.substring(0, 200) + "...",
-              documentId: result.metadata?.document_id || result.metadata?.id, // Store just the ID
-              source: result.metadata?.source || "BM25 Search",
-              relevanceScore: 0.7,
-              // Remove: originalCode: extractCode(result.pageContent),
-            })
-          );
+            await referenceTrackingTool.func(JSON.stringify({
+                action: "add",
+                conversationId: conversationId,
+                type: determineReferenceType(result),
+                title: extractTitle(result),
+                description: result.pageContent.substring(0, 200) + "...",
+                originalCode: extractCode(result.pageContent),
+                source: result.metadata?.source || "BM25 Search",
+                relevanceScore: 0.7 // BM25 relevance
+            }));
         }
-        
         return results;
-    } catch (error) {
+    }
+    catch (error) {
         console.error("Error in BM25 search:", error);
         return [];
     }
 }
-
 // Helper functions for reference extraction
-function determineReferenceType(document: Document): Reference['type'] {
+function determineReferenceType(document) {
     const content = document.pageContent.toLowerCase();
     const metadata = document.metadata || {};
-    
     if (content.includes('class=') || content.includes('classname=') || metadata.type === 'component') {
         return 'component';
-    } else if (content.includes('function') || content.includes('const') || content.includes('let')) {
+    }
+    else if (content.includes('function') || content.includes('const') || content.includes('let')) {
         return 'code_example';
-    } else if (content.includes('api') || content.includes('endpoint')) {
+    }
+    else if (content.includes('api') || content.includes('endpoint')) {
         return 'api_reference';
-    } else if (content.includes('style') || content.includes('css') || content.includes('tailwind')) {
+    }
+    else if (content.includes('style') || content.includes('css') || content.includes('tailwind')) {
         return 'style_guide';
-    } else if (content.includes('best practice') || content.includes('recommendation')) {
+    }
+    else if (content.includes('best practice') || content.includes('recommendation')) {
         return 'best_practice';
     }
-    
     return 'documentation';
 }
-
-function extractTitle(document: Document): string {
+function extractTitle(document) {
     // Try to extract from metadata first
     if (document.metadata?.title) {
         return document.metadata.title;
     }
-    
     // Try to extract from content
     const content = document.pageContent;
-    
     // Look for headings
-    const headingMatch = content.match(/^#+\s+(.+)$/m) || 
-                        content.match(/<h[1-6][^>]*>([^<]+)<\/h[1-6]>/i);
+    const headingMatch = content.match(/^#+\s+(.+)$/m) ||
+        content.match(/<h[1-6][^>]*>([^<]+)<\/h[1-6]>/i);
     if (headingMatch) {
         return headingMatch[1].trim();
     }
-    
     // Look for component names
     const componentMatch = content.match(/(?:class|function|const)\s+(\w+)/);
     if (componentMatch) {
         return componentMatch[1];
     }
-    
     // Fallback to first line or truncated content
     const firstLine = content.split('\n')[0].trim();
     return firstLine.length > 50 ? firstLine.substring(0, 50) + '...' : firstLine;
 }
-
-function extractCode(content: string): string | undefined {
-    // Just return a brief indicator instead of full content
-    if (content.includes('<!DOCTYPE html>') && content.includes('</html>')) {
-        return '[HTML_DOCUMENT]';
+function extractCode(content) {
+    // Extract code blocks
+    const codeBlockMatch = content.match(/```[\s\S]*?```/);
+    if (codeBlockMatch) {
+        return codeBlockMatch[0].replace(/```\w*\n?/g, '').trim();
     }
-    
-    if (content.includes('```')) {
-        return '[CODE_BLOCK]';
+    // Extract HTML/JSX code
+    const htmlMatch = content.match(/<[^>]+>[\s\S]*?<\/[^>]+>/);
+    if (htmlMatch) {
+        return htmlMatch[0];
     }
-    
-    if (content.includes('<') && content.includes('>')) {
-        return '[HTML_SNIPPET]';
+    // Extract JavaScript code patterns
+    const jsMatch = content.match(/(?:function|const|let|var|class)\s+\w+[\s\S]*?(?:\n\n|$)/);
+    if (jsMatch) {
+        return jsMatch[0].trim();
     }
-    
-    if (content.match(/(?:function|const|let|var|class)/)) {
-        return '[JAVASCRIPT]';
-    }
-    
     return undefined;
 }
-
-const enhancedParentReferenceTracking = async (parentDoc: Document, conversationId: string) => {
-    await referenceTrackingTool.func(JSON.stringify({
-        action: "add",
-        conversationId: conversationId,
-        type: mapToSchemaType('parent_document'),
-        title: `Parent Document: ${extractTitle(parentDoc)}`,
-        description: `Complete parent document resolved from child references`,
-        documentId: parentDoc.metadata?.document_id || parentDoc.metadata?.id, // Store just the ID
-        source: parentDoc.metadata?.source || 'Parent Resolution',
-        relevanceScore: 1.0
-        // Remove: originalCode: parentDoc.pageContent,
-    }));
-};
-
 // Merge and re-rank search results with reference tracking
-function mergeAndRerank(
-    vectorResults: Document[], 
-    keywordResults: Document[], 
-    query: string,
-    conversationId: string = "default"
-): Document[] {
-    const uniqueDocuments = new Map<string, { doc: Document; score: number }>();
-    
+function mergeAndRerank(vectorResults, keywordResults, query, conversationId = "default") {
+    const uniqueDocuments = new Map();
     vectorResults.forEach((doc, index) => {
         const vectorScore = 1 - (index / vectorResults.length);
         const parentBonus = doc.metadata?.is_parent === true ? 0.2 : 0;
-        
         uniqueDocuments.set(doc.pageContent, {
             doc: doc,
             score: (vectorScore * 0.7) + parentBonus
         });
     });
-    
     keywordResults.forEach((doc, index) => {
         const keywordScore = 1 - (index / keywordResults.length);
         const key = doc.pageContent;
         const parentBonus = doc.metadata?.is_parent === true ? 0.15 : 0;
-        
         if (uniqueDocuments.has(key)) {
-            const existing = uniqueDocuments.get(key)!;
+            const existing = uniqueDocuments.get(key);
             existing.score += (keywordScore * 0.3) + parentBonus;
-        } else {
+        }
+        else {
             uniqueDocuments.set(key, {
                 doc: doc,
                 score: (keywordScore * 0.3) + parentBonus
             });
         }
     });
-    
     const queryTerms = query.toLowerCase().split(/\s+/).filter(term => term.length > 2);
     uniqueDocuments.forEach((value) => {
         const content = value.doc.pageContent.toLowerCase();
@@ -359,55 +231,26 @@ function mergeAndRerank(
         const termBoost = termMatches / queryTerms.length * 0.2;
         value.score += termBoost;
     });
-    
     return Array.from(uniqueDocuments.values())
         .sort((a, b) => b.score - a.score)
         .map(item => item.doc);
 }
-
-function mapToSchemaType(enhancedType: string): string {
-    const typeMapping = {
-        'parent_document': 'component',      // Parent documents are usually components
-        'child_document': 'code_example',    // Child documents are usually code examples
-        'standalone_document': 'documentation', // Standalone docs are documentation
-        'component': 'component',
-        'code_example': 'code_example',
-        'documentation': 'documentation',
-        'api_reference': 'api_reference',
-        'style_guide': 'style_guide',
-        'best_practice': 'best_practice'
-    };
-    
-    return typeMapping[enhancedType] || 'documentation';
-}
-
 // Updated hybrid search tool with parent document resolution and reference tracking
 const hybridSearchTool = new DynamicTool({
     name: 'hybrid_search_tool',
-    description: 'Performs hybrid search with guaranteed parent document resolution',
-    func: async (input: string) => {
+    description: 'Performs hybrid search combining dense vector embeddings and sparse BM25 with parent document resolution and reference tracking',
+    func: async (input) => {
         try {
             const schema = z.object({
                 query: z.string(),
                 conversationId: z.string().optional()
             });
-            
-            let parsedInput;
-            try {
-                parsedInput = typeof input === 'string' ? JSON.parse(input) : input;
-            } catch {
-                parsedInput = { query: input };
-            }
-            
-            const validationResult = schema.safeParse(parsedInput);
+            const validationResult = schema.safeParse(JSON.parse(input));
             if (!validationResult.success) {
                 throw new Error("Invalid input: " + validationResult.error.message);
             }
-            
             const { query, conversationId = "default" } = validationResult.data;
-            
-            console.log(`🔍 HYBRID SEARCH: Starting for query: "${query}"`);
-            
+            console.log("Performing hybrid search for query:", query);
             const filter = [
                 {
                     operator: "wildcard",
@@ -415,327 +258,122 @@ const hybridSearchTool = new DynamicTool({
                     value: "*",
                 },
             ];
-            
-            // Vector search
-            console.log("📊 Vector search starting...");
-            const vectorResults = await elasticVectorSearch.similaritySearch(query, 8, filter);
-            console.log(`📊 Vector search completed: ${vectorResults.length} results`);
-            
-            // Track vector results with CORRECT enum types
+            const vectorResults = await elasticVectorSearch.similaritySearch(query, 5, filter);
+            console.log(`Dense vector search returned ${vectorResults.length} results`);
+            // Track vector search references
             for (const result of vectorResults) {
-    const enhancedType = result.metadata?.is_parent ? 'parent_document' : 'child_document';
-    const schemaType = mapToSchemaType(enhancedType);
-    
-    await referenceTrackingTool.func(JSON.stringify({
-        action: "add",
-        conversationId: conversationId,
-        type: schemaType,
-        title: extractTitle(result),
-        description: result.pageContent.substring(0, 200) + "...",
-        documentId: result.metadata?.document_id || result.metadata?.id, // Store just the ID
-        source: result.metadata?.source || "Vector Search",
-        relevanceScore: result.metadata?.score || 0.8
-        // Remove: originalCode: extractCode(result.pageContent),
-    }));
-}
-            
-            // BM25 search
-            console.log("📊 BM25 search starting...");
-            const allDocuments = await elasticVectorSearch.similaritySearch("*", 50, filter);
-            const keywordResults = await performBM25Search(query, allDocuments, 5, conversationId);
-            console.log(`📊 BM25 search completed: ${keywordResults.length} results`);
-            
-            // Merge and re-rank
-            console.log("🔀 Merging and ranking results...");
+                await referenceTrackingTool.func(JSON.stringify({
+                    action: "add",
+                    conversationId: conversationId,
+                    type: determineReferenceType(result),
+                    title: extractTitle(result),
+                    description: result.pageContent.substring(0, 200) + "...",
+                    originalCode: extractCode(result.pageContent),
+                    source: result.metadata?.source || "Vector Search",
+                    relevanceScore: result.metadata?.score || 0.8
+                }));
+            }
+            const allDocuments = await elasticVectorSearch.similaritySearch("*", 30, filter);
+            const keywordResults = await performEnhancedBM25Search(query, allDocuments);
+            console.log(`BM25 search returned ${keywordResults.length} results`);
             let combinedResults = mergeAndRerank(vectorResults, keywordResults, query, conversationId);
-            console.log(`📊 Combined results: ${combinedResults.length} unique documents`);
-            
-            // ENHANCED parent document resolution
-            console.log("🔗 Starting ENHANCED parent document resolution...");
-            const resolvedResults = await enhancedResolveParentDocuments(combinedResults, conversationId);
-            console.log(`📊 Parent resolution completed: ${resolvedResults.length} total documents`);
-            
-            // Document breakdown
-            const parentDocs = resolvedResults.filter(doc => doc.metadata?.is_parent === true);
-            const childDocs = resolvedResults.filter(doc => doc.metadata?.is_parent === false && doc.metadata?.parent_id);
-            
-            console.log(`📊 Final document breakdown:`);
-            console.log(`   - Parent documents: ${parentDocs.length}`);
-            console.log(`   - Child documents: ${childDocs.length}`);
-            console.log(`   - Standalone documents: ${resolvedResults.length - parentDocs.length - childDocs.length}`);
-            
-            // Extract context with markers
-            const context = resolvedResults.map(doc => {
-                const docType = doc.metadata?.is_parent ? '[PARENT DOCUMENT]' : 
-                              doc.metadata?.parent_id ? '[CHILD DOCUMENT]' : '[DOCUMENT]';
-                const docId = doc.metadata?.document_id || doc.metadata?.parent_id || 'unknown';
-                return `${docType} (ID: ${docId})\n${doc.pageContent}`;
-            });
-            
+            console.log(`Initial hybrid search returned ${combinedResults.length} unique results after merging`);
+            const resolvedResults = await resolveParentDocuments(combinedResults, conversationId);
+            console.log(`After parent resolution: ${resolvedResults.length} total documents`);
+            const context = resolvedResults.map(doc => doc.pageContent);
             const responseWithMetadata = {
                 context: context,
                 metadata: {
-                    query: query,
-                    conversationId: conversationId,
-                    searchResults: {
-                        vectorResultCount: vectorResults.length,
-                        keywordResultCount: keywordResults.length,
-                        combinedResultCount: combinedResults.length,
-                        resolvedResultCount: resolvedResults.length,
-                        parentDocumentsFound: parentDocs.length,
-                        childDocumentsFound: childDocs.length,
-                        standaloneDocumentsFound: resolvedResults.length - parentDocs.length - childDocs.length
-                    },
-                    parentResolution: {
-                        attempted: childDocs.length,
-                        successful: parentDocs.length,
-                        childrenWithParents: childDocs.filter(child => 
-                            parentDocs.some(parent => parent.metadata?.document_id === child.metadata?.parent_id)
-                        ).length
-                    },
-                    containsFullDocuments: parentDocs.length > 0,
-                    timestamp: new Date().toISOString()
-                }
+                    vectorResultCount: vectorResults.length,
+                    keywordResultCount: keywordResults.length,
+                    combinedResultCount: combinedResults.length,
+                    resolvedResultCount: resolvedResults.length,
+                    containsFullDocuments: resolvedResults.some(doc => doc.metadata?.is_parent === true)
+                },
+                conversationId: conversationId
             };
-            
-            console.log("✅ Hybrid search completed successfully");
             return context.length > 0 ? JSON.stringify(responseWithMetadata) : null;
-        } catch (error) {
-            console.error("❌ Error in hybrid search:", error);
-            return JSON.stringify({
-                error: "Search failed",
-                details: error.message,
-                context: [],
-                metadata: { error: true }
-            });
+        }
+        catch (error) {
+            console.error("Error in hybrid search:", error);
+            return null;
         }
     }
 });
-
 // Resolve parent documents for any child chunks found in search results with reference tracking
-async function enhancedResolveParentDocuments(
-    documents: Document[], 
-    conversationId: string = "default"
-): Promise<Document[]> {
-    console.log(`🔗 PARENT RESOLUTION: Starting for ${documents.length} documents`);
-    
-    const result: Document[] = [];
-    const processedParentIds = new Set<string>();
-    const parentRequests = new Map<string, Document[]>();
-    
-    // Categorize documents
+async function resolveParentDocuments(documents, conversationId = "default") {
+    const result = [];
+    const processedParentIds = new Set();
     for (const doc of documents) {
         if (!doc.metadata) {
             result.push(doc);
             continue;
         }
-        
         if (doc.metadata.is_parent === true) {
             result.push(doc);
             if (doc.metadata.document_id) {
                 processedParentIds.add(doc.metadata.document_id);
             }
-            console.log(`✅ Added existing parent: ${doc.metadata.document_id}`);
-        } else if (doc.metadata.parent_id) {
-            if (!parentRequests.has(doc.metadata.parent_id)) {
-                parentRequests.set(doc.metadata.parent_id, []);
-            }
-            parentRequests.get(doc.metadata.parent_id)!.push(doc);
-            result.push(doc);
-        } else {
-            result.push(doc);
-        }
-    }
-    
-    console.log(`📊 Parent resolution analysis:`);
-    console.log(`   - Documents already parents: ${processedParentIds.size}`);
-    console.log(`   - Parent IDs needed: ${parentRequests.size}`);
-    console.log(`   - Children needing parents: ${Array.from(parentRequests.values()).flat().length}`);
-    
-    // Resolve each required parent using multiple strategies
-    for (const [parentId, children] of parentRequests) {
-        if (processedParentIds.has(parentId)) {
             continue;
         }
-        
-        console.log(`🔍 Resolving parent: ${parentId} (needed by ${children.length} children)`);
-        
-        let parentDoc: Document | null = null;
-        
-        // Strategy 1: ElasticSearch filter
-        try {
-            const filter = [
-                {
-                    operator: "equals",
-                    field: "metadata.document_id",
-                    value: parentId
-                },
-                {
-                    operator: "equals",
-                    field: "metadata.is_parent",
-                    value: true
-                }
-            ];
-            
-            const filterResults = await elasticVectorSearch.similaritySearch("", 1, filter);
-            if (filterResults.length > 0) {
-                parentDoc = filterResults[0];
-                console.log(`✅ Strategy 1 (filter) found parent: ${parentId}`);
-            }
-        } catch (error) {
-            console.log(`❌ Strategy 1 failed for ${parentId}: ${error.message}`);
-        }
-        
-        // Strategy 2: Direct client query
-        if (!parentDoc) {
+        if (doc.metadata.parent_id && !processedParentIds.has(doc.metadata.parent_id)) {
             try {
-                const indexName = process.env.ELASTIC_INDEX || "thesis_tailwindcss";
-                const response = await client.search({
-                    index: indexName,
-                    body: {
-                        query: {
-                            bool: {
-                                must: [
-                                    { term: { "metadata.document_id": parentId } },
-                                    { term: { "metadata.is_parent": true } }
-                                ]
-                            }
-                        },
-                        size: 1
+                const filter = [
+                    {
+                        operator: "equals",
+                        field: "metadata.document_id",
+                        value: doc.metadata.parent_id
+                    },
+                    {
+                        operator: "equals",
+                        field: "metadata.is_parent",
+                        value: true
                     }
-                });
-                
-                if (response.hits.hits.length > 0) {
-                    const hit = response.hits.hits[0];
-                    const source = hit._source as any;
-                    parentDoc = {
-                        pageContent: source.text || source.pageContent || "",
-                        metadata: source.metadata || {}
-                    };
-                    console.log(`✅ Strategy 2 (direct query) found parent: ${parentId}`);
+                ];
+                const parentResults = await elasticVectorSearch.similaritySearch("", 1, filter);
+                if (parentResults.length > 0) {
+                    result.push(parentResults[0]);
+                    processedParentIds.add(doc.metadata.parent_id);
+                    console.log(`Resolved parent document: ${doc.metadata.parent_id}`);
+                    // Track parent document reference
+                    await referenceTrackingTool.func(JSON.stringify({
+                        action: "add",
+                        conversationId: conversationId,
+                        type: 'component',
+                        title: `Parent: ${extractTitle(parentResults[0])}`,
+                        description: "Parent document containing full component implementation",
+                        originalCode: extractCode(parentResults[0].pageContent),
+                        source: parentResults[0].metadata?.source || "Parent Document",
+                        relevanceScore: 0.9
+                    }));
                 }
-            } catch (error) {
-                console.log(`❌ Strategy 2 failed for ${parentId}: ${error.message}`);
+                else {
+                    console.log(`No parent document found for ID: ${doc.metadata.parent_id}`);
+                    try {
+                        const directResults = await fetchDocumentById(doc.metadata.parent_id);
+                        if (directResults) {
+                            result.push(directResults);
+                            processedParentIds.add(doc.metadata.parent_id);
+                            console.log(`Directly fetched parent document: ${doc.metadata.parent_id}`);
+                        }
+                    }
+                    catch (directError) {
+                        console.error(`Failed direct fetch for parent: ${doc.metadata.parent_id}`, directError);
+                    }
+                }
+            }
+            catch (error) {
+                console.error(`Error fetching parent document ${doc.metadata.parent_id}:`, error);
             }
         }
-        
-        // Strategy 3: Partial match search
-        if (!parentDoc) {
-            try {
-                const indexName = process.env.ELASTIC_INDEX || "thesis_tailwindcss";
-                const response = await client.search({
-                    index: indexName,
-                    body: {
-                        query: {
-                            bool: {
-                                should: [
-                                    { wildcard: { "metadata.document_id": `*${parentId}*` } },
-                                    { wildcard: { "metadata.document_id": `${parentId}*` } },
-                                    { wildcard: { "metadata.document_id": `*${parentId}` } }
-                                ],
-                                must: [
-                                    { term: { "metadata.is_parent": true } }
-                                ],
-                                minimum_should_match: 1
-                            }
-                        },
-                        size: 5
-                    }
-                });
-                
-                if (response.hits.hits.length > 0) {
-                    const hit = response.hits.hits[0];
-                    const source = hit._source as any;
-                    parentDoc = {
-                        pageContent: source.text || source.pageContent || "",
-                        metadata: source.metadata || {}
-                    };
-                    console.log(`✅ Strategy 3 (partial match) found parent: ${parentId}`);
-                }
-            } catch (error) {
-                console.log(`❌ Strategy 3 failed for ${parentId}: ${error.message}`);
-            }
-        }
-        
-        // Strategy 4: Fuzzy search
-        if (!parentDoc) {
-            try {
-                const indexName = process.env.ELASTIC_INDEX || "thesis_tailwindcss";
-                const response = await client.search({
-                    index: indexName,
-                    body: {
-                        query: {
-                            bool: {
-                                should: [
-                                    {
-                                        fuzzy: {
-                                            "metadata.document_id": {
-                                                value: parentId,
-                                                fuzziness: "AUTO"
-                                            }
-                                        }
-                                    }
-                                ],
-                                must: [
-                                    { term: { "metadata.is_parent": true } }
-                                ]
-                            }
-                        },
-                        size: 3
-                    }
-                });
-                
-                if (response.hits.hits.length > 0) {
-                    const hit = response.hits.hits[0];
-                    const source = hit._source as any;
-                    parentDoc = {
-                        pageContent: source.text || source.pageContent || "",
-                        metadata: source.metadata || {}
-                    };
-                    console.log(`✅ Strategy 4 (fuzzy search) found parent: ${parentId}`);
-                }
-            } catch (error) {
-                console.log(`❌ Strategy 4 failed for ${parentId}: ${error.message}`);
-            }
-        }
-        
-        // Add parent if found
-        if (parentDoc) {
-            result.push(parentDoc);
-            processedParentIds.add(parentId);
-            
-            // Track the resolved parent with CORRECT enum type
-            await referenceTrackingTool.func(JSON.stringify({
-                action: "add",
-                conversationId: conversationId,
-                type: mapToSchemaType('parent_document'),  // Use schema-compatible type
-                title: `Resolved Parent: ${extractTitle(parentDoc)}`,
-                description: `Parent document for ${children.length} child documents`,
-                originalCode: extractCode(parentDoc.pageContent),
-                source: parentDoc.metadata?.source || 'Parent Resolution',
-                relevanceScore: 1.0
-            }));
-            
-            console.log(`✅ Successfully resolved and added parent: ${parentId}`);
-        } else {
-            console.log(`❌ FAILED to resolve parent: ${parentId} after all strategies`);
-        }
+        result.push(doc);
     }
-    
-    console.log(`🔗 PARENT RESOLUTION COMPLETE:`);
-    console.log(`   - Total documents: ${result.length}`);
-    console.log(`   - Parent documents: ${result.filter(d => d.metadata?.is_parent === true).length}`);
-    console.log(`   - Child documents: ${result.filter(d => d.metadata?.is_parent === false && d.metadata?.parent_id).length}`);
-    console.log(`   - Standalone documents: ${result.filter(d => !d.metadata?.is_parent && !d.metadata?.parent_id).length}`);
-    
     return result;
 }
-
 // Helper function to fetch a document directly by ID
-async function fetchDocumentById(documentId: string): Promise<Document | null> {
+async function fetchDocumentById(documentId) {
     try {
         const indexName = process.env.ELASTIC_INDEX || "*";
-        
         const response = await client.search({
             index: indexName,
             body: {
@@ -749,62 +387,52 @@ async function fetchDocumentById(documentId: string): Promise<Document | null> {
                 }
             }
         });
-        
         if (response.hits.hits.length > 0) {
             const hit = response.hits.hits[0];
-            const source = hit._source as any;
-            
+            const source = hit._source;
             return {
                 pageContent: source.text || source.pageContent || "",
                 metadata: source.metadata || {}
             };
         }
-        
         return null;
-    } catch (error) {
+    }
+    catch (error) {
         console.error("Error in direct document fetch:", error);
         return null;
     }
 }
-
 // BALANCED: Context validation tool (replaces overly strict preservation tools)
 const contextValidationTool = new DynamicTool({
     name: 'context_validation_tool',
     description: 'Validates that responses stay within the bounds of provided context while allowing intelligent modifications',
-    func: async (input: string) => {
+    func: async (input) => {
         try {
             const data = JSON.parse(input);
             const action = data.action; // "validate", "extract_resources", or "check_hallucination"
             const response = data.response || "";
             const originalContext = data.originalContext || "";
-            
             if (action === "validate") {
                 // Check if response stays within context bounds
                 const contextResources = extractResources(originalContext);
                 const responseResources = extractResources(response);
-                
                 // Check for hallucinated resources (not from context)
                 const hallucinatedResources = responseResources.filter(resource => {
-                    return !contextResources.some(contextResource => 
-                        normalizeResource(contextResource) === normalizeResource(resource)
-                    ) && isLikelyHallucinated(resource);
+                    return !contextResources.some(contextResource => normalizeResource(contextResource) === normalizeResource(resource)) && isLikelyHallucinated(resource);
                 });
-                
                 // Check for virtual/placeholder content
                 const virtualContent = detectVirtualContent(response);
-                
                 return JSON.stringify({
                     isValid: hallucinatedResources.length === 0 && virtualContent.length === 0,
                     hallucinatedResources,
                     virtualContent,
                     contextResources: contextResources.length,
                     responseResources: responseResources.length,
-                    message: hallucinatedResources.length > 0 || virtualContent.length > 0 
+                    message: hallucinatedResources.length > 0 || virtualContent.length > 0
                         ? "Response contains content not from provided context"
                         : "Response stays within context bounds"
                 });
             }
-            
             if (action === "extract_resources") {
                 // Extract all resources from context for reference
                 const resources = extractResources(originalContext);
@@ -814,55 +442,47 @@ const contextValidationTool = new DynamicTool({
                     types: categorizeResources(resources)
                 });
             }
-            
             if (action === "check_hallucination") {
                 // Check if specific content is likely hallucinated
                 const content = data.content || "";
-                const isHallucinated = !originalContext.includes(content) && 
-                                     isLikelyHallucinated(content);
-                                     
+                const isHallucinated = !originalContext.includes(content) &&
+                    isLikelyHallucinated(content);
                 return JSON.stringify({
                     isHallucinated,
                     confidence: isHallucinated ? "high" : "low",
                     reason: isHallucinated ? "Content not found in context and appears generated" : "Content appears legitimate"
                 });
             }
-            
             return JSON.stringify({ error: "Invalid action specified" });
-        } catch (error) {
+        }
+        catch (error) {
             console.error("Error in context validation tool:", error);
             return JSON.stringify({ error: "Error processing validation request" });
         }
     }
 });
-
 // Helper functions for context validation
-function extractResources(text: string): string[] {
+function extractResources(text) {
     const resources = [];
-    
     // Extract URLs
     const urlRegex = /(https?:\/\/[^\s"'<>]+)/g;
     let match;
     while ((match = urlRegex.exec(text)) !== null) {
         resources.push(match[1]);
     }
-    
     // Extract file paths
     const pathRegex = /(?:src|href|url|path)=["']([^"']+)["']/g;
     while ((match = pathRegex.exec(text)) !== null) {
         resources.push(match[1]);
     }
-    
     // Extract class names (for CSS frameworks)
     const classRegex = /(?:class|className)=["']([^"']*)["']/g;
     while ((match = classRegex.exec(text)) !== null) {
         resources.push(match[1]);
     }
-    
     return [...new Set(resources)];
 }
-
-function normalizeResource(resource: string): string {
+function normalizeResource(resource) {
     return resource
         .toLowerCase()
         .trim()
@@ -870,8 +490,7 @@ function normalizeResource(resource: string): string {
         .replace(/\?.*$/, '')
         .replace(/#.*$/, '');
 }
-
-function isLikelyHallucinated(resource: string): boolean {
+function isLikelyHallucinated(resource) {
     // Check for common placeholder patterns
     const placeholderPatterns = [
         /\/api\/placeholder\//i,
@@ -888,13 +507,10 @@ function isLikelyHallucinated(resource: string): boolean {
         /unsplash\.it/i,
         /dummyimage\.com/i
     ];
-    
     return placeholderPatterns.some(pattern => pattern.test(resource));
 }
-
-function detectVirtualContent(text: string): string[] {
+function detectVirtualContent(text) {
     const virtualContent = [];
-    
     // Detect placeholder images
     const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/g;
     let match;
@@ -903,24 +519,20 @@ function detectVirtualContent(text: string): string[] {
             virtualContent.push(match[0]);
         }
     }
-    
     // Detect other virtual content patterns
     const virtualPatterns = [
         /\[placeholder[^\]]*\]/gi,
         /\{[^}]*placeholder[^}]*\}/gi,
         /<!--[^>]*placeholder[^>]*-->/gi
     ];
-    
     virtualPatterns.forEach(pattern => {
         while ((match = pattern.exec(text)) !== null) {
             virtualContent.push(match[0]);
         }
     });
-    
     return virtualContent;
 }
-
-function categorizeResources(resources: string[]): { [key: string]: number } {
+function categorizeResources(resources) {
     const categories = {
         urls: 0,
         images: 0,
@@ -929,201 +541,178 @@ function categorizeResources(resources: string[]): { [key: string]: number } {
         classes: 0,
         other: 0
     };
-    
     resources.forEach(resource => {
         if (resource.match(/^https?:\/\//)) {
             categories.urls++;
-        } else if (resource.match(/\.(jpg|jpeg|png|gif|svg|webp)$/i)) {
+        }
+        else if (resource.match(/\.(jpg|jpeg|png|gif|svg|webp)$/i)) {
             categories.images++;
-        } else if (resource.match(/\.css$/i)) {
+        }
+        else if (resource.match(/\.css$/i)) {
             categories.stylesheets++;
-        } else if (resource.match(/\.js$/i)) {
+        }
+        else if (resource.match(/\.js$/i)) {
             categories.scripts++;
-        } else if (resource.includes(' ')) {
+        }
+        else if (resource.includes(' ')) {
             categories.classes++;
-        } else {
+        }
+        else {
             categories.other++;
         }
     });
-    
     return categories;
 }
-
 // Greeting detection tool
 const greetingDetectionTool = new DynamicTool({
     name: 'greeting_detection_tool',
     description: 'Detects if user input is a simple greeting or thanks and provides an immediate response',
-    func: async (input: string) => {
+    func: async (input) => {
         try {
             const greetingPatterns = [
                 /^hi\b/i, /^hello\b/i, /^hey\b/i, /^greetings\b/i, /^good morning\b/i,
                 /^good afternoon\b/i, /^good evening\b/i, /^howdy\b/i, /^what's up\b/i,
                 /^how are you\b/i, /^how's it going\b/i
             ];
-
             const thanksPatterns = [
                 /thank you/i, /thanks/i, /appreciate it/i, /grateful/i, /thank/i,
                 /tysm/i, /thx/i, /thank u/i
             ];
-
             const greetingResponses = [
                 "Hello! I'm your front-end development assistant. How can I help you with your web development project today?",
                 "Hi there! Ready to help with your front-end development needs. What are you working on?",
                 "Hey! I'm here to assist with your web development questions. What would you like help with?"
             ];
-            
             const thanksResponses = [
                 "You're welcome! I'm glad I could help. Is there anything else you'd like assistance with for your web development?",
                 "Happy to help! Let me know if you need any other assistance with your project.",
                 "My pleasure! If you have any other front-end development questions, I'm here to help."
             ];
-
             const isGreeting = greetingPatterns.some(pattern => pattern.test(input.trim()));
             const isThanks = thanksPatterns.some(pattern => pattern.test(input.trim()));
-
             if (input.length > 50) {
                 const words = input.toLowerCase().trim().split(/\s+/);
-                const greetingWordCount = words.filter(word => 
-                    ['hi', 'hello', 'hey', 'greetings', 'morning', 'afternoon', 
-                     'evening', 'howdy', 'sup'].includes(word)).length;
-                
-                const thanksWordCount = words.filter(word => 
-                    ['thank', 'thanks', 'appreciate', 'grateful', 'thx', 'tysm'].includes(word)).length;
-                
+                const greetingWordCount = words.filter(word => ['hi', 'hello', 'hey', 'greetings', 'morning', 'afternoon',
+                    'evening', 'howdy', 'sup'].includes(word)).length;
+                const thanksWordCount = words.filter(word => ['thank', 'thanks', 'appreciate', 'grateful', 'thx', 'tysm'].includes(word)).length;
                 const greetingRatio = greetingWordCount / words.length;
                 const thanksRatio = thanksWordCount / words.length;
-                
                 if (greetingRatio > 0.3) {
                     const response = greetingResponses[Math.floor(Math.random() * greetingResponses.length)];
                     return JSON.stringify({ type: "greeting", response: response });
-                } else if (thanksRatio > 0.3) {
-                    const response = thanksResponses[Math.floor(Math.random() * thanksResponses.length)];
-                    return JSON.stringify({ type: "thanks", response: response });
-                } else {
-                    return JSON.stringify({ type: "substantive", response: null });
                 }
-            } else {
-                if (isGreeting) {
-                    const response = greetingResponses[Math.floor(Math.random() * greetingResponses.length)];
-                    return JSON.stringify({ type: "greeting", response: response });
-                } else if (isThanks) {
+                else if (thanksRatio > 0.3) {
                     const response = thanksResponses[Math.floor(Math.random() * thanksResponses.length)];
                     return JSON.stringify({ type: "thanks", response: response });
-                } else {
+                }
+                else {
                     return JSON.stringify({ type: "substantive", response: null });
                 }
             }
-        } catch (error) {
+            else {
+                if (isGreeting) {
+                    const response = greetingResponses[Math.floor(Math.random() * greetingResponses.length)];
+                    return JSON.stringify({ type: "greeting", response: response });
+                }
+                else if (isThanks) {
+                    const response = thanksResponses[Math.floor(Math.random() * thanksResponses.length)];
+                    return JSON.stringify({ type: "thanks", response: response });
+                }
+                else {
+                    return JSON.stringify({ type: "substantive", response: null });
+                }
+            }
+        }
+        catch (error) {
             console.error("Error in greeting detection:", error);
             return JSON.stringify({ type: "substantive", response: null });
         }
     }
 });
-
 // Simplified code memory tool - less restrictive
 const codeMemoryTool = new DynamicTool({
     name: 'code_memory_tool',
     description: 'Stores and retrieves code context to maintain continuity between related questions',
-    func: async (input: string) => {
+    func: async (input) => {
         try {
             const data = JSON.parse(input);
             const action = data.action;
             const conversationId = data.conversationId || "default";
-
             if (!global.codeStateCache) {
                 global.codeStateCache = {};
             }
-            
             if (!global.codeStateCache[conversationId]) {
                 global.codeStateCache[conversationId] = { codeHistory: [] };
             }
-
             let codeState = global.codeStateCache[conversationId];
-
             if (action === "store") {
                 const codeContent = data.content;
                 const codeType = data.type || "full-document";
-
                 if (codeType === "full-document" || codeContent.includes("<!DOCTYPE html>")) {
                     codeState.fullHtmlDocument = codeContent;
                 }
-
                 codeState.codeHistory.push({
                     type: codeType,
                     content: codeContent,
                     timestamp: Date.now()
                 });
-
                 if (codeState.codeHistory.length > 5) {
                     codeState.codeHistory = codeState.codeHistory.slice(-5);
                 }
-
                 global.codeStateCache[conversationId] = codeState;
                 return JSON.stringify(codeState);
             }
             else if (action === "retrieve") {
-                console.log(`Retrieved code state for conversation ${conversationId}:`,
-                    codeState.fullHtmlDocument ? "Has full HTML document" : "No full HTML document",
-                    `History entries: ${codeState.codeHistory.length}`);
-
+                console.log(`Retrieved code state for conversation ${conversationId}:`, codeState.fullHtmlDocument ? "Has full HTML document" : "No full HTML document", `History entries: ${codeState.codeHistory.length}`);
                 return JSON.stringify(codeState);
             }
-
             return JSON.stringify(codeState);
-        } catch (error) {
+        }
+        catch (error) {
             console.error("Error in code memory tool:", error);
             return JSON.stringify({ codeHistory: [] });
         }
     }
 });
-
 // Enhanced code handling utilities
-function isCompleteHTMLDocument(code: string): boolean {
-    return code.includes("<!DOCTYPE html>") && 
-           code.includes("<html") && 
-           code.includes("</html>") &&
-           code.includes("<head") &&
-           code.includes("<body");
+function isCompleteHTMLDocument(code) {
+    return code.includes("<!DOCTYPE html>") &&
+        code.includes("<html") &&
+        code.includes("</html>") &&
+        code.includes("<head") &&
+        code.includes("<body");
 }
-
-function hasHTMLElements(code: string): boolean {
-    return code.includes("<div") || 
-           code.includes("<section") || 
-           code.includes("<p") || 
-           code.includes("<span") ||
-           code.includes("<html") ||
-           code.includes("<body");
+function hasHTMLElements(code) {
+    return code.includes("<div") ||
+        code.includes("<section") ||
+        code.includes("<p") ||
+        code.includes("<span") ||
+        code.includes("<html") ||
+        code.includes("<body");
 }
-
-function extractCodeBlocks(output: string): string[] {
-    const codeBlocks: string[] = [];
+function extractCodeBlocks(output) {
+    const codeBlocks = [];
     const codeRegex = /```[\s\S]*?```/g;
-    
     let match;
     while ((match = codeRegex.exec(output)) !== null) {
-      const codeContent = match[0]
-        .replace(/```[\w]*\n/, '')
-        .replace(/```$/, '');
-      
-      codeBlocks.push(codeContent);
+        const codeContent = match[0]
+            .replace(/```[\w]*\n/, '')
+            .replace(/```$/, '');
+        codeBlocks.push(codeContent);
     }
-    
     return codeBlocks;
 }
-
-function replaceCodeBlocks(output: string, codeBlocks: string[]): string {
+function replaceCodeBlocks(output, codeBlocks) {
     let result = output;
     let index = 0;
-    
     return result.replace(/```[\s\S]*?```/g, () => {
-      const language = hasHTMLElements(codeBlocks[index]) ? 'html' : 'javascript';
-      const replacement = '```' + language + '\n' + codeBlocks[index] + '\n```';
-      index++;
-      return replacement;
+        const language = hasHTMLElements(codeBlocks[index]) ? 'html' : 'javascript';
+        const replacement = '```' + language + '\n' + codeBlocks[index] + '\n```';
+        index++;
+        return replacement;
     });
 }
-
-function getDefaultTemplate(): string {
+function getDefaultTemplate() {
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1137,53 +726,32 @@ function getDefaultTemplate(): string {
 </body>
 </html>`;
 }
-
-function mergeWithTemplate(fragment: string, template: string): string {
+function mergeWithTemplate(fragment, template) {
     if (isCompleteHTMLDocument(fragment)) {
-      return fragment;
+        return fragment;
     }
-    
     try {
-      const doc = parseHTML(template);
-      const body = doc.querySelector('body');
-      
-      if (body) {
-        body.innerHTML = fragment;
-        return doc.toString();
-      }
-    } catch (error) {
-      console.error("Error merging with template:", error);
+        const doc = parseHTML(template);
+        const body = doc.querySelector('body');
+        if (body) {
+            body.innerHTML = fragment;
+            return doc.toString();
+        }
     }
-    
+    catch (error) {
+        console.error("Error merging with template:", error);
+    }
     return template.replace(/<body[^>]*>([\s\S]*?)<\/body>/i, `<body class="p-4">\n${fragment}\n</body>`);
 }
-
-const testIntegration = async () => {
-    console.log("🧪 TESTING INTEGRATION...");
-    
-    // Test context retrieval
-    await debugContext("tailwind css button component", "test-conversation");
-    
-    // Test execution
-    const result = await executeWithCodeHandling(
-        "Show me a tailwind button component",
-        [],
-        "test-conversation"
-    );
-    
-    console.log("Test result:", result);
-    console.log("References found:", result.references?.length || 0);
-};
-
 // BALANCED: Tools array with less restrictive validation
 const tools = [
-    hybridSearchTool,  // This should now be your updated version
-    elasticSearchTool, 
-    codeMemoryTool, 
+    hybridSearchTool,
+    elasticSearchTool,
+    codeMemoryTool,
     greetingDetectionTool,
-    referenceTrackingTool 
+    contextValidationTool, // Replaces overly strict preservation tools
+    referenceTrackingTool // New reference tracking tool
 ];
-
 // BALANCED: More flexible prompt that encourages context usage without being overly restrictive
 const frontEndDevPrompt = ChatPromptTemplate.fromMessages([
     ["system",
@@ -1218,8 +786,7 @@ const frontEndDevPrompt = ChatPromptTemplate.fromMessages([
         - If context is insufficient for a request, explain what additional information you would need
 
         IMPORTANTS:
-        - DO NOT modify or rewrite the code AND link images (MUST be taken from the context) ABSOLUTELY DO NOT EDIT OR PUT FAKE IMAGE LINKS (SUCH AS example.com, background-image.jpg!!!)
-        DO NOT GENERATE ANY LINKS (example: demo.com,.etc..) OR VIRTUAL IMAGES (example: background.jpg,.etc...). ONLY USE LINK THAT MIGHT BE PROVIDES BY USER OR USES IN CONTEXT HIGHLY REQUIRES
+        - DO NOT modify or rewrite the code AND link images (MUST be taken from the reference) ABSOLUTELY DO NOT EDIT OR PUT FAKE IMAGE LINKS (SUCH AS example.com, background-image.jpg!!!)
         
         Context from relevant documentation: {context}
         Previous code context: {code_context}
@@ -1229,7 +796,6 @@ const frontEndDevPrompt = ChatPromptTemplate.fromMessages([
     ["human", "{input}"],
     new MessagesPlaceholder("agent_scratchpad"),
 ]);
-
 const strictFrontEndDevPrompt = ChatPromptTemplate.fromMessages([
     ["system",
         `You are a helpful, expert front-end developer assistant. Your responses should be technically accurate, comprehensive, and maintain continuity across the conversation, especially for code examples.
@@ -1344,8 +910,6 @@ const strictFrontEndDevPrompt = ChatPromptTemplate.fromMessages([
         *** FINAL REMINDER ***:
         Your primary function is to serve as a PRESERVATION AGENT for source code, not a modification agent. 
         Treat all code from context as IMMUTABLE HISTORICAL ARTIFACTS that must be preserved exactly.
-        DO NOT GENERATE ANY LINKS (example: demo.com,.etc..) OR VIRTUAL IMAGES (example: background.jpg,.etc...). ONLY USE LINK THAT MIGHT BE PROVIDES BY USER OR USES IN CONTEXT HIGHLY REQUIRES
-        
         
         Context from relevant documentation: {context}
         Previous code context: {code_context}
@@ -1355,7 +919,6 @@ const strictFrontEndDevPrompt = ChatPromptTemplate.fromMessages([
     ["human", "{input}"],
     new MessagesPlaceholder("agent_scratchpad"),
 ]);
-
 // Alternative version with even more enforcement
 const ultraStrictFrontEndDevPrompt = ChatPromptTemplate.fromMessages([
     ["system",
@@ -1448,128 +1011,99 @@ const ultraStrictFrontEndDevPrompt = ChatPromptTemplate.fromMessages([
     ["human", "{input}"],
     new MessagesPlaceholder("agent_scratchpad"),
 ]);
-
 // Model with OpenAI functions
 const modelWithFunctions = model.bind({
     functions: tools.map((tool) => convertToOpenAIFunction(tool)),
 });
-
 // Enhanced output parser
 class BalancedOutputParser extends OpenAIFunctionsAgentOutputParser {
-    async parse(text: string): Promise<AgentAction | AgentFinish> {
+    async parse(text) {
         const standardOutput = await super.parse(text);
         return standardOutput;
     }
 }
-
 const runnableAgent = RunnableSequence.from([
     {
-        input: (i: { input: string; steps: AgentStep[]; conversationId?: string }) => i.input,
-        agent_scratchpad: (i: { input: string; steps: AgentStep[] }) =>
-            formatToOpenAIFunctionMessages(i.steps),
-        context: async (i: { input: string; steps: AgentStep[]; conversationId?: string }) => {
+        input: (i) => i.input,
+        agent_scratchpad: (i) => formatToOpenAIFunctionMessages(i.steps),
+        context: async (i) => {
             const conversationId = i.conversationId || "default";
-            
-            console.log(`🔍 CONTEXT RETRIEVAL: Starting for input: "${i.input}"`);
-            
-            const searchInput = JSON.stringify({ 
-                query: i.input, 
-                conversationId: conversationId 
+            const searchInput = JSON.stringify({
+                query: i.input,
+                conversationId: conversationId
             });
-            
             const searchResult = await hybridSearchTool.func(searchInput);
-            
-            if (!searchResult) {
-                console.log("❌ CONTEXT RETRIEVAL: No search result returned");
-                return "No relevant context found.";
-            }
-            
-            try {
-                const parsedResult = JSON.parse(searchResult);
-                
-                if (parsedResult.error) {
-                    console.log(`❌ CONTEXT RETRIEVAL: Search error: ${parsedResult.details}`);
-                    return "Error retrieving context.";
+            let contextResults = [];
+            if (searchResult) {
+                try {
+                    const parsedResult = JSON.parse(searchResult);
+                    contextResults = parsedResult.context;
+                    console.log("Hybrid search metadata:", parsedResult.metadata);
                 }
-                
-                const contextResults = parsedResult.context || [];
-                
-                if (contextResults.length === 0) {
-                    console.log("❌ CONTEXT RETRIEVAL: No context in search results");
-                    return "No relevant context found.";
+                catch (e) {
+                    console.error("Error parsing hybrid search results:", e);
                 }
-                
-                console.log(`✅ CONTEXT RETRIEVAL SUCCESS:`);
-                console.log(`   - Documents retrieved: ${contextResults.length}`);
-                console.log(`   - Parent documents: ${parsedResult.metadata?.searchResults?.parentDocumentsFound || 0}`);
-                console.log(`   - Child documents: ${parsedResult.metadata?.searchResults?.childDocumentsFound || 0}`);
-                console.log(`   - Total context size: ${contextResults.join('\n').length} characters`);
-                
-                return contextResults.join("\n\n---DOCUMENT SEPARATOR---\n\n");
-                
-            } catch (error) {
-                console.error("❌ CONTEXT RETRIEVAL: Error parsing search results:", error);
-                return "Error parsing context.";
             }
+            console.log("Context retrieved: ", contextResults ? contextResults.length : 0, "documents");
+            return contextResults && contextResults.length > 0 ?
+                contextResults.join("\n") :
+                "No relevant context found.";
         },
-        chat_history: (i: { input: string; steps: AgentStep[]; chat_history: BaseMessage[]; conversationId?: string }) =>
-            i.chat_history || [],
-        code_context: async (i: { input: string; steps: AgentStep[]; conversationId?: string }) => {
+        chat_history: (i) => i.chat_history || [],
+        code_context: async (i) => {
             const conversationId = i.conversationId || "default";
             try {
                 const codeMemoryResult = await codeMemoryTool.func(JSON.stringify({
                     action: "retrieve",
                     conversationId
                 }));
-
                 const codeState = JSON.parse(codeMemoryResult);
-
                 if (codeState.fullHtmlDocument) {
-                    console.log("✅ CODE CONTEXT: Full HTML document available");
-                    return `Previous complete HTML document:\n\n${codeState.fullHtmlDocument}`;
-                } else if (codeState.codeHistory && codeState.codeHistory.length > 0) {
+                    return `Reference this previous HTML document. You may modify and improve it as needed:\n\n${codeState.fullHtmlDocument}`;
+                }
+                else if (codeState.codeHistory && codeState.codeHistory.length > 0) {
                     const relevantCode = codeState.codeHistory
                         .filter(entry => entry.type === "full-document" || entry.type === "component")
                         .pop();
-
                     if (relevantCode) {
-                        console.log("✅ CODE CONTEXT: Previous code available");
-                        return `Previous code:\n\n${relevantCode.content}`;
+                        return `Reference this previous code. You may build upon or modify it:\n\n${relevantCode.content}`;
                     }
                 }
-
-                console.log("ℹ️  CODE CONTEXT: No previous code available");
-                return "No previous code context available.";
-            } catch (error) {
-                console.error("❌ CODE CONTEXT: Error retrieving code context:", error);
-                return "Error retrieving code context.";
+                const codeBlockRegex = /```[\s\S]*?```/g;
+                const codeMatches = i.input.match(codeBlockRegex);
+                if (codeMatches && codeMatches.length > 0) {
+                    const userCode = codeMatches[0].replace(/```[\w]*\n/, '').replace(/```$/, '');
+                    return `The user has provided this code as a starting point:\n\n${userCode}`;
+                }
+                return "No previous code context available. Create new code as needed.";
+            }
+            catch (error) {
+                console.error("Error retrieving code context:", error);
+                return "No previous code context available. Create new code as needed.";
             }
         },
-        conversation_id: (i: { input: string; steps: AgentStep[]; conversationId?: string }) => i.conversationId || "default"
+        conversation_id: (i) => i.conversationId || "default"
     },
-    // Keep your existing prompt (strictFrontEndDevPrompt or whatever you're using)
-    frontEndDevPrompt,
-    // strictFrontEndDevPrompt,
+    // frontEndDevPrompt,
+    strictFrontEndDevPrompt,
     // ultraStrictFrontEndDevPrompt,
     modelWithFunctions,
     new BalancedOutputParser(),
 ]);
-
 // Enhanced BM25 search
-async function performEnhancedBM25Search(query: string, documents: Document[], k: number = 3): Promise<Document[]> {
+async function performEnhancedBM25Search(query, documents, k = 3) {
     try {
         const bm25Retriever = await BM25Retriever.fromDocuments(documents, {
             k: k
         });
-        
         const results = await bm25Retriever.getRelevantDocuments(query);
         return results;
-    } catch (error) {
+    }
+    catch (error) {
         console.error("Error in enhanced BM25 search:", error);
         return [];
     }
 }
-
 const executorGPT = AgentExecutor.fromAgentAndTools({
     agent: runnableAgent,
     tools,
@@ -1577,75 +1111,17 @@ const executorGPT = AgentExecutor.fromAgentAndTools({
     handleParsingErrors: true,
     returnIntermediateSteps: true,
 });
-
-const debugContext = async (input: string, conversationId: string = "default") => {
-    console.log(`🔍 CONTEXT DEBUG: Starting for "${input}"`);
-    
-    const searchInput = JSON.stringify({ query: input, conversationId });
-    const searchResult = await hybridSearchTool.func(searchInput);
-    
-    if (!searchResult) {
-        console.log("❌ CONTEXT DEBUG: No search result");
-        return;
-    }
-    
-    try {
-        const parsedResult = JSON.parse(searchResult);
-        
-        console.log("📊 CONTEXT DEBUG RESULTS:");
-        console.log("   Search metadata:", JSON.stringify(parsedResult.metadata, null, 2));
-        console.log("   Context entries:", parsedResult.context?.length || 0);
-        
-        if (parsedResult.context && parsedResult.context.length > 0) {
-            parsedResult.context.forEach((ctx: string, index: number) => {
-                console.log(`   Context ${index + 1}: ${ctx.substring(0, 100)}...`);
-            });
-        }
-        
-        // Check references
-        const referencesResult = await referenceTrackingTool.func(JSON.stringify({
-            action: "get",
-            conversationId
-        }));
-        
-        const referencesData = JSON.parse(referencesResult);
-        console.log(`   References tracked: ${referencesData.count}`);
-        
-        if (referencesData.references && referencesData.references.length > 0) {
-            referencesData.references.forEach((ref: any, index: number) => {
-                console.log(`   Reference ${index + 1}: ${ref.title} (${ref.type})`);
-            });
-        }
-        
-    } catch (error) {
-        console.error("❌ CONTEXT DEBUG: Error parsing results:", error);
-    }
-};
-
 // BALANCED: Code handling with validation but flexibility
-const executeWithCodeHandling = async (
-    input: string,
-    chatHistory: BaseMessage[] = [],
-    conversationId: string
-) => {
+const executeWithCodeHandling = async (input, chatHistory = [], conversationId) => {
     // Clear references for this response
     await referenceTrackingTool.func(JSON.stringify({
-    action: "add",
-    conversationId: conversationId,
-    type: "code_example",
-    title: "Previous Code Context",
-    description: "Code from previous interaction in this conversation",
-    documentId: `conversation_${conversationId}_context`, // Generate a simple ID
-    source: "Conversation History",
-    relevanceScore: 1.0
-    // Remove: originalCode: fullCodeContext,
-}));
-    
+        action: "clear",
+        conversationId
+    }));
     // Check for greetings/thanks
     try {
         const greetingResult = await greetingDetectionTool.func(input);
         const greetingData = JSON.parse(greetingResult);
-
         if (greetingData.type === "greeting" || greetingData.type === "thanks") {
             console.log(`Detected ${greetingData.type}, providing immediate response`);
             return {
@@ -1654,10 +1130,10 @@ const executeWithCodeHandling = async (
                 references: []
             };
         }
-    } catch (error) {
+    }
+    catch (error) {
         console.error("Error in greeting detection:", error);
     }
-
     // Retrieve and include code context
     let codeState;
     try {
@@ -1666,17 +1142,13 @@ const executeWithCodeHandling = async (
             conversationId
         }));
         codeState = JSON.parse(codeMemoryResult);
-        
         const fullCodeContext = codeState.fullHtmlDocument;
         if (fullCodeContext) {
             console.log("Including code context in conversation");
-            
             const codeContextMessage = new SystemMessage({
                 content: `Available code for reference and modification:\n\n\`\`\`html\n${fullCodeContext}\n\`\`\`\n\nYou may build upon, modify, or enhance this code as needed to fulfill the user's request.`
             });
-            
             chatHistory = [codeContextMessage, ...chatHistory];
-            
             // Track code context as a reference
             await referenceTrackingTool.func(JSON.stringify({
                 action: "add",
@@ -1689,18 +1161,17 @@ const executeWithCodeHandling = async (
                 relevanceScore: 1.0
             }));
         }
-    } catch (error) {
+    }
+    catch (error) {
         console.error("Error retrieving code context:", error);
         codeState = { codeHistory: [] };
     }
-
     // Execute the agent
     const result = await executorGPT.invoke({
         input,
         chat_history: chatHistory,
         conversationId
     });
-
     // BALANCED: Validate response stays within context bounds but allow intelligent modifications
     if (typeof result.output === 'string') {
         // Get context from chat history for validation
@@ -1716,7 +1187,6 @@ const executeWithCodeHandling = async (
                 }
             }
         }
-
         // Validate the response
         if (originalContext) {
             try {
@@ -1725,9 +1195,7 @@ const executeWithCodeHandling = async (
                     response: result.output,
                     originalContext: originalContext
                 }));
-
                 const validation = JSON.parse(validationResult);
-                
                 if (!validation.isValid) {
                     console.log("Response validation warning:", validation.message);
                     // Add a note rather than forcibly changing the response
@@ -1735,46 +1203,41 @@ const executeWithCodeHandling = async (
                         result.output += "\n\n[Note: Some resources in this response may need to be replaced with actual resources from your project.]";
                     }
                 }
-            } catch (error) {
+            }
+            catch (error) {
                 console.error("Error in response validation:", error);
             }
         }
-
         // Store code blocks for future reference
         const codeBlocks = extractCodeBlocks(result.output);
         if (codeBlocks.length > 0) {
             try {
                 const codeContent = codeBlocks[0];
                 const isFullHtml = isCompleteHTMLDocument(codeContent);
-
                 await codeMemoryTool.func(JSON.stringify({
                     action: "store",
                     type: isFullHtml ? "full-document" : "component",
                     content: codeContent,
                     conversationId
                 }));
-                
                 console.log(`Stored ${isFullHtml ? 'full HTML document' : 'component'} for conversation ${conversationId}`);
-            } catch (error) {
+            }
+            catch (error) {
                 console.error("Error storing code in memory:", error);
             }
         }
-
         // Clean up output
         result.output = result.output.replace(/<thinking>[\s\S]*?<\/thinking>/g, '');
     }
-
     // Get all references used in this response
     const referencesResult = await referenceTrackingTool.func(JSON.stringify({
         action: "get",
         conversationId
     }));
-    
     const referencesData = JSON.parse(referencesResult);
     result.references = referencesData.references || [];
-
     return result;
 };
-
 // Export the main functions
-export { executorGPT, executeWithCodeHandling, Reference };
+export { executorGPT, executeWithCodeHandling };
+//# sourceMappingURL=custom-agent-backup.js.map
