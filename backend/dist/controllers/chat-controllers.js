@@ -375,8 +375,6 @@ export const generateChatGPTCompletion = async (req, res, next) => {
         // Generate response using ONLY the GPT executor with reference tracking
         const responseGPT = await executeWithCodeHandling(input, chatHistory.length > 0 ? chatHistory : [], conversationId || user.conversations[conversationIndex].id // Use the conversation ID
         );
-        console.log("responseGPT: ", responseGPT);
-        console.log("References used: ", responseGPT.references?.length || 0);
         // Extract response content from GPT
         let responseContent;
         if (typeof responseGPT.output === 'string') {
@@ -418,11 +416,9 @@ export const generateChatGPTCompletion = async (req, res, next) => {
         });
     }
     catch (error) {
-        console.error("Error in generateChatGPTCompletion: ", error);
         return res.status(500).json({ message: "Something went wrong", error: error.message });
     }
 };
-// Update the generateChatGPTCompletion function
 export const generateChatGPTContextCompletion = async (req, res, next) => {
     try {
         const { message, conversationId } = req.body;

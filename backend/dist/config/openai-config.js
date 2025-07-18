@@ -8,6 +8,6 @@ export const model = new ChatOpenAI({
 });
 export const llm = new ChatOpenAI({
     model: "gpt-3.5-turbo-1106",
-    temperature: 0,
+    temperature: 0.1,
 });
 //# sourceMappingURL=openai-config.js.map

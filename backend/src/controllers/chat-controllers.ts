@@ -468,9 +468,6 @@ export const generateChatGPTCompletion = async (
       conversationId || user.conversations[conversationIndex].id // Use the conversation ID
     );
 
-    console.log("responseGPT: ", responseGPT);
-    console.log("References used: ", responseGPT.references?.length || 0);
-
     // Extract response content from GPT
     let responseContent;
     if (typeof responseGPT.output === 'string') {
@@ -515,12 +512,10 @@ export const generateChatGPTCompletion = async (
       }
     });
   } catch (error) {
-    console.error("Error in generateChatGPTCompletion: ", error);
     return res.status(500).json({ message: "Something went wrong", error: error.message });
   }
 };
 
-// Update the generateChatGPTCompletion function
 export const generateChatGPTContextCompletion = async (
   req: Request,
   res: Response,

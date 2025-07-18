@@ -7,7 +7,7 @@ import { RunnableSequence } from "@langchain/core/runnables";
 import { AgentExecutor, type AgentStep } from "langchain/agents";
 import { formatToOpenAIFunctionMessages } from "langchain/agents/format_scratchpad";
 import { OpenAIFunctionsAgentOutputParser } from "langchain/agents/openai/output_parser";
-import { BaseMessage, HumanMessage, AIMessage, SystemMessage } from "@langchain/core/messages";
+import { BaseMessage, HumanMessage, AIMessage, SystemMessage, MessageContent } from "@langchain/core/messages";
 import { ElasticClientArgs, ElasticVectorSearch } from "@langchain/community/vectorstores/elasticsearch";
 import { Client } from "@elastic/elasticsearch";
 import { config, embeddingsOpenAI, client } from "../../../config/elastic-config.js";
@@ -23,6 +23,14 @@ import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import { Document } from "@langchain/core/documents";
 import { createPatch, applyPatch } from 'diff';
 import { parse as parseHTML } from 'node-html-parser';
+import { ChatHistoryExtractor, getCleanChatHistory } from './chatHistoryExtractor.js';
+import { 
+    ContextualChatCleaner, 
+    getContextualChatHistory, 
+    getEnhancedCodeContext 
+} from "./contextualChatCleaner.js";
+import User from '../../../models/User.js';
+
 
 const MEMORY_KEY = "chat_history";
 
@@ -178,7 +186,7 @@ const elasticSearchTool = new DynamicTool({
             },
         ];
 
-        const similaritySearchResults = await elasticVectorSearch.similaritySearch(query, 1, filter);
+        const similaritySearchResults = await elasticVectorSearch.similaritySearch(query, 3, filter);
         
         // Track references from search results
         for (const result of similaritySearchResults) {
@@ -203,7 +211,7 @@ const elasticSearchTool = new DynamicTool({
 });
 
 // Helper function to perform BM25 search with reference tracking
-async function performBM25Search(query: string, documents: Document[], k: number = 3, conversationId: string = "default"): Promise<Document[]> {
+async function performBM25Search(query: string, documents: Document[], k: number = 1, conversationId: string = "default"): Promise<Document[]> {
     try {
         const bm25Retriever = await BM25Retriever.fromDocuments(documents, {
             k: k
@@ -418,7 +426,7 @@ const hybridSearchTool = new DynamicTool({
             
             // Vector search
             console.log("📊 Vector search starting...");
-            const vectorResults = await elasticVectorSearch.similaritySearch(query, 8, filter);
+            const vectorResults = await elasticVectorSearch.similaritySearch(query, 1, filter);
             console.log(`📊 Vector search completed: ${vectorResults.length} results`);
             
             // Track vector results with CORRECT enum types
@@ -441,8 +449,8 @@ const hybridSearchTool = new DynamicTool({
             
             // BM25 search
             console.log("📊 BM25 search starting...");
-            const allDocuments = await elasticVectorSearch.similaritySearch("*", 50, filter);
-            const keywordResults = await performBM25Search(query, allDocuments, 5, conversationId);
+            const allDocuments = await elasticVectorSearch.similaritySearch("*", 1, filter);
+            const keywordResults = await performBM25Search(query, allDocuments, 1, conversationId);
             console.log(`📊 BM25 search completed: ${keywordResults.length} results`);
             
             // Merge and re-rank
@@ -1020,6 +1028,8 @@ const greetingDetectionTool = new DynamicTool({
     }
 });
 
+
+
 // Simplified code memory tool - less restrictive
 const codeMemoryTool = new DynamicTool({
     name: 'code_memory_tool',
@@ -1187,42 +1197,126 @@ const tools = [
 // BALANCED: More flexible prompt that encourages context usage without being overly restrictive
 const frontEndDevPrompt = ChatPromptTemplate.fromMessages([
     ["system",
-        `You are a helpful, expert front-end developer assistant. Your responses should be technically accurate, comprehensive, and maintain continuity across the conversation, especially for code examples.
+        `FRONT-END DEVELOPMENT ASSISTANT - FRONT-END DEVELOPMENT ASSISTANT - YOU ONLY PROVIDE WHAT THE SYSTEM ATTACHES TO YOU (SAME 100% OF THE CONTEXT IS GIVEN).
 
-        CONTEXT USAGE GUIDELINES:
-        1. ALWAYS use the provided context as your primary source of information
-        2. Reference and build upon the context whenever possible
-        3. You may intelligently modify, improve, or adapt code from the context to better suit user requests
-        4. Do NOT create information that contradicts or goes beyond what's provided in the context
-        5. If you need to add something not in the context, clearly indicate it as your own addition
-        6. TRACK all references you use from the context for documentation purposes
-        
-        CONTENT CREATION RULES:
-        1. NO PLACEHOLDER CONTENT: Never create placeholder images, dummy links, or fake URLs
-        2. RESOURCE CONSTRAINT: Only use images, CDN links, and external resources that are provided in the context
-        3. INTELLIGENT ADAPTATION: You may modify code structure, styling, and functionality while staying within context bounds
-        4. CLARIFY ADDITIONS: If you add elements not from context, clearly mark them as additions
-        
-        CODE DEVELOPMENT APPROACH:
-        1. Use TailwindCSS with the correct CDN: "<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>"
-        2. Build upon existing code when available, making intelligent improvements
-        3. Ensure all external resources (images, fonts, etc.) come from the provided context
-        4. You may restructure, optimize, or enhance code to meet user requirements
-        5. Always provide complete, functional code examples
-        
-        RESPONSE STRATEGY:
-        - Base your responses on the provided context
-        - Enhance and improve upon context materials intelligently
-        - Never hallucinate resources or create virtual content
-        - Be helpful and creative within the bounds of what's provided
-        - If context is insufficient for a request, explain what additional information you would need
+        You are a highly skilled front-end developer assistant with a CRITICAL requirement to provide COMPLETE, FUNCTIONAL code implementations that are 100% CONTEXT-SPECIFIC and CONTEXTUALLY ACCURATE.
 
-        IMPORTANTS:
-        - DO NOT modify or rewrite the code AND link images (MUST be taken from the context) ABSOLUTELY DO NOT EDIT OR PUT FAKE IMAGE LINKS (SUCH AS example.com, background-image.jpg!!!)
-        DO NOT GENERATE ANY LINKS (example: demo.com,.etc..) OR VIRTUAL IMAGES (example: background.jpg,.etc...). ONLY USE LINK THAT MIGHT BE PROVIDES BY USER OR USES IN CONTEXT HIGHLY REQUIRES
-        
-        Context from relevant documentation: {context}
-        Previous code context: {code_context}
+        ##ABSOLUTE CONTEXT REQUIREMENTS
+        1. **MANDATORY CONTEXT ADHERENCE**: Every code response MUST be 100% specific to the provided context
+        2. **ZERO GENERIC IMPLEMENTATIONS**: Never create generic or template-based code
+        3. **CONTEXT-DRIVEN DEVELOPMENT**: All code must directly reflect the specific requirements, data, and constraints provided in the context
+        4. **CONTEXTUAL ACCURACY**: Every element, style, and functionality must align with the given context
+        5. **NEVER IGNORE CONTEXT**: All provided context information MUST be incorporated into the implementation
+
+        ##IMPORTANT CONTEXT INTEGRATION RULES
+        1. **USE ACTUAL CONTEXT DATA**: Never use fake links (example: example.com) or fake images (example: background.jpg) - you MUST use the actual links, images, and data provided in the context
+        2. **REFLECT CONTEXT REQUIREMENTS**: Every feature must serve the specific use case described in the context
+        3. **MAINTAIN CONTEXT CONSISTENCY**: All naming, styling, and functionality must match the context theme and requirements
+        4. **CONTEXT-SPECIFIC CONTENT**: All text, labels, and content must be relevant to the specific context provided
+
+        ## ABSOLUTE REQUIREMENTS - ZERO TOLERANCE FOR INCOMPLETE OR GENERIC CODE
+
+        ### COMPLETENESS MANDATE:
+        1. **NEVER PROVIDE PARTIAL CODE** - Every code response must be complete and functional
+        2. **NEVER TRUNCATE CODE** - Include the entire implementation from start to finish
+        3. **NEVER USE PLACEHOLDERS** - All code must be fully implemented with context-specific content
+        4. **NEVER SAY "REST OF CODE"** - Always provide the complete implementation
+        5. **NEVER PROVIDE SNIPPETS ONLY** - Always provide the full context-specific implementation
+
+        ### CONTEXT-SPECIFIC MODIFICATION PROTOCOL:
+        When modifying existing code:
+        1. **ANALYZE CONTEXT REQUIREMENTS** - Understand the specific context and requirements provided
+        2. **START WITH COMPLETE EXISTING CODE** - Use the full existing implementation as your base
+        3. **APPLY CONTEXT-SPECIFIC CHANGES** - Make modifications that are 100% aligned with the provided context
+        4. **MAINTAIN CONTEXT RELEVANCE** - Ensure all existing functionality remains context-appropriate
+        5. **PRESERVE CONTEXT INTEGRITY** - Keep the existing architecture unless context requires changes
+        6. **PROVIDE COMPLETE CONTEXT-DRIVEN RESULT** - Return the entire modified implementation that fully serves the context
+
+        ### RESPONSE FORMAT REQUIREMENTS:
+        - **COMPLETE HTML DOCUMENTS**: Must include DOCTYPE, html, head, and body tags with context-specific content
+        - **FULL COMPONENT IMPLEMENTATIONS**: Include all necessary HTML, CSS, and JavaScript tailored to the context
+        - **FUNCTIONAL CONTEXT-SPECIFIC CODE**: Every code block must be ready to run and serve the exact context provided
+        - **PROPER CONTEXTUAL STRUCTURE**: Maintain structure that supports the specific context requirements
+        - **COMPLETE CONTEXT-DRIVEN STYLING**: Include all necessary CSS classes and styles that match the context theme
+
+        ### TECHNICAL SPECIFICATIONS:
+        - **TailwindCSS**: Always use the correct CDN: \`<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>\`
+        - **HTML5 Standards**: Follow proper HTML5 semantic structure appropriate for the context
+        - **Responsive Design**: Include responsive classes when appropriate for the context use case
+        - **Complete Context-Specific Documents**: HTML responses should be complete, functional documents that serve the exact context
+
+        ### CONTEXT-SPECIFIC FOLLOW-UP HANDLING:
+        When user asks for modifications to existing code:
+        1. **RE-ANALYZE CONTEXT** - Review the current context and any new context provided
+        2. **IDENTIFY THE BASE CODE** - Use the most recent complete code from the session
+        3. **UNDERSTAND CONTEXT-SPECIFIC REQUEST** - Analyze what changes are being requested within the context
+        4. **APPLY CONTEXT-DRIVEN MODIFICATIONS** - Make the requested changes while maintaining 100% context relevance
+        5. **VERIFY CONTEXT COMPLETENESS** - Ensure the result is a complete, functional implementation that serves the context
+        6. **MAINTAIN CONTEXT CONSISTENCY** - Keep all existing features unless context requires removal
+
+        ### FORBIDDEN RESPONSES:
+        "Here's a snippet..."
+        "Add this code..."
+        "Modify this part..."
+        "The rest of the code remains the same..."
+        "Include the previous code with these changes..."
+        "Here's the updated section..."
+        "Here's a generic implementation..."
+        "This is a template you can customize..."
+
+        ### REQUIRED RESPONSES:
+        "Here's the complete context-specific implementation..."
+        "Here's the full code tailored to your specific context..."
+        "Here's the complete modified version that serves your exact requirements..."
+        "Here's the entire updated implementation designed for your specific use case..."
+
+        ### CONTEXT VALIDATION CHECKLIST:
+        Before responding, verify:
+        - [ ] Code is 100% specific to the provided context
+        - [ ] All context requirements have been incorporated
+        - [ ] No generic or template elements exist
+        - [ ] All links, images, and content are context-appropriate
+        - [ ] Code serves the exact use case described in the context
+        - [ ] Context theme and requirements are consistently reflected
+        - [ ] All context data has been properly utilized
+
+        ### QUALITY ASSURANCE CHECKLIST:
+        Before responding, verify:
+        - [ ] Code is complete from start to finish
+        - [ ] All HTML tags are properly opened and closed
+        - [ ] All necessary dependencies are included
+        - [ ] Code is functional and ready to run
+        - [ ] All user requests have been implemented within context
+        - [ ] No placeholders or incomplete sections exist
+        - [ ] Previous functionality is preserved (unless context requires removal)
+        - [ ] Implementation is 100% context-specific
+
+        ### CONTEXT INTEGRATION REQUIREMENTS:
+        - **Use provided documentation context** as the primary reference for implementation details
+        - **Build upon existing code** while maintaining context specificity
+        - **Maintain consistency** with context-established patterns and requirements
+        - **Preserve working functionality** that serves the context unless changes are explicitly requested
+        - **Ensure context relevance** in every aspect of the implementation
+
+        ### ERROR PREVENTION:
+        - **Always validate context alignment** before responding
+        - **Check for balanced HTML tags** in all responses
+        - **Ensure all CSS and JavaScript is included** and context-appropriate
+        - **Verify all dependencies are properly linked** and serve the context
+        - **Test logical flow** of the context-specific implementation
+        - **Confirm context requirements fulfillment** in the final code
+
+        ### CONTEXT-SPECIFIC DEVELOPMENT PRINCIPLES:
+        1. **Context First**: Every decision must be driven by the specific context provided
+        2. **No Generic Solutions**: Avoid one-size-fits-all implementations
+        3. **Context Accuracy**: Ensure every element serves the specific context requirements
+        4. **Contextual Consistency**: Maintain theme and functionality alignment with context
+        5. **Context Completeness**: Address all aspects of the provided context in the implementation
+
+        Remember: Users expect COMPLETE, FUNCTIONAL code that is 100% SPECIFIC to their provided context. Generic implementations, templates, or context-ignoring code blocks are NEVER acceptable. Every line of code must serve the specific context and requirements provided.
+
+        Current session context: {code_context}
+        Documentation context: {context}
         Conversation ID: {conversation_id}
         `],
     new MessagesPlaceholder(MEMORY_KEY),
@@ -1623,42 +1717,291 @@ const debugContext = async (input: string, conversationId: string = "default") =
 };
 
 // BALANCED: Code handling with validation but flexibility
+// const executeWithCodeHandling = async (
+//     input: string,
+//     chatHistory: BaseMessage[] = [],
+//     conversationId: string
+// ) => {
+//     // Clear references for this response
+//     await referenceTrackingTool.func(JSON.stringify({
+//     action: "add",
+//     conversationId: conversationId,
+//     type: "code_example",
+//     title: "Previous Code Context",
+//     description: "Code from previous interaction in this conversation",
+//     documentId: `conversation_${conversationId}_context`, // Generate a simple ID
+//     source: "Conversation History",
+//     relevanceScore: 1.0
+//     // Remove: originalCode: fullCodeContext,
+// }));
+    
+//     // Check for greetings/thanks
+//     try {
+//         const greetingResult = await greetingDetectionTool.func(input);
+//         const greetingData = JSON.parse(greetingResult);
+
+//         if (greetingData.type === "greeting" || greetingData.type === "thanks") {
+//             console.log(`Detected ${greetingData.type}, providing immediate response`);
+//             return {
+//                 output: greetingData.response,
+//                 intermediateSteps: [],
+//                 references: []
+//             };
+//         }
+//     } catch (error) {
+//         console.error("Error in greeting detection:", error);
+//     }
+
+//     // Retrieve and include code context
+//     let codeState;
+//     try {
+//         const codeMemoryResult = await codeMemoryTool.func(JSON.stringify({
+//             action: "retrieve",
+//             conversationId
+//         }));
+//         codeState = JSON.parse(codeMemoryResult);
+        
+//         const fullCodeContext = codeState.fullHtmlDocument;
+//         if (fullCodeContext) {
+//             console.log("Including code context in conversation");
+            
+//             const codeContextMessage = new SystemMessage({
+//                 content: `Available code for reference and modification:\n\n\`\`\`html\n${fullCodeContext}\n\`\`\`\n\nYou may build upon, modify, or enhance this code as needed to fulfill the user's request.`
+//             });
+            
+//             chatHistory = [codeContextMessage, ...chatHistory];
+            
+//             // Track code context as a reference
+//             await referenceTrackingTool.func(JSON.stringify({
+//                 action: "add",
+//                 conversationId: conversationId,
+//                 type: "code_example",
+//                 title: "Previous Code Context",
+//                 description: "Code from previous interaction in this conversation",
+//                 originalCode: fullCodeContext,
+//                 source: "Conversation History",
+//                 relevanceScore: 1.0
+//             }));
+//         }
+//     } catch (error) {
+//         console.error("Error retrieving code context:", error);
+//         codeState = { codeHistory: [] };
+//     }
+
+//     // Execute the agent
+//     const result = await executorGPT.invoke({
+//         input,
+//         chat_history: chatHistory,
+//         conversationId
+//     });
+
+//     // BALANCED: Validate response stays within context bounds but allow intelligent modifications
+//     if (typeof result.output === 'string') {
+//         // Get context from chat history for validation
+//         let originalContext = "";
+//         for (const msg of chatHistory) {
+//             if (msg instanceof SystemMessage) {
+//                 const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
+//                 if (content.includes('Context from relevant documentation:')) {
+//                     const contextMatch = content.match(/Context from relevant documentation:(.*?)Previous code context:/s);
+//                     if (contextMatch && contextMatch[1]) {
+//                         originalContext += contextMatch[1].trim() + "\n";
+//                     }
+//                 }
+//             }
+//         }
+
+//         // Validate the response
+//         if (originalContext) {
+//             try {
+//                 const validationResult = await contextValidationTool.func(JSON.stringify({
+//                     action: "validate",
+//                     response: result.output,
+//                     originalContext: originalContext
+//                 }));
+
+//                 const validation = JSON.parse(validationResult);
+                
+//                 if (!validation.isValid) {
+//                     console.log("Response validation warning:", validation.message);
+//                     // Add a note rather than forcibly changing the response
+//                     if (validation.hallucinatedResources.length > 0) {
+//                         result.output += "\n\n[Note: Some resources in this response may need to be replaced with actual resources from your project.]";
+//                     }
+//                 }
+//             } catch (error) {
+//                 console.error("Error in response validation:", error);
+//             }
+//         }
+
+//         // Store code blocks for future reference
+//         const codeBlocks = extractCodeBlocks(result.output);
+//         if (codeBlocks.length > 0) {
+//             try {
+//                 const codeContent = codeBlocks[0];
+//                 const isFullHtml = isCompleteHTMLDocument(codeContent);
+
+//                 await codeMemoryTool.func(JSON.stringify({
+//                     action: "store",
+//                     type: isFullHtml ? "full-document" : "component",
+//                     content: codeContent,
+//                     conversationId
+//                 }));
+                
+//                 console.log(`Stored ${isFullHtml ? 'full HTML document' : 'component'} for conversation ${conversationId}`);
+//             } catch (error) {
+//                 console.error("Error storing code in memory:", error);
+//             }
+//         }
+
+//         // Clean up output
+//         result.output = result.output.replace(/<thinking>[\s\S]*?<\/thinking>/g, '');
+//     }
+
+//     // Get all references used in this response
+//     const referencesResult = await referenceTrackingTool.func(JSON.stringify({
+//         action: "get",
+//         conversationId
+//     }));
+    
+//     const referencesData = JSON.parse(referencesResult);
+//     result.references = referencesData.references || [];
+
+//     return result;
+// };
+
+const getCleanChatHistoryFromDB = async (conversationId: string, maxMessages: number = 10): Promise<BaseMessage[]> => {
+    try {
+        // You'll need to import your User model
+        // import User from './User'; // Adjust path as needed
+        
+        // Find the conversation in your database
+        // This is a placeholder - you'll need to implement based on your database query logic
+        const conversation = await findConversationById(conversationId);
+        
+        if (!conversation) {
+            console.log(`No conversation found for ID: ${conversationId}`);
+            return [];
+        }
+
+        // Extract clean history using our utility
+        const cleanHistory = getCleanChatHistory(conversation, maxMessages, 4000);
+        
+        console.log(`🧹 CLEAN HISTORY EXTRACTED: ${cleanHistory.length} messages, ~${ChatHistoryExtractor.estimateTokenCount(cleanHistory)} tokens`);
+        
+        return cleanHistory;
+        
+    } catch (error) {
+        console.error('❌ Error extracting clean chat history:', error);
+        return [];
+    }
+};
+
+function estimateTokenCount(messages: BaseMessage[]): number {
+    // Rough estimation: 1 token ≈ 4 characters
+    const totalChars = messages.reduce((acc, msg) => acc + msg.content.length, 0);
+    return Math.ceil(totalChars / 4);
+}
+
 const executeWithCodeHandling = async (
     input: string,
     chatHistory: BaseMessage[] = [],
     conversationId: string
-) => {
-    // Clear references for this response
-    await referenceTrackingTool.func(JSON.stringify({
-    action: "add",
-    conversationId: conversationId,
-    type: "code_example",
-    title: "Previous Code Context",
-    description: "Code from previous interaction in this conversation",
-    documentId: `conversation_${conversationId}_context`, // Generate a simple ID
-    source: "Conversation History",
-    relevanceScore: 1.0
-    // Remove: originalCode: fullCodeContext,
-}));
+): Promise<any> => {
+    console.log(`🚀 ENHANCED EXECUTION: Starting for conversation ${conversationId}`);
     
-    // Check for greetings/thanks
+    // Step 1: Get enhanced context from database if chat history is minimal
+    let enhancedContext = null;
+    if (chatHistory.length <= 1) {
+        console.log('🔄 Loading contextual chat history from database...');
+        const conversation = await getConversationFromDB(conversationId);
+        
+        if (conversation) {
+            enhancedContext = getEnhancedCodeContext(conversation, input);
+            chatHistory = enhancedContext.chatHistory;
+            
+            console.log(`✅ CONTEXTUAL HISTORY LOADED:`);
+            console.log(`   - Relevant messages: ${enhancedContext.chatHistory.length}`);
+            console.log(`   - Code evolution: ${enhancedContext.codeEvolution ? 'Available' : 'None'}`);
+            console.log(`   - Requirements: ${enhancedContext.requirements ? 'Available' : 'None'}`);
+        }
+    } else {
+        console.log('🧹 Cleaning provided chat history contextually...');
+        // Use the fixed cleaning function
+        chatHistory = cleanChatHistoryMessages(chatHistory);
+        console.log(`✅ Contextually cleaned history: ${chatHistory.length} messages`);
+    }
+
+    // Step 2: Add code evolution context if available
+    if (enhancedContext?.codeEvolution) {
+        const codeEvolutionMessage = new SystemMessage({
+            content: `${enhancedContext.codeEvolution}\n\nThis shows how the code has evolved through the conversation. Use this context to understand the current state and user's goals.`
+        });
+        chatHistory = [codeEvolutionMessage, ...chatHistory];
+        console.log('📈 Added code evolution context');
+    }
+
+    // Step 3: Add current requirements context if available
+    if (enhancedContext?.requirements) {
+        const requirementsMessage = new SystemMessage({
+            content: `${enhancedContext.requirements}\n\nThese are the current requirements and goals. Ensure your response aligns with these objectives.`
+        });
+        chatHistory = [requirementsMessage, ...chatHistory];
+        console.log('📋 Added requirements context');
+    }
+
+    // Step 4: Handle image preservation
+    const imagePaths: string[] = [];
+    const inputImagePaths = extractAllImageReferencesWithContext(input);
+    imagePaths.push(...inputImagePaths);
+
+    for (const msg of chatHistory) {
+        if (msg instanceof SystemMessage || msg instanceof AIMessage) {
+            const content = getMessageContent(msg);
+            const msgImagePaths = extractAllImageReferencesWithContext(content);
+            imagePaths.push(...msgImagePaths);
+        }
+    }
+    
+    if (imagePaths.length > 0) {
+        const uniquePaths = [...new Set(imagePaths)];
+        const imagePreservationMessage = new SystemMessage({
+            content: `CRITICAL IMAGE PRESERVATION: The following image paths MUST be preserved EXACTLY:
+            ${uniquePaths.join('\n')}
+            DO NOT generate placeholder images or modify these paths.`
+        });
+        chatHistory = [imagePreservationMessage, ...chatHistory];
+        console.log(`🖼️  Added image preservation for ${uniquePaths.length} paths`);
+    }
+
+    // Step 5: Check for greetings/thanks
     try {
         const greetingResult = await greetingDetectionTool.func(input);
         const greetingData = JSON.parse(greetingResult);
 
         if (greetingData.type === "greeting" || greetingData.type === "thanks") {
-            console.log(`Detected ${greetingData.type}, providing immediate response`);
+            console.log(`👋 Detected ${greetingData.type}, providing immediate response`);
             return {
                 output: greetingData.response,
                 intermediateSteps: [],
-                references: []
+                metadata: {
+                    messageType: greetingData.type,
+                    contextUsed: false
+                }
             };
         }
     } catch (error) {
-        console.error("Error in greeting detection:", error);
+        console.error("❌ Error in greeting detection:", error);
     }
 
-    // Retrieve and include code context
+    // Step 6: Detect if user is requesting code changes/modifications
+    const requestsChanges = /change|modify|update|customize|edit|alter|improve|fix|add|remove/i.test(input);
+    const isCodeRequest = ContextualChatCleaner.isCodeRelated(input) || 
+                         ContextualChatCleaner.isUserRequest(input);
+    
+    console.log(`🔍 Request analysis: Changes=${requestsChanges}, Code-related=${isCodeRequest}`);
+
+    // Step 7: Retrieve and add code context
     let codeState;
     try {
         const codeMemoryResult = await codeMemoryTool.func(JSON.stringify({
@@ -1669,78 +2012,99 @@ const executeWithCodeHandling = async (
         
         const fullCodeContext = codeState.fullHtmlDocument;
         if (fullCodeContext) {
-            console.log("Including code context in conversation");
+            const preservationFlag = requestsChanges ? 
+                "User has requested changes to this code. You may make modifications as requested." : 
+                "CONTEXT: This is the current code state. Use it to understand the current implementation and provide relevant assistance.";
             
             const codeContextMessage = new SystemMessage({
-                content: `Available code for reference and modification:\n\n\`\`\`html\n${fullCodeContext}\n\`\`\`\n\nYou may build upon, modify, or enhance this code as needed to fulfill the user's request.`
+                content: `Current Code Context:\n\n\`\`\`html\n${fullCodeContext}\n\`\`\`\n\n${preservationFlag}`
             });
             
             chatHistory = [codeContextMessage, ...chatHistory];
-            
-            // Track code context as a reference
-            await referenceTrackingTool.func(JSON.stringify({
-                action: "add",
-                conversationId: conversationId,
-                type: "code_example",
-                title: "Previous Code Context",
-                description: "Code from previous interaction in this conversation",
-                originalCode: fullCodeContext,
-                source: "Conversation History",
-                relevanceScore: 1.0
-            }));
+            console.log('💻 Added current code context');
         }
     } catch (error) {
-        console.error("Error retrieving code context:", error);
+        console.error("❌ Error retrieving code context:", error);
         codeState = { codeHistory: [] };
     }
 
-    // Execute the agent
+    // Step 8: Add intelligent guidance based on context
+    const guidanceMessage = new SystemMessage({
+        content: `CONTEXT GUIDANCE:
+        
+        Current User Input: "${input}"
+        
+        ${isCodeRequest ? `
+        🔧 CODE REQUEST DETECTED:
+        - This appears to be a code-related request
+        - Use the conversation history to understand the current implementation
+        - Build upon existing code rather than starting from scratch
+        - Maintain consistency with previous code style and patterns
+        ` : `
+        💬 GENERAL REQUEST:
+        - This appears to be a general question or discussion
+        - Use the conversation context to provide relevant assistance
+        - Reference previous code examples if they help explain concepts
+        `}
+        
+        ${requestsChanges ? `
+        ✏️  MODIFICATION REQUEST:
+        - User has requested changes to existing code
+        - You may modify the code as requested
+        - Explain what changes you're making and why
+        - Maintain existing functionality unless explicitly asked to remove it
+        ` : `
+        📖 INFORMATION REQUEST:
+        - User is asking for information or explanation
+        - Preserve existing code exactly as is
+        - Focus on explaining how current code works
+        - Provide educational context based on conversation history
+        `}
+        
+        Remember: The conversation history has been cleaned to focus on code evolution and requirements while removing unnecessary metadata.`
+    });
+    
+    chatHistory = [guidanceMessage, ...chatHistory];
+
+    // Step 9: Perform hybrid search for additional context
+    try {
+        console.log('🔍 Performing hybrid search for additional context...');
+        await hybridSearchTool.func(input);
+    } catch (error) {
+        console.error("❌ Error performing hybrid search:", error);
+    }
+
+    // Step 10: Final chat history optimization
+    const finalTokenCount = estimateTokenCount(chatHistory);
+    if (finalTokenCount > 4000) {
+        console.log(`⚠️  Token count (${finalTokenCount}) exceeds limit, optimizing...`);
+        
+        // Keep the most important messages
+        const importantMessages = chatHistory.filter(msg => 
+            msg instanceof SystemMessage || 
+            getMessageContent(msg).includes('```') || 
+            getMessageContent(msg).length > 100
+        );
+        
+        // Add recent user/assistant messages
+        const recentMessages = chatHistory
+            .filter(msg => msg instanceof HumanMessage || msg instanceof AIMessage)
+            .slice(-5);
+        
+        chatHistory = [...importantMessages, ...recentMessages];
+        console.log(`✅ Optimized to ${chatHistory.length} messages, ~${estimateTokenCount(chatHistory)} tokens`);
+    }
+
+    // Step 11: Execute the agent with enhanced context
+    console.log(`🎯 Executing agent with enhanced contextual history...`);
     const result = await executorGPT.invoke({
         input,
         chat_history: chatHistory,
         conversationId
     });
 
-    // BALANCED: Validate response stays within context bounds but allow intelligent modifications
+    // Step 12: Extract and store code blocks for future reference
     if (typeof result.output === 'string') {
-        // Get context from chat history for validation
-        let originalContext = "";
-        for (const msg of chatHistory) {
-            if (msg instanceof SystemMessage) {
-                const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
-                if (content.includes('Context from relevant documentation:')) {
-                    const contextMatch = content.match(/Context from relevant documentation:(.*?)Previous code context:/s);
-                    if (contextMatch && contextMatch[1]) {
-                        originalContext += contextMatch[1].trim() + "\n";
-                    }
-                }
-            }
-        }
-
-        // Validate the response
-        if (originalContext) {
-            try {
-                const validationResult = await contextValidationTool.func(JSON.stringify({
-                    action: "validate",
-                    response: result.output,
-                    originalContext: originalContext
-                }));
-
-                const validation = JSON.parse(validationResult);
-                
-                if (!validation.isValid) {
-                    console.log("Response validation warning:", validation.message);
-                    // Add a note rather than forcibly changing the response
-                    if (validation.hallucinatedResources.length > 0) {
-                        result.output += "\n\n[Note: Some resources in this response may need to be replaced with actual resources from your project.]";
-                    }
-                }
-            } catch (error) {
-                console.error("Error in response validation:", error);
-            }
-        }
-
-        // Store code blocks for future reference
         const codeBlocks = extractCodeBlocks(result.output);
         if (codeBlocks.length > 0) {
             try {
@@ -1754,9 +2118,9 @@ const executeWithCodeHandling = async (
                     conversationId
                 }));
                 
-                console.log(`Stored ${isFullHtml ? 'full HTML document' : 'component'} for conversation ${conversationId}`);
+                console.log(`💾 Stored ${isFullHtml ? 'full HTML document' : 'component'} for conversation ${conversationId}`);
             } catch (error) {
-                console.error("Error storing code in memory:", error);
+                console.error("❌ Error storing code in memory:", error);
             }
         }
 
@@ -1764,17 +2128,215 @@ const executeWithCodeHandling = async (
         result.output = result.output.replace(/<thinking>[\s\S]*?<\/thinking>/g, '');
     }
 
-    // Get all references used in this response
-    const referencesResult = await referenceTrackingTool.func(JSON.stringify({
-        action: "get",
-        conversationId
-    }));
-    
-    const referencesData = JSON.parse(referencesResult);
-    result.references = referencesData.references || [];
+    // Step 13: Add context metadata to the result
+    result.metadata = {
+        ...result.metadata,
+        contextEnhanced: !!enhancedContext,
+        messagesUsed: chatHistory.length,
+        estimatedTokens: estimateTokenCount(chatHistory),
+        codeEvolutionIncluded: !!enhancedContext?.codeEvolution,
+        requirementsIncluded: !!enhancedContext?.requirements,
+        requestType: {
+            isCodeRequest,
+            requestsChanges,
+            isGreeting: false
+        }
+    };
 
+    console.log(`✅ EXECUTION COMPLETE: Enhanced context applied successfully`);
     return result;
 };
 
+const createLangChainMessage = (role: string, content: string): BaseMessage => {
+    // Ensure content is properly typed for LangChain
+    const messageContent: MessageContent = content;
+    
+    switch (role) {
+        case 'user':
+        case 'human':
+            return new HumanMessage({ content: messageContent });
+        case 'assistant':
+        case 'ai':
+            return new AIMessage({ content: messageContent });
+        case 'system':
+            return new SystemMessage({ content: messageContent });
+        default:
+            return new HumanMessage({ content: messageContent });
+    }
+};
+
+const getMessageContent = (message: BaseMessage): string => {
+    if (typeof message.content === 'string') {
+        return message.content;
+    } else if (Array.isArray(message.content)) {
+        // Handle MessageContentComplex (array of content parts)
+        return message.content
+            .map(part => {
+                if (typeof part === 'string') {
+                    return part;
+                } else if (part.type === 'text') {
+                    return part.text;
+                }
+                return '';
+            })
+            .join('');
+    }
+    return '';
+};
+
+const cleanChatHistoryMessages = (chatHistory: BaseMessage[]): BaseMessage[] => {
+    return chatHistory.map(msg => {
+        const content = getMessageContent(msg);
+        const cleanContent = ContextualChatCleaner.cleanMessageContent(content);
+        
+        if (msg instanceof HumanMessage) {
+            return new HumanMessage({ content: cleanContent });
+        } else if (msg instanceof AIMessage) {
+            return new AIMessage({ content: cleanContent });
+        } else if (msg instanceof SystemMessage) {
+            return new SystemMessage({ content: cleanContent });
+        }
+        
+        // Fallback to HumanMessage for unknown types
+        return new HumanMessage({ content: cleanContent });
+    });
+};
+
+function extractAllImageReferencesWithContext(text: string): string[] {
+    const references: string[] = [];
+    
+    // Handle HTML content
+    try {
+        const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/g;
+        let match;
+        while ((match = imgRegex.exec(text)) !== null) {
+            references.push(match[1]);
+        }
+        
+        // Extract background-image urls
+        const bgRegex = /background(?:-image)?:\s*url\(['"]?([^'")]+)['"]?\)/g;
+        while ((match = bgRegex.exec(text)) !== null) {
+            references.push(match[1]);
+        }
+        
+        // Extract SVG elements
+        const svgRegex = /<svg[^>]*>[\s\S]*?<\/svg>/g;
+        while ((match = svgRegex.exec(text)) !== null) {
+            references.push(match[0]);
+        }
+        
+        // Look for possible image URLs in text
+        const urlRegex = /(https?:\/\/[^\s"'<>]+\.(png|jpg|jpeg|gif|svg|webp))/g;
+        while ((match = urlRegex.exec(text)) !== null) {
+            references.push(match[1]);
+        }
+        
+        return [...new Set(references)];
+    } catch (e) {
+        console.error('Error extracting image references:', e);
+        return [];
+    }
+}
+
+const saveConversationWithContext = async (
+    conversationId: string,
+    userInput: string,
+    agentResponse: string,
+    userId?: string
+): Promise<void> => {
+    try {
+        const user = await User.findById(userId);
+        if (!user) {
+            console.log('❌ User not found for conversation saving');
+            return;
+        }
+        
+        const conversation = user.conversations.id(conversationId);
+        if (!conversation) {
+            console.log('❌ Conversation not found for saving');
+            return;
+        }
+        
+        // Clean the content before saving
+        const cleanUserInput = ContextualChatCleaner.cleanMessageContent(userInput);
+        const cleanAgentResponse = ContextualChatCleaner.cleanMessageContent(agentResponse);
+        
+        // Add user message
+        conversation.messages.push({
+            role: 'user',
+            content: cleanUserInput,
+            createdAt: new Date(),
+            references: [],
+            structuredContent: null
+        });
+        
+        // Add assistant message
+        conversation.messages.push({
+            role: 'assistant',
+            content: cleanAgentResponse,
+            createdAt: new Date(),
+            references: [],
+            structuredContent: null
+        });
+        
+        conversation.updatedAt = new Date();
+        await user.save();
+        
+        console.log(`✅ Saved contextual conversation for ${conversationId}`);
+        
+    } catch (error) {
+        console.error('❌ Error saving conversation with context:', error);
+    }
+};
+
+const findConversationById = async (conversationId: string): Promise<any> => {
+    // Example implementation - adjust based on your database query method
+    // This might be something like:
+    // const user = await User.findOne({ "conversations.id": conversationId });
+    // return user?.conversations.find(conv => conv.id === conversationId);
+    
+    // For now, return null - you'll implement this
+    return null;
+};
+
+const getConversationFromDB = async (conversationId: string): Promise<any> => {
+    try {
+        const user = await User.findOne({ 
+            "conversations._id": conversationId 
+        });
+        
+        if (!user) {
+            console.log(`❌ No user found with conversation ID: ${conversationId}`);
+            return null;
+        }
+        
+        const conversation = user.conversations.find(
+            (conv: any) => conv.id === conversationId
+        );
+        
+        if (!conversation) {
+            console.log(`❌ No conversation found with ID: ${conversationId}`);
+            return null;
+        }
+        
+        console.log(`✅ Found conversation with ${conversation.messages.length} messages`);
+        return conversation;
+        
+    } catch (error) {
+        console.error('❌ Error getting conversation from DB:', error);
+        return null;
+    }
+};
+
+
+
 // Export the main functions
-export { executorGPT, executeWithCodeHandling, Reference };
+export { executorGPT, 
+    executeWithCodeHandling,
+    saveConversationWithContext,
+    getConversationFromDB,
+    extractAllImageReferencesWithContext,
+    createLangChainMessage,
+    getMessageContent,
+    cleanChatHistoryMessages, 
+};
