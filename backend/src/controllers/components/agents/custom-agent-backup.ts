@@ -35,7 +35,9 @@ interface Reference {
     originalCode?: string;
     source?: string;
     relevanceScore?: number;
-    usedAt?: Date;
+    usedAt: Date;
+    documentId?: string; // Elasticsearch document ID
+    summarizedContent?: string; // Gemini summarized content
 }
 
 // Global reference tracking
@@ -67,13 +69,16 @@ const referenceTrackingTool = new DynamicTool({
             
             if (action === "add") {
                 const reference: Reference = {
+                    id: data.id,
                     type: data.type,
                     title: data.title,
                     description: data.description,
                     originalCode: data.originalCode,
                     source: data.source,
                     relevanceScore: data.relevanceScore || 0,
-                    usedAt: new Date()
+                    usedAt: new Date(),
+                    documentId: data.documentId,
+                    summarizedContent: data.summarizedContent
                 };
                 
                 global.referenceTracker[conversationId].push(reference);
@@ -142,7 +147,9 @@ const elasticSearchTool = new DynamicTool({
                 description: result.pageContent.substring(0, 200) + "...",
                 originalCode: extractCode(result.pageContent),
                 source: result.metadata?.source || "ElasticSearch",
-                relevanceScore: result.metadata?.score || 0.5
+                relevanceScore: result.metadata?.score || 0.5,
+                documentId: result.metadata?.document_id,
+                summarizedContent: result.pageContent.substring(0, 200) + "..."
             }));
         }
         
@@ -170,7 +177,9 @@ async function performBM25Search(query: string, documents: Document[], k: number
                 description: result.pageContent.substring(0, 200) + "...",
                 originalCode: extractCode(result.pageContent),
                 source: result.metadata?.source || "BM25 Search",
-                relevanceScore: 0.7 // BM25 relevance
+                relevanceScore: 0.7, // BM25 relevance
+                documentId: result.metadata?.document_id,
+                summarizedContent: result.pageContent.substring(0, 200) + "..."
             }));
         }
         
@@ -426,7 +435,9 @@ async function resolveParentDocuments(documents: Document[], conversationId: str
                         description: "Parent document containing full component implementation",
                         originalCode: extractCode(parentResults[0].pageContent),
                         source: parentResults[0].metadata?.source || "Parent Document",
-                        relevanceScore: 0.9
+                        relevanceScore: 0.9,
+                        documentId: parentResults[0].metadata?.document_id,
+                        summarizedContent: "Parent document containing full component implementation"
                     }));
                 } else {
                     console.log(`No parent document found for ID: ${doc.metadata.parent_id}`);
@@ -1325,7 +1336,9 @@ const executeWithCodeHandling = async (
                 description: "Code from previous interaction in this conversation",
                 originalCode: fullCodeContext,
                 source: "Conversation History",
-                relevanceScore: 1.0
+                relevanceScore: 1.0,
+                documentId: "conversation-history",
+                summarizedContent: "Code from previous interaction in this conversation"
             }));
         }
     } catch (error) {

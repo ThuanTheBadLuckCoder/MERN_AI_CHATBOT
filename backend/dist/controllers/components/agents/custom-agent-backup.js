@@ -38,13 +38,16 @@ const referenceTrackingTool = new DynamicTool({
             }
             if (action === "add") {
                 const reference = {
+                    id: data.id,
                     type: data.type,
                     title: data.title,
                     description: data.description,
                     originalCode: data.originalCode,
                     source: data.source,
                     relevanceScore: data.relevanceScore || 0,
-                    usedAt: new Date()
+                    usedAt: new Date(),
+                    documentId: data.documentId,
+                    summarizedContent: data.summarizedContent
                 };
                 global.referenceTracker[conversationId].push(reference);
                 return JSON.stringify({
@@ -103,7 +106,9 @@ const elasticSearchTool = new DynamicTool({
                 description: result.pageContent.substring(0, 200) + "...",
                 originalCode: extractCode(result.pageContent),
                 source: result.metadata?.source || "ElasticSearch",
-                relevanceScore: result.metadata?.score || 0.5
+                relevanceScore: result.metadata?.score || 0.5,
+                documentId: result.metadata?.document_id,
+                summarizedContent: result.pageContent.substring(0, 200) + "..."
             }));
         }
         const context = similaritySearchResults.map((result) => result.pageContent);
@@ -127,7 +132,9 @@ async function performBM25Search(query, documents, k = 3, conversationId = "defa
                 description: result.pageContent.substring(0, 200) + "...",
                 originalCode: extractCode(result.pageContent),
                 source: result.metadata?.source || "BM25 Search",
-                relevanceScore: 0.7 // BM25 relevance
+                relevanceScore: 0.7, // BM25 relevance
+                documentId: result.metadata?.document_id,
+                summarizedContent: result.pageContent.substring(0, 200) + "..."
             }));
         }
         return results;
@@ -344,7 +351,9 @@ async function resolveParentDocuments(documents, conversationId = "default") {
                         description: "Parent document containing full component implementation",
                         originalCode: extractCode(parentResults[0].pageContent),
                         source: parentResults[0].metadata?.source || "Parent Document",
-                        relevanceScore: 0.9
+                        relevanceScore: 0.9,
+                        documentId: parentResults[0].metadata?.document_id,
+                        summarizedContent: "Parent document containing full component implementation"
                     }));
                 }
                 else {
@@ -1158,7 +1167,9 @@ const executeWithCodeHandling = async (input, chatHistory = [], conversationId) 
                 description: "Code from previous interaction in this conversation",
                 originalCode: fullCodeContext,
                 source: "Conversation History",
-                relevanceScore: 1.0
+                relevanceScore: 1.0,
+                documentId: "conversation-history",
+                summarizedContent: "Code from previous interaction in this conversation"
             }));
         }
     }

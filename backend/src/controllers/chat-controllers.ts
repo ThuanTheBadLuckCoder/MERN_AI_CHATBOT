@@ -44,10 +44,6 @@ export const generateChatGeminiMultiCompletion = async (
         .json({ message: "Invalid input: 'message' should be a non-empty string" });
     }
 
-    // Retrieve context using vector store
-    const context = await queryVectorStore(req, res, next, message);
-    // // // console.log("Given context: ", context);
-
     // Fetch user information
     const user = await User.findById(res.locals.jwtData?.id);
     if (!user) {
@@ -80,6 +76,10 @@ export const generateChatGeminiMultiCompletion = async (
       user.conversations.push(conversation);
       conversationIndex = user.conversations.length - 1;
     }
+
+    // Retrieve context using vector store with conversationId
+    const context = await queryVectorStore(req, res, next, message, conversationId || user.conversations[conversationIndex]?.id);
+    // // // console.log("Given context: ", context);
 
     // Prepare chat history from the specific conversation
     const chatHistory = conversation.messages
@@ -350,12 +350,16 @@ export const generateGoogleMultiCompletion = async (
 /**
  * Query vector store with enhanced parent component resolution and explanation
  */
-export async function queryVectorStore(req: Request, res: Response, next: NextFunction, message: string): Promise<string[]> {
+export async function queryVectorStore(req: Request, res: Response, next: NextFunction, message: string, conversationId?: string): Promise<string[]> {
   try {
     // console.log("Querying vector store with message:", message);
     
-    // Call the hybridSearchTool directly
-    const searchResult = await hybridSearchTool.func(message);
+    // Call the hybridSearchTool directly with conversationId
+    const searchInput = conversationId ? 
+      JSON.stringify({ query: message, conversationId: conversationId }) : 
+      message;
+    
+    const searchResult = await hybridSearchTool.func(searchInput);
     
     if (!searchResult) {
       // console.log("No search results found");
@@ -370,6 +374,14 @@ export async function queryVectorStore(req: Request, res: Response, next: NextFu
       // Store the request ID for later access to explanations
       if (parsedResult.metadata && parsedResult.metadata.requestId) {
         res.locals.explanationRequestId = parsedResult.metadata.requestId;
+      }
+      
+      // Store references for later access
+      if (parsedResult.references && conversationId) {
+        if (!global.currentReferences) {
+          global.currentReferences = {};
+        }
+        global.currentReferences[conversationId] = parsedResult.references;
       }
       
       // console.log(`Found single best matching document`);
@@ -398,10 +410,6 @@ export const generateChatGPTCompletion = async (
         .status(400)
         .json({ message: "Invalid input: 'message' should be a non-empty string" });
     }
-
-    // Retrieve context using vector store
-    const context = await queryVectorStore(req, res, next, message);
-    // console.log("Given context: ", context);
 
     // Fetch user information
     const user = await User.findById(res.locals.jwtData?.id);
@@ -434,6 +442,10 @@ export const generateChatGPTCompletion = async (
       user.conversations.push(conversation);
       conversationIndex = user.conversations.length - 1;
     }
+
+    // Retrieve context using vector store with conversationId
+    const context = await queryVectorStore(req, res, next, message, conversationId || user.conversations[conversationIndex]?.id);
+    // console.log("Given context: ", context);
 
     // Prepare chat history from the specific conversation
     const chatHistory = conversation.messages
@@ -473,8 +485,6 @@ export const generateChatGPTCompletion = async (
     let responseContent;
     if (typeof responseGPT.output === 'string') {
       responseContent = responseGPT.output;
-    } else if (responseGPT.output && typeof responseGPT.output === 'object') {
-      responseContent = responseGPT.output.content || JSON.stringify(responseGPT.output);
     } else {
       responseContent = "No valid response generated.";
     }
@@ -532,13 +542,6 @@ export const generateChatGPTContextCompletion = async (
         .json({ message: "Invalid input: 'message' should be a non-empty string" });
     }
 
-    // Retrieve context using vector store with enhanced parent resolution and explanations
-    const context = await queryVectorStore(req, res, next, message);
-    // console.log("Retrieved best matching component");
-    
-    // Get the explanation request ID that was stored during queryVectorStore
-    const explanationRequestId = res.locals.explanationRequestId;
-
     // Fetch user information
     const user = await User.findById(res.locals.jwtData?.id);
     if (!user) {
@@ -570,6 +573,13 @@ export const generateChatGPTContextCompletion = async (
       user.conversations.push(conversation);
       conversationIndex = user.conversations.length - 1;
     }
+
+    // Retrieve context using vector store with enhanced parent resolution and explanations
+    const context = await queryVectorStore(req, res, next, message, conversationId || user.conversations[conversationIndex]?.id);
+    // console.log("Retrieved best matching component");
+    
+    // Get the explanation request ID that was stored during queryVectorStore
+    const explanationRequestId = res.locals.explanationRequestId;
 
     // Prepare chat history from the specific conversation
     const chatHistory = conversation.messages
@@ -607,8 +617,6 @@ export const generateChatGPTContextCompletion = async (
     let explanation = '';
     if (typeof response.output === 'string') {
       explanation = response.output;
-    } else if (response.output && typeof response.output === 'object') {
-      explanation = response.output.content || JSON.stringify(response.output);
     } else {
       explanation = "No valid explanation generated.";
     }
@@ -936,6 +944,66 @@ export const deleteChats = async (
     return res.status(200).json({ message: "Conversation deleted successfully" });
   } catch (error) {
     console.error(error);
+    return res.status(500).json({ message: "ERROR", cause: error.message });
+  }
+};
+
+export const getConversationReferences = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { conversationId } = req.params;
+    
+    // User token check
+    const user = await User.findById(res.locals.jwtData.id);
+    if (!user) {
+      return res.status(401).json({ message: "User not registered OR Token malfunctioned" });
+    }
+    if (user._id.toString() !== res.locals.jwtData.id) {
+      return res.status(401).json({ message: "Permissions didn't match" });
+    }
+
+    // Find the conversation
+    const conversation = user.conversations.find(
+      (conv) => conv.id === conversationId
+    );
+
+    if (!conversation) {
+      return res.status(404).json({ message: "Conversation not found" });
+    }
+
+    // Get references from the conversation
+    const references = conversation.allReferences || [];
+    
+    // Also try to get references from global tracking
+    let globalReferences = [];
+    try {
+      if (global.referenceTracker && global.referenceTracker[conversationId]) {
+        globalReferences = global.referenceTracker[conversationId];
+      }
+    } catch (error) {
+      console.error("Error getting global references:", error);
+    }
+
+    // Merge references, avoiding duplicates
+    const allReferences = [...references];
+    const existingIds = new Set(references.map(ref => ref.id));
+    
+    globalReferences.forEach(ref => {
+      if (!existingIds.has(ref.id)) {
+        allReferences.push(ref);
+      }
+    });
+
+    return res.status(200).json({
+      message: "References retrieved successfully",
+      references: allReferences,
+      count: allReferences.length
+    });
+  } catch (error) {
+    console.error("Error getting conversation references:", error);
     return res.status(500).json({ message: "ERROR", cause: error.message });
   }
 };
