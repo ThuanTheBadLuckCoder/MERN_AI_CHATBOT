@@ -6,12 +6,13 @@ import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { executor } from "./components/agents/custom-gemini-agent.js";
 // import { combineCodeAndExplanation } from "./components/agents/custom-agent.js";
 import { modelGemini } from "../config/gemini-config.js";
-import { hybridSearchTool } from './components/agents/context-agent.js';
-import { executeWithCodeHandling } from './components/agents/custom-agent.js';
+import { hybridSearchTool, } from './components/agents/context-agent.js';
+import { executeWithCodeHandling } from "./components/agents/custom-agent.js";
+// import { executeWithCodeHandling } from './components/agents/custom-agent.js'
 export const generateChatGeminiMultiCompletion = async (req, res, next) => {
     try {
         const { message, conversationId } = req.body;
-        // console.log("Frontend: ", message, conversationId);
+        // // // console.log("Frontend: ", message, conversationId);
         // Validate input
         if (typeof message !== "string" || !message.trim()) {
             return res
@@ -20,7 +21,7 @@ export const generateChatGeminiMultiCompletion = async (req, res, next) => {
         }
         // Retrieve context using vector store
         const context = await queryVectorStore(req, res, next, message);
-        // console.log("Given context: ", context);
+        // // // console.log("Given context: ", context);
         // Fetch user information
         const user = await User.findById(res.locals.jwtData?.id);
         if (!user) {
@@ -63,7 +64,7 @@ export const generateChatGeminiMultiCompletion = async (req, res, next) => {
             return null;
         })
             .filter(Boolean);
-        // console.log("chatHistory: ", chatHistory);
+        // // console.log("chatHistory: ", chatHistory);
         // Build the chat prompt
         const prompt = ChatPromptTemplate.fromMessages([
             [
@@ -99,7 +100,7 @@ export const generateChatGeminiMultiCompletion = async (req, res, next) => {
         //   input,
         //   model
         // });
-        // console.log("responseGPT: ", responseGPT);
+        // // console.log("responseGPT: ", responseGPT);
         // Extract response content
         let responseContent;
         try {
@@ -147,8 +148,8 @@ export const generateChatGeminiMultiCompletion = async (req, res, next) => {
 export const generateGoogleMultiCompletion = async (req, res, next) => {
     try {
         const { message, conversationId } = req.body;
-        console.log(message);
-        console.log("Frontend: ", message, conversationId);
+        // console.log(message);
+        // console.log("Frontend: ", message, conversationId);
         // Validate input
         if (typeof message !== "string" || !message.trim()) {
             return res
@@ -198,7 +199,7 @@ export const generateGoogleMultiCompletion = async (req, res, next) => {
             return null;
         })
             .filter(Boolean);
-        // console.log("chatHistory: ", chatHistory);
+        // // console.log("chatHistory: ", chatHistory);
         // Build the chat prompt
         const prompt = ChatPromptTemplate.fromMessages([
             [
@@ -226,12 +227,12 @@ export const generateGoogleMultiCompletion = async (req, res, next) => {
         await user.save();
         // Generate response using the executor
         const responseAgent = await modelGemini.invoke(input);
-        console.log("responseAgentGemini: ", responseAgent.content);
+        // console.log("responseAgentGemini: ", responseAgent.content);
         // const responseGPT = await executorGPT.invoke({
         //   input,
         //   model
         // });
-        // console.log("responseGPT: ", responseGPT);
+        // // console.log("responseGPT: ", responseGPT);
         // Extract response content
         // Extract response content
         let responseContent;
@@ -280,11 +281,11 @@ export const generateGoogleMultiCompletion = async (req, res, next) => {
  */
 export async function queryVectorStore(req, res, next, message) {
     try {
-        console.log("Querying vector store with message:", message);
+        // console.log("Querying vector store with message:", message);
         // Call the hybridSearchTool directly
         const searchResult = await hybridSearchTool.func(message);
         if (!searchResult) {
-            console.log("No search results found");
+            // console.log("No search results found");
             return [];
         }
         try {
@@ -295,7 +296,7 @@ export async function queryVectorStore(req, res, next, message) {
             if (parsedResult.metadata && parsedResult.metadata.requestId) {
                 res.locals.explanationRequestId = parsedResult.metadata.requestId;
             }
-            console.log(`Found single best matching document`);
+            // console.log(`Found single best matching document`);
             return context;
         }
         catch (e) {
@@ -311,7 +312,7 @@ export async function queryVectorStore(req, res, next, message) {
 export const generateChatGPTCompletion = async (req, res, next) => {
     try {
         const { message, conversationId } = req.body;
-        console.log("Frontend: ", message, conversationId);
+        // console.log("Frontend: ", message, conversationId);
         // Validate input
         if (typeof message !== "string" || !message.trim()) {
             return res
@@ -320,7 +321,7 @@ export const generateChatGPTCompletion = async (req, res, next) => {
         }
         // Retrieve context using vector store
         const context = await queryVectorStore(req, res, next, message);
-        console.log("Given context: ", context);
+        // console.log("Given context: ", context);
         // Fetch user information
         const user = await User.findById(res.locals.jwtData?.id);
         if (!user) {
@@ -362,7 +363,7 @@ export const generateChatGPTCompletion = async (req, res, next) => {
             return null;
         })
             .filter(Boolean);
-        // console.log("chatHistory: ", chatHistory);
+        // // console.log("chatHistory: ", chatHistory);
         // Add the current message to conversation messages
         const input = message.trim();
         const userMessage = {
@@ -422,7 +423,7 @@ export const generateChatGPTCompletion = async (req, res, next) => {
 export const generateChatGPTContextCompletion = async (req, res, next) => {
     try {
         const { message, conversationId } = req.body;
-        console.log("Frontend: ", message, conversationId);
+        // console.log("Frontend: ", message, conversationId);
         // Validate input
         if (typeof message !== "string" || !message.trim()) {
             return res
@@ -431,7 +432,7 @@ export const generateChatGPTContextCompletion = async (req, res, next) => {
         }
         // Retrieve context using vector store with enhanced parent resolution and explanations
         const context = await queryVectorStore(req, res, next, message);
-        console.log("Retrieved best matching component");
+        // console.log("Retrieved best matching component");
         // Get the explanation request ID that was stored during queryVectorStore
         const explanationRequestId = res.locals.explanationRequestId;
         // Fetch user information
@@ -544,7 +545,7 @@ export const generateChatGPTContextCompletion = async (req, res, next) => {
 export const generateOpenAICompletion = async (req, res, next) => {
     try {
         const { message, conversationId } = req.body;
-        console.log("Frontend: ", message, conversationId);
+        // console.log("Frontend: ", message, conversationId);
         // Validate input
         if (typeof message !== "string" || !message.trim()) {
             return res
@@ -553,7 +554,7 @@ export const generateOpenAICompletion = async (req, res, next) => {
         }
         // Retrieve context using vector store
         // const context = await queryVectorStore(req, res, next, message);
-        // console.log("Given context: ", context);
+        // // console.log("Given context: ", context);
         // Fetch user information
         const user = await User.findById(res.locals.jwtData?.id);
         if (!user) {
@@ -595,7 +596,7 @@ export const generateOpenAICompletion = async (req, res, next) => {
             return null;
         })
             .filter(Boolean);
-        // console.log("chatHistory: ", chatHistory);
+        // // console.log("chatHistory: ", chatHistory);
         // Add the current message to conversation messages
         const input = message.trim();
         const userMessage = {
@@ -609,7 +610,7 @@ export const generateOpenAICompletion = async (req, res, next) => {
         await user.save();
         // Generate response using ONLY the GPT executor
         const responseGPT = await model.invoke(input);
-        console.log("responseGPT: ", responseGPT);
+        // console.log("responseGPT: ", responseGPT);
         // Extract response content from GPT
         let responseContent;
         if (typeof responseGPT.content === 'string') {
@@ -656,7 +657,7 @@ export const generateOpenAICompletion = async (req, res, next) => {
 export const sendChatsToUser = async (req, res, next) => {
     try {
         const { conversationId } = req.params;
-        console.log("Conversation ID:", conversationId); // Debugging
+        // console.log("Conversation ID:", conversationId); // Debugging
         // Check user token
         const user = await User.findById(res.locals.jwtData.id);
         if (!user) {
@@ -670,7 +671,7 @@ export const sendChatsToUser = async (req, res, next) => {
         if (!chats) {
             return res.status(404).json({ message: "No chats found for this conversation" });
         }
-        console.log(chats);
+        // console.log(chats);
         // if (!chats.length) {
         //   return res.status(404).json({ message: "No chats found for this conversation" });
         // }
@@ -704,7 +705,7 @@ export const sendConversationsToUser = async (req, res, next) => {
         });
     }
     catch (error) {
-        console.log(error);
+        // console.log(error);
         return res.status(500).json({ message: "Error getting conversation list" });
     }
 };
@@ -728,7 +729,7 @@ export const conversationLists = async (req, res, next) => {
 export const deleteChats = async (req, res, next) => {
     try {
         const { conversationId } = req.params;
-        console.log("Deleting conversation with ID:", conversationId);
+        // console.log("Deleting conversation with ID:", conversationId);
         // User token check
         const user = await User.findById(res.locals.jwtData.id);
         if (!user) {

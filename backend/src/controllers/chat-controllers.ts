@@ -23,10 +23,11 @@ import {
   hybridSearchTool, 
   executeWithCodeHandlingContext, 
   extractChainOfThought, 
-  combineCodeAndExplanation 
+  combineCodeAndExplanation ,
 } from './components/agents/context-agent.js';
+import { executeWithCodeHandling } from "./components/agents/custom-agent.js";
 
-import { executeWithCodeHandling } from './components/agents/custom-agent.js'
+// import { executeWithCodeHandling } from './components/agents/custom-agent.js'
 
 export const generateChatGeminiMultiCompletion = async (
   req: Request,
@@ -35,7 +36,7 @@ export const generateChatGeminiMultiCompletion = async (
 ) => {
   try {
     const { message, conversationId } = req.body;
-    // console.log("Frontend: ", message, conversationId);
+    // // // console.log("Frontend: ", message, conversationId);
     // Validate input
     if (typeof message !== "string" || !message.trim()) {
       return res
@@ -45,7 +46,7 @@ export const generateChatGeminiMultiCompletion = async (
 
     // Retrieve context using vector store
     const context = await queryVectorStore(req, res, next, message);
-    // console.log("Given context: ", context);
+    // // // console.log("Given context: ", context);
 
     // Fetch user information
     const user = await User.findById(res.locals.jwtData?.id);
@@ -95,7 +96,7 @@ export const generateChatGeminiMultiCompletion = async (
       .filter(Boolean);
 
 
-    // console.log("chatHistory: ", chatHistory);
+    // // console.log("chatHistory: ", chatHistory);
 
     // Build the chat prompt
     const prompt = ChatPromptTemplate.fromMessages([
@@ -138,7 +139,7 @@ export const generateChatGeminiMultiCompletion = async (
     //   model
     // });
 
-    // console.log("responseGPT: ", responseGPT);
+    // // console.log("responseGPT: ", responseGPT);
 
     // Extract response content
     let responseContent;
@@ -196,8 +197,8 @@ export const generateGoogleMultiCompletion = async (
 ) => {
   try {
     const { message, conversationId } = req.body;
-    console.log(message);
-    console.log("Frontend: ", message, conversationId);
+    // console.log(message);
+    // console.log("Frontend: ", message, conversationId);
     // Validate input
     if (typeof message !== "string" || !message.trim()) {
       return res
@@ -255,7 +256,7 @@ export const generateGoogleMultiCompletion = async (
       .filter(Boolean);
 
 
-    // console.log("chatHistory: ", chatHistory);
+    // // console.log("chatHistory: ", chatHistory);
 
     // Build the chat prompt
     const prompt = ChatPromptTemplate.fromMessages([
@@ -288,14 +289,14 @@ export const generateGoogleMultiCompletion = async (
 
     // Generate response using the executor
     const responseAgent = await modelGemini.invoke(input);
-    console.log("responseAgentGemini: ", responseAgent.content);
+    // console.log("responseAgentGemini: ", responseAgent.content);
 
     // const responseGPT = await executorGPT.invoke({
     //   input,
     //   model
     // });
 
-    // console.log("responseGPT: ", responseGPT);
+    // // console.log("responseGPT: ", responseGPT);
 
     // Extract response content
     // Extract response content
@@ -351,13 +352,13 @@ export const generateGoogleMultiCompletion = async (
  */
 export async function queryVectorStore(req: Request, res: Response, next: NextFunction, message: string): Promise<string[]> {
   try {
-    console.log("Querying vector store with message:", message);
+    // console.log("Querying vector store with message:", message);
     
     // Call the hybridSearchTool directly
     const searchResult = await hybridSearchTool.func(message);
     
     if (!searchResult) {
-      console.log("No search results found");
+      // console.log("No search results found");
       return [];
     }
     
@@ -371,7 +372,7 @@ export async function queryVectorStore(req: Request, res: Response, next: NextFu
         res.locals.explanationRequestId = parsedResult.metadata.requestId;
       }
       
-      console.log(`Found single best matching document`);
+      // console.log(`Found single best matching document`);
       return context;
     } catch (e) {
       console.error("Error parsing search results:", e);
@@ -390,7 +391,7 @@ export const generateChatGPTCompletion = async (
 ) => {
   try {
     const { message, conversationId } = req.body;
-    console.log("Frontend: ", message, conversationId);
+    // console.log("Frontend: ", message, conversationId);
     // Validate input
     if (typeof message !== "string" || !message.trim()) {
       return res
@@ -400,7 +401,7 @@ export const generateChatGPTCompletion = async (
 
     // Retrieve context using vector store
     const context = await queryVectorStore(req, res, next, message);
-    console.log("Given context: ", context);
+    // console.log("Given context: ", context);
 
     // Fetch user information
     const user = await User.findById(res.locals.jwtData?.id);
@@ -448,7 +449,7 @@ export const generateChatGPTCompletion = async (
       })
       .filter(Boolean);
 
-    // console.log("chatHistory: ", chatHistory);
+    // // console.log("chatHistory: ", chatHistory);
 
     // Add the current message to conversation messages
     const input = message.trim();
@@ -523,7 +524,7 @@ export const generateChatGPTContextCompletion = async (
 ) => {
   try {
     const { message, conversationId } = req.body;
-    console.log("Frontend: ", message, conversationId);
+    // console.log("Frontend: ", message, conversationId);
     // Validate input
     if (typeof message !== "string" || !message.trim()) {
       return res
@@ -533,7 +534,7 @@ export const generateChatGPTContextCompletion = async (
 
     // Retrieve context using vector store with enhanced parent resolution and explanations
     const context = await queryVectorStore(req, res, next, message);
-    console.log("Retrieved best matching component");
+    // console.log("Retrieved best matching component");
     
     // Get the explanation request ID that was stored during queryVectorStore
     const explanationRequestId = res.locals.explanationRequestId;
@@ -669,7 +670,7 @@ export const generateOpenAICompletion = async (
 ) => {
   try {
     const { message, conversationId } = req.body;
-    console.log("Frontend: ", message, conversationId);
+    // console.log("Frontend: ", message, conversationId);
     // Validate input
     if (typeof message !== "string" || !message.trim()) {
       return res
@@ -679,7 +680,7 @@ export const generateOpenAICompletion = async (
 
     // Retrieve context using vector store
     // const context = await queryVectorStore(req, res, next, message);
-    // console.log("Given context: ", context);
+    // // console.log("Given context: ", context);
 
     // Fetch user information
     const user = await User.findById(res.locals.jwtData?.id);
@@ -727,7 +728,7 @@ export const generateOpenAICompletion = async (
       })
       .filter(Boolean);
 
-    // console.log("chatHistory: ", chatHistory);
+    // // console.log("chatHistory: ", chatHistory);
 
     // Add the current message to conversation messages
     const input = message.trim();
@@ -746,7 +747,7 @@ export const generateOpenAICompletion = async (
     // Generate response using ONLY the GPT executor
     const responseGPT = await model.invoke(input);
 
-    console.log("responseGPT: ", responseGPT);
+    // console.log("responseGPT: ", responseGPT);
 
     // Extract response content from GPT
     let responseContent;
@@ -803,7 +804,7 @@ export const sendChatsToUser = async (
 ) => {
   try {
     const { conversationId } = req.params;
-    console.log("Conversation ID:", conversationId); // Debugging
+    // console.log("Conversation ID:", conversationId); // Debugging
 
     // Check user token
     const user = await User.findById(res.locals.jwtData.id);
@@ -825,7 +826,7 @@ export const sendChatsToUser = async (
       return res.status(404).json({ message: "No chats found for this conversation" });
     }
 
-    console.log(chats);
+    // console.log(chats);
     // if (!chats.length) {
     //   return res.status(404).json({ message: "No chats found for this conversation" });
     // }
@@ -866,7 +867,7 @@ export const sendConversationsToUser = async (
     });
 
   } catch (error) {
-    console.log(error);
+    // console.log(error);
     return res.status(500).json({ message: "Error getting conversation list" });
   }
 };
@@ -902,7 +903,7 @@ export const deleteChats = async (
 ) => {
   try {
     const { conversationId } = req.params;
-    console.log("Deleting conversation with ID:", conversationId);
+    // console.log("Deleting conversation with ID:", conversationId);
 
     // User token check
     const user = await User.findById(res.locals.jwtData.id);

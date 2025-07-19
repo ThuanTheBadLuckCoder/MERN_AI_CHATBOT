@@ -2,7 +2,6 @@ import { Router } from "express";
 import { verifyToken } from "../utils/token-manager.js";
 import { chatCompletionValidator, validate } from "../utils/validator.js";
 import {
-  deleteChats,
   generateChatGeminiMultiCompletion,
   generateChatGPTCompletion,
   generateGoogleMultiCompletion,
@@ -32,6 +31,6 @@ chatRoutes.post("/new-gpt-3.5", validate(chatCompletionValidator), verifyToken, 
 chatRoutes.get("/all-conversations", verifyToken, sendConversationsToUser); 
 chatRoutes.get("/conversation-list", verifyToken, sendConversationsToUser);
 chatRoutes.get("/:conversationId", verifyToken, sendChatsToUser);
-chatRoutes.delete("/delete/:conversationId", verifyToken, deleteChats);
+// chatRoutes.delete("/delete/:conversationId", verifyToken, deleteChats);
 
 export default chatRoutes;
