@@ -783,10 +783,10 @@ async function fetchDocumentById(documentId) {
         return null;
     }
 }
-// STRICT: Context validation tool that enforces exact context adherence
+// ULTRA-STRICT: Context validation tool that enforces exact context adherence with zero tolerance
 const contextValidationTool = new DynamicTool({
     name: 'context_validation_tool',
-    description: 'INTELLIGENT validation that enforces context adherence while allowing legitimate TailwindCSS customizations',
+    description: 'ULTRA-STRICT validation that enforces exact context adherence with zero tolerance for deviations',
     func: async (input) => {
         try {
             const data = JSON.parse(input);
@@ -794,7 +794,7 @@ const contextValidationTool = new DynamicTool({
             const response = data.response || "";
             const originalContext = data.originalContext || "";
             if (action === "validate") {
-                // IMPROVED: Intelligent context adherence with customization allowance
+                // ULTRA-STRICT: Zero tolerance context adherence
                 const contextResources = extractResources(originalContext);
                 const responseResources = extractResources(response);
                 const codeContext = data.codeContext || "";
@@ -806,13 +806,13 @@ const contextValidationTool = new DynamicTool({
                 });
                 // Check for virtual/placeholder content
                 const virtualContent = detectVirtualContent(response);
-                // IMPROVED: Check for structural deviations from context (more flexible)
+                // ULTRA-STRICT: Check for ANY structural deviations from context
                 const structuralDeviations = detectStructuralDeviations(response, originalContext);
-                // IMPROVED: Check for code modifications (allow legitimate customizations)
+                // ULTRA-STRICT: Check for ANY code modifications (zero tolerance)
                 const codeModifications = detectCodeModifications(response, originalContext, userRequest);
-                // IMPROVED: For new sessions with code context, check for exact code reproduction
+                // ULTRA-STRICT: For new sessions with code context, check for exact code reproduction
                 let codeReproductionCheck = { isValid: true, reason: "" };
-                if (isNewSession && codeContext && !userRequest.includes("customize") && !userRequest.includes("change") && !userRequest.includes("modify")) {
+                if (isNewSession && codeContext) {
                     const extractedCode = extractCodeBlocks(response);
                     if (extractedCode.length > 0) {
                         const providedCode = extractedCode[0];
@@ -821,18 +821,18 @@ const contextValidationTool = new DynamicTool({
                         if (normalizedProvided !== normalizedContext) {
                             codeReproductionCheck = {
                                 isValid: false,
-                                reason: "Code does not match context exactly for new session without customization requests"
+                                reason: "Code does not match context exactly - ZERO tolerance for deviations"
                             };
                         }
                     }
                     else {
                         codeReproductionCheck = {
                             isValid: false,
-                            reason: "No code blocks found in response"
+                            reason: "No code blocks found in response - must provide exact context code"
                         };
                     }
                 }
-                // IMPROVED: For follow-up questions, check for TailwindCSS framework adherence (more flexible)
+                // ULTRA-STRICT: For follow-up questions, check for TailwindCSS framework adherence
                 let tailwindFrameworkCheck = { isValid: true, reason: "" };
                 if (!isNewSession && codeContext) {
                     const extractedCode = extractCodeBlocks(response);
@@ -867,32 +867,27 @@ const contextValidationTool = new DynamicTool({
                         }
                     }
                 }
-                // IMPROVED: More intelligent validation logic
-                const hasCriticalDeviations = hallucinatedResources.length > 0 ||
+                // ULTRA-STRICT: Zero tolerance validation logic
+                const hasAnyDeviations = hallucinatedResources.length > 0 ||
                     virtualContent.length > 0 ||
+                    structuralDeviations.length > 0 ||
+                    codeModifications.length > 0 ||
                     !codeReproductionCheck.isValid ||
                     !tailwindFrameworkCheck.isValid;
-                // Allow structural deviations and code modifications if they're legitimate customizations
-                const hasLegitimateCustomizations = detectLegitimateCustomizations(userRequest, response, originalContext);
-                const structuralDeviationsAreLegitimate = structuralDeviations.length > 0 && hasLegitimateCustomizations;
-                const codeModificationsAreLegitimate = codeModifications.length > 0 && hasLegitimateCustomizations;
-                const hasAnyDeviations = hasCriticalDeviations ||
-                    (structuralDeviations.length > 0 && !structuralDeviationsAreLegitimate) ||
-                    (codeModifications.length > 0 && !codeModificationsAreLegitimate);
                 return JSON.stringify({
                     isValid: !hasAnyDeviations,
                     hallucinatedResources,
                     virtualContent,
-                    structuralDeviations: structuralDeviationsAreLegitimate ? [] : structuralDeviations,
-                    codeModifications: codeModificationsAreLegitimate ? [] : codeModifications,
+                    structuralDeviations: structuralDeviations,
+                    codeModifications: codeModifications,
                     codeReproduction: codeReproductionCheck,
                     tailwindFrameworkCheck: tailwindFrameworkCheck,
                     contextResources: contextResources.length,
                     responseResources: responseResources.length,
                     isNewSession: isNewSession,
-                    hasLegitimateCustomizations,
+                    hasLegitimateCustomizations: false, // ULTRA-STRICT: No customizations allowed
                     message: hasAnyDeviations
-                        ? `${isNewSession ? 'ABSOLUTE' : 'INTELLIGENT'} MODE: Response deviates from provided context - REJECTED`
+                        ? `ULTRA-STRICT MODE: Response deviates from provided context - REJECTED`
                         : "Response follows context appropriately"
                 });
             }
@@ -1032,18 +1027,18 @@ function detectStructuralDeviations(response, context) {
     // Extract HTML tags from context and response
     const contextTags = extractHTMLTags(context);
     const responseTags = extractHTMLTags(response);
-    // Check for tags not present in context
+    // ULTRA-STRICT: Check for tags not present in context
     responseTags.forEach(tag => {
         if (!contextTags.includes(tag)) {
-            deviations.push(`Unexpected HTML tag: ${tag}`);
+            deviations.push(`Unexpected HTML tag: ${tag} - ZERO tolerance for additional elements`);
         }
     });
-    // Check for CSS classes not in context
+    // ULTRA-STRICT: Check for CSS classes not in context
     const contextClasses = extractCSSClasses(context);
     const responseClasses = extractCSSClasses(response);
     responseClasses.forEach(className => {
         if (!contextClasses.includes(className)) {
-            deviations.push(`Unexpected CSS class: ${className}`);
+            deviations.push(`Unexpected CSS class: ${className} - ZERO tolerance for additional styling`);
         }
     });
     return deviations;
@@ -1054,27 +1049,21 @@ function detectCodeModifications(response, context, userRequest = "") {
     // Extract code blocks from both
     const contextCodeBlocks = extractCodeBlocks(context);
     const responseCodeBlocks = extractCodeBlocks(response);
-    // If context has code but response doesn't match exactly
+    // ULTRA-STRICT: If context has code but response doesn't match exactly
     if (contextCodeBlocks.length > 0 && responseCodeBlocks.length > 0) {
         contextCodeBlocks.forEach((contextCode, index) => {
             if (responseCodeBlocks[index] && responseCodeBlocks[index] !== contextCode) {
-                // Check if this is a legitimate customization
-                const isLegitimateCustomization = detectLegitimateCustomizations(userRequest, response, context);
-                if (!isLegitimateCustomization) {
-                    modifications.push(`Code block ${index + 1} modified from context`);
-                }
+                // ULTRA-STRICT: No customizations allowed
+                modifications.push(`Code block ${index + 1} modified from context - ZERO tolerance for changes`);
             }
         });
     }
-    // Check for structural changes in HTML
+    // ULTRA-STRICT: Check for structural changes in HTML
     const contextStructure = extractHTMLStructure(context);
     const responseStructure = extractHTMLStructure(response);
     if (contextStructure !== responseStructure) {
-        // Check if this is a legitimate customization
-        const isLegitimateCustomization = detectLegitimateCustomizations(userRequest, response, context);
-        if (!isLegitimateCustomization) {
-            modifications.push("HTML structure modified from context");
-        }
+        // ULTRA-STRICT: No structural changes allowed
+        modifications.push("HTML structure modified from context - ZERO tolerance for structural changes");
     }
     return modifications;
 }
@@ -1555,7 +1544,7 @@ const tools = [
 const frontEndDevPrompt = ChatPromptTemplate.fromMessages([
     ["system", `You are a front-end development assistant with ABSOLUTE context adherence.
 
-🚨 ABSOLUTE CONTEXT ADHERENCE RULE:
+🚨 CRITICAL: ABSOLUTE CONTEXT ADHERENCE RULE:
 - If context contains code, you MUST reproduce it EXACTLY character-for-character
 - NO modifications, NO improvements, NO changes whatsoever
 - If context shows HTML/CSS/JS, use it EXACTLY as provided
@@ -1563,6 +1552,7 @@ const frontEndDevPrompt = ChatPromptTemplate.fromMessages([
 - DO NOT use different frameworks than what's in context
 - DO NOT create "enhanced" versions
 - IGNORE user requests for customizations when context is provided
+- ZERO tolerance for deviations from provided context
 
 CONTEXT HANDLING:
 1. NEW TOPIC: Create completely new code based on user description
@@ -1578,6 +1568,7 @@ FORBIDDEN (when context provided):
 ❌ Using different styling or colors
 ❌ Adding animations not in context
 ❌ Responding to customization requests when context exists
+❌ ANY deviation from provided context code
 
 FORBIDDEN (for follow-up questions):
 ❌ Using frameworks other than TailwindCSS
@@ -1596,6 +1587,7 @@ REQUIRED (when context provided):
 ✅ Keep same naming conventions
 ✅ Preserve all comments and formatting
 ✅ Use same external resources
+✅ NO EXCEPTIONS to exact reproduction
 
 REQUIRED (for follow-up questions):
 ✅ Use ONLY TailwindCSS classes and utilities
@@ -1615,6 +1607,7 @@ RESPONSE STRATEGY:
 - NEVER provide incomplete or partial snippets
 - For follow-ups: NEVER introduce non-TailwindCSS frameworks or libraries
 - IGNORE customization requests when context is provided
+- ZERO tolerance for any modifications to context code
 
 QUALITY CHECK:
 ✅ Is code identical to context?
@@ -1624,6 +1617,7 @@ QUALITY CHECK:
 ✅ Is JavaScript unmodified?
 ✅ Are external resources same?
 ✅ Is this complete implementation?
+✅ NO deviations whatsoever?
 
 Context from relevant documentation: {context}
 Previous code context: {code_context}
@@ -1867,7 +1861,7 @@ const executeWithCodeHandling = async (input, chatHistory = [], conversationId) 
     catch (error) {
         console.error("Error collecting references:", error);
     }
-    // ENHANCED: Stricter validation for new sessions with zero tolerance for deviations
+    // ULTRA-STRICT: Zero tolerance validation for all sessions
     if (typeof result.output === 'string') {
         const isNewSession = chatHistory.length === 0;
         // Get context from chat history for validation
@@ -1890,7 +1884,7 @@ const executeWithCodeHandling = async (input, chatHistory = [], conversationId) 
                 }
             }
         }
-        // IMPROVED validation - more intelligent with customization awareness
+        // ULTRA-STRICT validation - zero tolerance for any deviations
         if (originalContext || codeContext) {
             try {
                 const validationResult = await contextValidationTool.func(JSON.stringify({
@@ -1903,9 +1897,9 @@ const executeWithCodeHandling = async (input, chatHistory = [], conversationId) 
                 }));
                 const validation = JSON.parse(validationResult);
                 if (!validation.isValid) {
-                    console.log(`🚫 ${isNewSession ? 'ABSOLUTE' : 'INTELLIGENT'} MODE: Response deviates from context, rejecting`);
-                    if (isNewSession && codeContext && !input.toLowerCase().includes('customize') && !input.toLowerCase().includes('change') && !input.toLowerCase().includes('modify')) {
-                        // For new sessions with code context and no customization request, force exact reproduction
+                    console.log(`🚫 ULTRA-STRICT MODE: Response deviates from context, rejecting`);
+                    if (isNewSession && codeContext) {
+                        // For new sessions with code context, ALWAYS force exact reproduction
                         console.log("🔄 NEW SESSION: Forcing exact code reproduction from context");
                         result.output = `Here is the exact code from the provided context:\n\n\`\`\`html\n${codeContext}\n\`\`\`\n\nThis is the complete code as provided in the context. No modifications have been made to ensure 100% adherence.`;
                     }
@@ -1915,13 +1909,13 @@ const executeWithCodeHandling = async (input, chatHistory = [], conversationId) 
                         result.output = `I cannot provide this response as it violates the TailwindCSS framework restriction. For customizations, you must use ONLY TailwindCSS classes and utilities. The response contained forbidden frameworks or libraries. Please ensure your request uses only TailwindCSS.`;
                     }
                     else {
-                        // For other cases, provide standard rejection message
-                        result.output = `I cannot provide this response as it deviates from the provided context. The context contains specific code that must be followed exactly unless you request specific customizations. Please ensure your request aligns with the available context materials.`;
+                        // For other cases, provide strict rejection message
+                        result.output = `I cannot provide this response as it deviates from the provided context. The context contains specific code that must be followed EXACTLY with ZERO tolerance for modifications. Please ensure your request aligns with the available context materials.`;
                     }
                 }
             }
             catch (error) {
-                console.error("Error in enhanced response validation:", error);
+                console.error("Error in ultra-strict response validation:", error);
             }
         }
         // Store code blocks for future reference (only if they match context exactly)

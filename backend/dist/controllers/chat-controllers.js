@@ -696,7 +696,11 @@ export const sendConversationsToUser = async (req, res, next) => {
         if (user._id.toString() !== res.locals.jwtData.id) {
             return res.status(401).send("Permissions didn't match");
         }
-        const conversationsMetadata = user.conversations.map(conv => ({
+        // Sort conversations by updatedAt descending (newest first)
+        const conversationsMetadata = user.conversations
+            .slice() // copy to avoid mutating original
+            .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+            .map(conv => ({
             id: conv.id,
             _id: conv._id,
             title: conv.title,

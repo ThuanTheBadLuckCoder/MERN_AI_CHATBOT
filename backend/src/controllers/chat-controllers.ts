@@ -861,13 +861,17 @@ export const sendConversationsToUser = async (
       return res.status(401).send("Permissions didn't match");
     }
 
-    const conversationsMetadata = user.conversations.map(conv => ({
-      id: conv.id,
-      _id: conv._id,
-      title: conv.title,
-      createdAt: conv.createdAt,
-      updatedAt: conv.updatedAt
-    }));
+    // Sort conversations by updatedAt descending (newest first)
+    const conversationsMetadata = user.conversations
+      .slice() // copy to avoid mutating original
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      .map(conv => ({
+        id: conv.id,
+        _id: conv._id,
+        title: conv.title,
+        createdAt: conv.createdAt,
+        updatedAt: conv.updatedAt
+      }));
 
     return res.status(200).json({
       message: "Conversations found",
