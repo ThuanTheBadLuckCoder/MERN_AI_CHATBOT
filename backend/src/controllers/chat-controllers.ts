@@ -20,7 +20,7 @@ import { executor } from "./components/agents/custom-gemini-agent.js";
 import { modelGemini } from "../config/gemini-config.js";
 
 import { executeWithCodeHandling, hybridSearchTool } from "./components/agents/custom-agent.js";
-import { executeWithMilitaryDiscipline } from "./components/agents/context-agent.js";
+import { militaryExecutor } from "./components/agents/context-agent.js";
 
 // import { executeWithCodeHandling } from './components/agents/custom-agent.js'
 
@@ -869,11 +869,11 @@ export const generateContextAgentCompletion = async (
     await user.save();
 
     // Generate response using the context-agent executor
-    const responseAgent = await executeWithMilitaryDiscipline(
+    const responseAgent = await militaryExecutor.invoke({
       input,
-      chatHistory.length > 0 ? chatHistory : [],
-      conversationId || user.conversations[conversationIndex].id
-    );
+      chat_history: chatHistory.length > 0 ? chatHistory : undefined,
+      conversationId: conversationId || user.conversations[conversationIndex].id
+    });
 
     // Extract context document IDs and code from intermediateSteps if available
     if (responseAgent && responseAgent.intermediateSteps && Array.isArray(responseAgent.intermediateSteps)) {

@@ -7,7 +7,7 @@ import { executor } from "./components/agents/custom-gemini-agent.js";
 // import { combineCodeAndExplanation } from "./components/agents/custom-agent.js";
 import { modelGemini } from "../config/gemini-config.js";
 import { executeWithCodeHandling, hybridSearchTool } from "./components/agents/custom-agent.js";
-import { executeWithMilitaryDiscipline } from "./components/agents/context-agent.js";
+import { militaryExecutor } from "./components/agents/context-agent.js";
 // import { executeWithCodeHandling } from './components/agents/custom-agent.js'
 export const generateChatGeminiMultiCompletion = async (req, res, next) => {
     try {
@@ -717,7 +717,11 @@ export const generateContextAgentCompletion = async (req, res, next) => {
         user.conversations[conversationIndex].messages.push(userMessage);
         await user.save();
         // Generate response using the context-agent executor
-        const responseAgent = await executeWithMilitaryDiscipline(input, chatHistory.length > 0 ? chatHistory : [], conversationId || user.conversations[conversationIndex].id);
+        const responseAgent = await militaryExecutor.invoke({
+            input,
+            chat_history: chatHistory.length > 0 ? chatHistory : undefined,
+            conversationId: conversationId || user.conversations[conversationIndex].id
+        });
         // Extract context document IDs and code from intermediateSteps if available
         if (responseAgent && responseAgent.intermediateSteps && Array.isArray(responseAgent.intermediateSteps)) {
             for (const step of responseAgent.intermediateSteps) {
