@@ -353,7 +353,7 @@ function mergeAndRerank(vectorResults, keywordResults, query) {
         .map(item => item.doc);
 }
 // Enhanced hybrid search tool with intelligent parent document resolution and reference tracking
-const hybridSearchTool = new DynamicTool({
+export const hybridSearchTool = new DynamicTool({
     name: 'hybrid_search_tool',
     description: 'Performs hybrid search with intelligent parent document resolution to ensure complete context and tracks references',
     func: async (input) => {

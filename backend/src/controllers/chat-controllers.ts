@@ -19,13 +19,8 @@ import { executor } from "./components/agents/custom-gemini-agent.js";
 // import { combineCodeAndExplanation } from "./components/agents/custom-agent.js";
 import { modelGemini } from "../config/gemini-config.js";
 
-import { 
-  hybridSearchTool, 
-  executeWithCodeHandlingContext, 
-  extractChainOfThought, 
-  combineCodeAndExplanation ,
-} from './components/agents/context-agent.js';
-import { executeWithCodeHandling } from "./components/agents/custom-agent.js";
+import { executeWithCodeHandling, hybridSearchTool } from "./components/agents/custom-agent.js";
+import { executeWithMilitaryDiscipline } from "./components/agents/context-agent.js";
 
 // import { executeWithCodeHandling } from './components/agents/custom-agent.js'
 
@@ -804,6 +799,136 @@ export const generateOpenAICompletion = async (
   }
 };
 
+export const generateContextAgentCompletion = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { message, conversationId } = req.body;
+    if (typeof message !== "string" || !message.trim()) {
+      return res
+        .status(400)
+        .json({ message: "Invalid input: 'message' should be a non-empty string" });
+    }
+
+    // Fetch user information
+    const user = await User.findById(res.locals.jwtData?.id);
+    if (!user) {
+      return res
+        .status(401)
+        .json({ message: "Unauthorized: User not found or token is invalid" });
+    }
+
+    // Find the existing conversation or create a new one
+    let conversation = null;
+    let conversationIndex = -1;
+
+    if (conversationId) {
+      conversationIndex = user.conversations.findIndex(conv => conv.id === conversationId);
+      if (conversationIndex === -1) {
+        return res.status(404).json({ message: "Conversation not found" });
+      }
+      conversation = user.conversations[conversationIndex];
+    }
+
+    // If no conversationId was provided, create a new conversation before proceeding
+    if (!conversation) {
+      conversation = {
+        title: message.slice(0, 30) + (message.length > 30 ? "..." : ""),
+        messages: [],
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      user.conversations.push(conversation);
+      conversationIndex = user.conversations.length - 1;
+    }
+
+    // Prepare chat history from the specific conversation
+    const chatHistory = conversation.messages
+      .filter((msg) => ["user", "assistant"].includes(msg.role))
+      .map((msg) => {
+        if (msg.role === "user") {
+          return new HumanMessage({ content: msg.content || "" });
+        }
+        if (msg.role === "assistant") {
+          return new AIMessage({ content: msg.content || "" });
+        }
+        return null;
+      })
+      .filter(Boolean);
+
+    // Add the current message to conversation messages
+    const input = message.trim();
+    const userMessage = {
+      content: input,
+      role: "user",
+      createdAt: new Date()
+    };
+    user.conversations[conversationIndex].messages.push(userMessage);
+    await user.save();
+
+    // Generate response using the context-agent executor
+    const responseAgent = await executeWithMilitaryDiscipline(
+      input,
+      chatHistory.length > 0 ? chatHistory : [],
+      conversationId || user.conversations[conversationIndex].id
+    );
+
+    // Extract context document IDs and code from intermediateSteps if available
+    if (responseAgent && responseAgent.intermediateSteps && Array.isArray(responseAgent.intermediateSteps)) {
+      for (const step of responseAgent.intermediateSteps) {
+        if (step && step.observation) {
+          try {
+            const parsed = JSON.parse(step.observation);
+            if (parsed && parsed.parentMetas && parsed.context) {
+              for (let i = 0; i < parsed.parentMetas.length; i++) {
+                const meta = parsed.parentMetas[i];
+                const code = parsed.context[i] || '';
+                const desc = meta.description || '';
+                // Print only: [CTX] id: <id> | desc: <description> | code: <full code>
+                // console.log(`[CTX] id: ${meta.document_id} | desc: ${desc} | code: ${code}`);
+              }
+            }
+          } catch {}
+        }
+      }
+    }
+
+    let responseContent;
+    try {
+      // Try to parse as JSON first
+      const parsedOutput = JSON.parse(responseAgent.output);
+      responseContent = parsedOutput?.kwargs?.content || "No valid response generated.";
+    } catch (e) {
+      responseContent = responseAgent.output || "No valid response generated.";
+    }
+
+
+    // Add assistant's response to conversation messages
+    const assistantMessage = {
+      content: responseContent,
+      role: "assistant",
+      createdAt: new Date()
+    };
+    user.conversations[conversationIndex].messages.push(assistantMessage);
+    user.conversations[conversationIndex].updatedAt = new Date();
+    await user.save();
+
+    return res.status(200).json({
+      conversation: {
+        id: user.conversations[conversationIndex].id,
+        title: user.conversations[conversationIndex].title,
+        messages: user.conversations[conversationIndex].messages,
+        createdAt: user.conversations[conversationIndex].createdAt,
+        updatedAt: user.conversations[conversationIndex].updatedAt
+      }
+    });
+  } catch (error) {
+    console.error("Error in generateContextAgentCompletion: ", error);
+    return res.status(500).json({ message: "Something went wrong", error: error.message });
+  }
+};
 
 export const sendChatsToUser = async (
   req: Request,

@@ -11,6 +11,8 @@ import {
   // generateChatGeminiCompletion,
   sendConversationsToUser,
   getConversationReferences,
+  generateChatGPTContextCompletion,
+  generateContextAgentCompletion,
 } from "../controllers/chat-controllers.js";
 
 //Protected API
@@ -26,8 +28,9 @@ chatRoutes.post("/new-basic",
     validate(chatCompletionValidator), 
     verifyToken, 
     generateGoogleMultiCompletion);
-chatRoutes.post("/new-gpt", validate(chatCompletionValidator), verifyToken, generateChatGPTCompletion);
+chatRoutes.post("/new-gpt", validate(chatCompletionValidator), verifyToken, generateContextAgentCompletion);
 chatRoutes.post("/new-gpt-3.5", validate(chatCompletionValidator), verifyToken, generateOpenAICompletion);
+chatRoutes.post("/new-context-agent", validate(chatCompletionValidator), verifyToken, generateContextAgentCompletion);
 
 chatRoutes.get("/all-conversations", verifyToken, sendConversationsToUser); 
 chatRoutes.get("/conversation-list", verifyToken, sendConversationsToUser);
