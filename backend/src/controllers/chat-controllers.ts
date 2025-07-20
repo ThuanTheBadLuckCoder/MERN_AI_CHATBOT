@@ -21,6 +21,7 @@ import { modelGemini } from "../config/gemini-config.js";
 
 import { executeWithCodeHandling, hybridSearchTool } from "./components/agents/custom-agent.js";
 import { militaryExecutor } from "./components/agents/context-agent.js";
+import { extractReferenceCitations } from './components/agents/context-agent.js';
 
 // import { executeWithCodeHandling } from './components/agents/custom-agent.js'
 
@@ -626,13 +627,18 @@ export const generateChatGPTContextCompletion = async (
     };
 
     // Add assistant's response to conversation messages with references
+    let references = response.references || [];
+    if ((!references || references.length === 0) && context && context.length > 0) {
+      // Try to extract references from context if not provided by model
+      references = extractReferenceCitations(context);
+    }
     const assistantMessage = {
       content: combinedResponse.formattedResponse,
       role: "assistant",
       createdAt: new Date(),
       // Store structured data separately for advanced frontends
       structuredContent: combinedResponse.structuredContent,
-      references: response.references || [] // Add references
+      references
     };
 
     // Use Mongoose array methods to ensure middleware triggers

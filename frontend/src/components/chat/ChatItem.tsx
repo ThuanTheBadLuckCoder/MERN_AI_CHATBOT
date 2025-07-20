@@ -73,30 +73,33 @@ function extractCodeBlocks(message: string, isAssistant: boolean) {
     const blocks = message.split("```");
     return blocks.map((block, index) => {
       if (index % 2 === 1) { // This is a code block
-        const firstLineBreak = block.indexOf('\n');
+        const lines = block.split('\n');
         let content = block;
         let language = null;
         
-        if (firstLineBreak !== -1) {
-          const possibleLang = block.substring(0, firstLineBreak).trim();
-          if (possibleLang) {
-            if (possibleLang.startsWith('.')) {
+        // Check if first line contains language identifier
+        if (lines.length > 0) {
+          const firstLine = lines[0].trim();
+          if (firstLine && !firstLine.includes(' ')) {
+            // This looks like a language identifier
+            if (firstLine.startsWith('.')) {
               // It's a file extension - use the mapping
-              const ext = possibleLang.slice(1);
+              const ext = firstLine.slice(1);
               language = FILE_EXTENSION_MAP[ext] || ext;
             } else {
               // It's a language identifier - check if it's a known extension
-              language = FILE_EXTENSION_MAP[possibleLang] || possibleLang;
+              language = FILE_EXTENSION_MAP[firstLine] || firstLine;
             }
-            content = block.substring(firstLineBreak + 1);
+            // Remove the language line from content
+            content = lines.slice(1).join('\n');
           }
         }
 
-        // Clean up the content
-        content = content.replace(/^(html|javascript|css|tsx?|jsx?)?\s*\n?/, '').trim();
+        // Clean up the content - be more careful with regex
+        content = content.trim();
         
         // If no language was detected from the marker, try to detect from content
-        if (!language) {
+        if (!language && content) {
           const detectedLang = detectLanguage(content);
           // Map the detected language if it has a mapping
           language = FILE_EXTENSION_MAP[detectedLang] || detectedLang;
@@ -105,7 +108,7 @@ function extractCodeBlocks(message: string, isAssistant: boolean) {
         return {
           content,
           isCode: true,
-          language,
+          language: language || 'plaintext',
         };
       }
       
@@ -114,7 +117,7 @@ function extractCodeBlocks(message: string, isAssistant: boolean) {
         isCode: false,
         language: null,
       };
-    });
+    }).filter(block => block.content); // Remove empty blocks
   }
 
   // Handle code without markers
@@ -351,6 +354,19 @@ const ChatItem = ({ content, role, isTyping = false }: ChatItemProps) => {
   const auth = useAuth();
   const blocks = extractCodeBlocks(content, role === "assistant");
 
+  // Debug logging
+  console.log('ChatItem Debug:', {
+    content: content.substring(0, 100) + '...',
+    role,
+    blocksLength: blocks.length,
+    blocks: blocks.map(b => ({
+      isCode: b.isCode,
+      language: b.language,
+      contentLength: b.content.length,
+      contentPreview: b.content.substring(0, 50) + '...'
+    }))
+  });
+
   return (
     <div className="py-4 pl-2 pr-4 w-full">
       <div className={`${role} flex w-full items-start gap-4`}>
@@ -374,9 +390,7 @@ const ChatItem = ({ content, role, isTyping = false }: ChatItemProps) => {
               <React.Fragment key={index}>
                 {block.isCode ? (
                   <div className="h-fit w-full">
-                    {block.language && (
-                      <TabsChatItems language={block.language} content={block.content}/>
-                    )}
+                    <TabsChatItems language={block.language} content={block.content}/>
                   </div>
                 ) : (
                   block.content && (

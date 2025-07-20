@@ -411,6 +411,7 @@ ABSOLUTE LAWS (ZERO TOLERANCE):
 3. NEVER MODIFY margins, padding, width, height, positioning classes
 4. NEVER ADD or REMOVE HTML elements or containers
 5. NEVER CHANGE responsive breakpoint classes (sm:, md:, lg:, xl:)
+6. THE CODE YOU GENERATE MUST BE AT LEAST 95% AND AT MOST 100% SIMILAR TO THE CODE CONTEXT PROVIDED TO YOU. DO NOT GO BELOW 95% OR ABOVE 100% SIMILARITY. STRICTLY ENFORCE THIS RANGE.
 
 ONLY PERMITTED MODIFICATIONS:
 - Color changes (bg-*, text-*, border-* classes)
@@ -608,10 +609,39 @@ function structuresMatch(original: string[], generated: string[]): boolean {
     return true;
 }
 
+// Reference citation utility (similar to custom-agent)
+function extractReferenceCitations(parentDocs) {
+    // Helper to truncate description
+    function truncateDescription(content, maxLength = 150) {
+        if (!content || content.length <= maxLength) return content;
+        return content.substring(0, maxLength) + "...";
+    }
+    // Helper to extract title
+    function extractTitle(metadata, pageContent) {
+        if (metadata && metadata.title) return metadata.title;
+        if (metadata && metadata.document_id) {
+            return metadata.document_id.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+        const firstLine = pageContent.split('\n')[0].trim();
+        if (firstLine.length > 10 && firstLine.length < 100) return firstLine;
+        const words = pageContent.split(/\s+/).slice(0, 5).join(' ');
+        return words.length > 3 ? words + '...' : 'Document Reference';
+    }
+    // Build references array
+    return (parentDocs || []).map(doc => ({
+        title: extractTitle(doc.metadata, doc.pageContent),
+        description: truncateDescription(doc.pageContent, 150),
+        documentId: doc.metadata?.document_id,
+        type: doc.metadata?.type || undefined,
+        source: doc.metadata?.source || undefined
+    }));
+}
+
 export { 
     militaryExecutor, 
     executeWithMilitaryDiscipline,
     militaryContextSearchTool,
     isColorFontOnlyRequest,
-    updateColorsAndFonts
+    updateColorsAndFonts,
+    extractReferenceCitations // Export the new function
 };
