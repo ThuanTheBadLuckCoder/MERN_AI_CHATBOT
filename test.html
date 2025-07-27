@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lead Generation Landing Page</title>
+    <title>Dark Theme Hero with Form</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <style>
         .hero-image {
@@ -13,25 +13,66 @@
             background-position: center;
             background-repeat: no-repeat;
             position: relative;
+            background-color: rgba(128, 0, 128, 0.7); /* Vibrant semi-transparent purple overlay */
         }
 
         .hero-overlay {
-            background-color: rgba(107, 33, 168, 0.6);
+            background-color: rgba(30, 27, 75, 0.85);
             position: relative;
+        }
+
+        .hero-overlay h2,
+        .hero-overlay p,
+        .hero-overlay a {
+            color: white; /* White text for contrast */
+        }
+
+        .hero-overlay a {
+            color: #38b2ac; /* Teal accent for the text link */
+        }
+
+        .hero-overlay a:hover {
+            color: #64d5ca; /* Lighter teal color on hover */
+        }
+
+        .hero-overlay button {
+            background-color: #8a3ab9; /* Purple button background */
+            color: white;
+        }
+
+        .hero-overlay button:hover {
+            background-color: #6c1f99; /* Darker purple on hover */
         }
 
         @media (max-width: 640px) {
             .hero-overlay {
-                background-color: rgba(107, 33, 168, 0.8);
+                display: flex;
+                flex-direction: column;
+            }
+
+            .hero-overlay .w-full {
+                width: 100%;
+            }
+
+            .hero-overlay .max-w-xl {
+                max-width: none;
+            }
+
+            .hero-overlay .xl:w-7/12 {
+                width: 100%;
+            }
+
+            .hero-overlay .xl:w-5/12 {
+                width: 100%;
             }
         }
     </style>
 </head>
 
-<body class="bg-white">
+<body class="bg-gray-900">
     <div class="hero-image">
         <div class="hero-overlay">
-            <svg class="absolute inset-x-0 bottom-0 text-white" viewBox="0 0 1440 250">
+            <svg class="absolute inset-x-0 bottom-0 text-gray-900" viewBox="0 0 1440 250">
                 <path fill="currentColor"
                     d="M0,192L48,197.3C96,203,192,213,288,202.7C384,192,480,160,576,128C672,96,768,64,864,80C960,96,1056,160,1152,197.3C1248,235,1344,245,1392,250.7L1440,256L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z">
                 </path>
@@ -43,11 +84,11 @@
                             The quick, brown fox <br class="hidden md:block" />
                             jumps over a lazy dog
                         </h2>
-                        <p class="max-w-xl mb-4 text-base text-white md:text-lg">
+                        <p class="max-w-xl mb-4 text-base text-gray-300 md:text-lg">
                             Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudan, totam rem aperiam, eaque ipsa quae.
                         </p>
                         <a href="/" aria-label="Learn more"
-                            class="inline-flex items-center font-semibold tracking-wider transition-colors duration-200 text-teal-400 hover:text-teal-300">
+                            class="inline-flex items-center font-semibold tracking-wider transition-colors duration-200 text-purple-400 hover:text-purple-300">
                             Learn more
                             <svg class="inline-block w-3 ml-2" fill="currentColor" viewBox="0 0 12 12">
                                 <path
@@ -57,27 +98,31 @@
                         </a>
                     </div>
                     <div class="w-full max-w-xl xl:px-8 xl:w-5/12">
-                        <div class="bg-white rounded shadow-2xl p-7 sm:p-10">
-                            <h3 class="mb-4 text-xl font-semibold sm:text-center sm:mb-6 sm:text-2xl">
+                        <div
+                            class="bg-white rounded shadow-2xl p-7 sm:p-10 border border-gray-700">
+                            <h3 class="mb-4 text-xl font-semibold text-black sm:text-center sm:mb-6 sm:text-2xl">
                                 Sign up for updates
                             </h3>
                             <form>
                                 <div class="mb-1 sm:mb-2">
-                                    <label for="firstName" class="inline-block mb-1 font-medium">First name</label>
+                                    <label for="firstName"
+                                        class="inline-block mb-1 font-medium text-gray-800">First name</label>
                                     <input placeholder="John" required="" type="text"
-                                        class="flex-grow w-full h-12 px-4 mb-2 transition duration-200 bg-white border border-gray-300 rounded shadow-sm appearance-none focus:border-purple-600 focus:outline-none focus:shadow-outline"
+                                        class="flex-grow w-full h-12 px-4 mb-2 transition duration-200 bg-gray-200 border border-gray-600 rounded shadow-sm appearance-none focus:border-purple-400 focus:outline-none focus:shadow-outline text-black"
                                         id="firstName" name="firstName" />
                                 </div>
                                 <div class="mb-1 sm:mb-2">
-                                    <label for="lastName" class="inline-block mb-1 font-medium">Last name</label>
+                                    <label for="lastName"
+                                        class="inline-block mb-1 font-medium text-gray-800">Last name</label>
                                     <input placeholder="Doe" required="" type="text"
-                                        class="flex-grow w-full h-12 px-4 mb-2 transition duration-200 bg-white border border-gray-300 rounded shadow-sm appearance-none focus:border-purple-600 focus:outline-none focus:shadow-outline"
+                                        class="flex-grow w-full h-12 px-4 mb-2 transition duration-200 bg-gray-200 border border-gray-600 rounded shadow-sm appearance-none focus:border-purple-400 focus:outline-none focus:shadow-outline text-black"
                                         id="lastName" name="lastName" />
                                 </div>
                                 <div class="mb-1 sm:mb-2">
-                                    <label for="email" class="inline-block mb-1 font-medium">E-mail</label>
+                                    <label for="email"
+                                        class="inline-block mb-1 font-medium text-gray-800">E-mail</label>
                                     <input placeholder="john.doe@example.org" required="" type="text"
-                                        class="flex-grow w-full h-12 px-4 mb-2 transition duration-200 bg-white border border-gray-300 rounded shadow-sm appearance-none focus:border-purple-600 focus:outline-none focus:shadow-outline"
+                                        class="flex-grow w-full h-12 px-4 mb-2 transition duration-200 bg-gray-200 border border-gray-600 rounded shadow-sm appearance-none focus:border-purple-400 focus:outline-none focus:shadow-outline text-black"
                                         id="email" name="email" />
                                 </div>
                                 <div class="mt-4 mb-2 sm:mb-4">
@@ -86,7 +131,7 @@
                                         Subscribe
                                     </button>
                                 </div>
-                                <p class="text-xs text-gray-600 sm:text-sm">
+                                <p class="text-xs text-gray-400 sm:text-sm">
                                     We respect your privacy. Unsubscribe at any time.
                                 </p>
                             </form>
