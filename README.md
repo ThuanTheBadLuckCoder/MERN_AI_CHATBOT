@@ -33,7 +33,7 @@ This chatbot is designed to provide contextual and accurate responses by leverag
 
 Watch our comprehensive demo video to see Codfe in action! The video showcases the application's key features, user interface, and demonstrates how the RAG-based chatbot works with different document types and AI models.
 
-[![Codfe Demo Video](https://youtu.be/gczsT44XTFk)](Codfe_Demo_Video.mp4)
+[![Codfe Demo Video](https://youtu.be/gczsT44XTFk)]
 
 **Video Highlights:**
 - 🚀 **Application Overview**: Complete walkthrough of the Codfe interface
