@@ -400,6 +400,9 @@ export const getIndexSources = async (req: Request, res: Response, next: NextFun
         const response = await client.search({
             index: `${index}`, // Replace with your index name
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes

@@ -347,7 +347,11 @@ export const getUniqueMetadataSources = async (req, res, next) => {
         const response = await client.search({
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
             index: `${index}`,
+=======
+            index: `${index}`, // Replace with your index name
+>>>>>>> Stashed changes
 =======
             index: `${index}`, // Replace with your index name
 >>>>>>> Stashed changes
