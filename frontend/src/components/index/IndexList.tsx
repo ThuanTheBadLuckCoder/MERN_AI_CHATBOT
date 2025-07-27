@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { getAllIndices, getIndexSources } from '../../helper/api-communicator';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CachedIcon from '@mui/icons-material/Cached';
+<<<<<<< Updated upstream
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import CodeIcon from '@mui/icons-material/Code';
@@ -12,6 +13,8 @@ import SegmentIcon from '@mui/icons-material/Segment';
 import InfoIcon from '@mui/icons-material/Info';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import PieChartIcon from '@mui/icons-material/PieChart';
+=======
+>>>>>>> Stashed changes
 
 // Type definitions
 type Index = {
@@ -185,7 +188,68 @@ const IndexList = () => {
     useEffect(() => {
         fetchIndices();
 
+<<<<<<< Updated upstream
         // Set up auto-refresh
+=======
+    return { indexList, isLoading, refreshData };
+};
+
+const IndexList = () => {
+    const { indexList, isLoading, refreshData } = useIndexData();
+    const [chosenIndex, setChosenIndex] = useState<string>('');
+    const [detailsIndex, setDetailsIndex] = useState<IndexDetails[]>([]);
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const dropdownRef = useRef<HTMLUListElement | null>(null);
+    const refreshInterval = useRef<NodeJS.Timeout>();
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    // console.log("chosenIndex: ", chosenIndex);
+
+    // Helper function to determine reader type
+    const getReaderType = (source: string) => {
+        const fileExtensions = ['docx', 'pdf', 'json'];
+        const isFile = fileExtensions.some(ext => source.toLowerCase().endsWith(ext));
+        const isUrl = source.toLowerCase().startsWith('http://') || source.toLowerCase().startsWith('https://');
+
+        if (isFile) return 'File Reader';
+        if (isUrl) return 'Link Reader';
+        return source;
+    };
+
+    // Helper function to process source display
+    const processSource = (source: string) => {
+        const isUrl = source.toLowerCase().startsWith('http://') || source.toLowerCase().startsWith('https://');
+
+        if (isUrl) {
+            try {
+                const url = new URL(source);
+                const pathParts = url.pathname.split('/');
+                const wildcard = pathParts[pathParts.length - 1] || pathParts[pathParts.length - 2] || url.hostname;
+
+                return {
+                    isLink: true,
+                    display: wildcard,
+                    fullPath: source
+                };
+            } catch {
+                return {
+                    isLink: false,
+                    display: source,
+                    fullPath: source
+                };
+            }
+        }
+
+        return {
+            isLink: false,
+            display: source,
+            fullPath: source
+        };
+    };
+
+    // Set up automatic refresh
+    useEffect(() => {
+>>>>>>> Stashed changes
         refreshInterval.current = setInterval(() => {
             refreshData();
         }, 600000); // Refresh every minute
@@ -197,6 +261,7 @@ const IndexList = () => {
         };
     }, []);
 
+<<<<<<< Updated upstream
     // Handle index selection
     useEffect(() => {
         if (chosenIndex) {
@@ -204,6 +269,10 @@ const IndexList = () => {
         }
 
         // Handle click outside dropdown
+=======
+    // Handle dropdown click outside
+    useEffect(() => {
+>>>>>>> Stashed changes
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
                 setDropdownOpen(false);
@@ -212,10 +281,35 @@ const IndexList = () => {
 
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [chosenIndex]);
+    }, []);
+
+    // Separate useEffect for fetching index details when chosenIndex changes
+    useEffect(() => {
+        const fetchDetails = async () => {
+            if (!chosenIndex) return;
+            
+            setIsRefreshing(true);
+            try {
+                const data = await getIndexSources(chosenIndex);
+                setDetailsIndex(data.response.aggregations.unique_metadata_sources.buckets);
+            } catch (err) {
+                console.error("Error loading index details:", err);
+                toast.error("Error loading index details");
+            } finally {
+                setIsRefreshing(false);
+            }
+        };
+
+        fetchDetails();
+    }, [chosenIndex]); // Only depend on chosenIndex
 
     const handleIndexSelect = (index: string) => {
-        setChosenIndex(index);
+        // Only update if the index has changed
+        if (index !== chosenIndex) {
+            setChosenIndex(index);
+            // Clear previous details while loading new ones
+            setDetailsIndex([]);
+        }
         setDropdownOpen(false);
     };
 
@@ -374,6 +468,7 @@ const IndexList = () => {
                 </div>
             </div>
 
+<<<<<<< Updated upstream
             {/* Visualization Panel */}
             {showVisualization && sources.length > 0 && (
                 <div className='border border-purple-500 rounded-md overflow-hidden mb-4'>
@@ -907,6 +1002,54 @@ const IndexList = () => {
                         </div>
                     </div>
                 </div>
+=======
+            {/* Index details table */}
+            {chosenIndex && (
+                <ul className='flex flex-col divide-y border border-green-500 divide-green-500 rounded-md overflow-y-auto h-64'>
+                    <li id="index-header" className='flex flex-row bg-green-950 sticky top-0'>
+                        <div className='flex w-1/6 overflow-hidden px-4 justify-left items-center h-10'>Order</div>
+                        <div className='flex w-3/6 overflow-hidden px-4 justify-left items-center h-10'>Source</div>
+                        <div className='flex w-1/6 overflow-hidden px-4 justify-left items-center h-10'>Type</div>
+                        <div className='flex w-1/6 overflow-hidden px-4 justify-left items-center h-10'>Count</div>
+                    </li>
+                    {isRefreshing ? (
+                        <li className="flex justify-center items-center h-20">Loading...</li>
+                    ) : detailsIndex.length > 0 ? (
+                        detailsIndex.map((detail, i) => {
+                            const sourceInfo = processSource(detail.key.metadata_source);
+                            return (
+                                <li key={i} className='flex flex-row h-10 hover:bg-green-950/30'>
+                                    <div className='flex h-10 justify-left items-center w-1/6 overflow-hidden px-4 my-auto'>
+                                        {i + 1}
+                                    </div>
+                                    <div className='flex h-10 justify-left items-center w-3/6 truncate px-4 my-auto'>
+                                        {sourceInfo.isLink ? (
+                                            <a
+                                                href={sourceInfo.fullPath}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-blue-500 hover:text-blue-700 underline"
+                                            >
+                                                {sourceInfo.display}
+                                            </a>
+                                        ) : (
+                                            sourceInfo.display
+                                        )}
+                                    </div>
+                                    <div className='flex h-10 justify-left items-center w-1/6 overflow-hidden px-4 my-auto'>
+                                        {getReaderType(detail.key.metadata_source)}
+                                    </div>
+                                    <div className='flex h-10 justify-left items-center w-1/6 overflow-hidden px-4 my-auto'>
+                                        {detail.doc_count}
+                                    </div>
+                                </li>
+                            );
+                        })
+                    ) : (
+                        <li className="flex justify-center items-center h-20">No data available</li>
+                    )}
+                </ul>
+>>>>>>> Stashed changes
             )}
         </div>
     );

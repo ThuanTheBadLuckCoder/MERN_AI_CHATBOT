@@ -6,7 +6,7 @@ import { AgentExecutor, type AgentStep, type AgentAction, type AgentFinish } fro
 import { BaseMessage, HumanMessage, AIMessage } from "@langchain/core/messages";
 import { ElasticClientArgs, ElasticVectorSearch } from "@langchain/community/vectorstores/elasticsearch";
 import { Client } from "@elastic/elasticsearch";
-import { client, config, embeddingsGemini } from "../../../config/elastic-config.js";
+import { client, config, embeddingsGemini, embeddingsOpenAI } from "../../../config/elastic-config.js";
 import { z } from "zod";
 import mongoose from "mongoose";
 
@@ -19,6 +19,8 @@ const QuestionAnswerSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now }
 });
 
+QuestionAnswerSchema.index({ question: 'text' });
+
 const QuestionAnswer = mongoose.model('QuestionAnswer', QuestionAnswerSchema);
 
 // Initialize Elasticsearch client args
@@ -28,7 +30,7 @@ const clientArgs: ElasticClientArgs = {
 };
 
 // Create ElasticSearch vector search instance with Gemini embeddings
-const elasticVectorSearch = new ElasticVectorSearch(embeddingsGemini, clientArgs);
+const elasticVectorSearch = new ElasticVectorSearch(embeddingsOpenAI, clientArgs);
 
 // Create Elasticsearch tool
 const elasticSearchTool = new DynamicTool({
@@ -78,14 +80,34 @@ const mongoDBSimilarTool = new DynamicTool({
   description: 'Use this tool when the question seems related to previous questions. It will retrieve similar questions and their answers for context.',
   func: async (input) => {
     try {
-      // Use a text search to find similar questions
-      // This assumes you've set up a text index on the question field
-      const similar = await QuestionAnswer.find(
-        { $text: { $search: input } },
-        { score: { $meta: "textScore" } }
-      )
-      .sort({ score: { $meta: "textScore" } })
-      .limit(2);
+      let similar;
+      
+      // First try the text search approach
+      try {
+        similar = await QuestionAnswer.find(
+          { $text: { $search: input } },
+          { score: { $meta: "textScore" } }
+        )
+        .sort({ score: { $meta: "textScore" } })
+        .limit(2);
+      } catch (textSearchError) {
+        // Fallback to regex search if text search fails or isn't configured
+        console.log("Text search failed, falling back to regex search:", textSearchError);
+        
+        // Create keywords from input by removing common words
+        const keywords = input.toLowerCase()
+          .replace(/[^\w\s]/gi, '')
+          .split(' ')
+          .filter(word => word.length > 3 && !['what', 'when', 'where', 'which', 'how', 'this', 'that', 'there', 'their', 'with'].includes(word));
+        
+        // Create regex pattern for each keyword
+        const regexPatterns = keywords.map(keyword => new RegExp(keyword, 'i'));
+        
+        // Find questions that match any of the keywords
+        similar = await QuestionAnswer.find({
+          question: { $in: regexPatterns.map(pattern => ({ $regex: pattern })) }
+        }).limit(2);
+      }
       
       if (similar && similar.length > 0) {
         const results = similar.map(qa => 
@@ -97,7 +119,7 @@ const mongoDBSimilarTool = new DynamicTool({
       }
     } catch (error) {
       console.error("Error querying MongoDB for similar questions:", error);
-      return "Error searching for similar questions.";
+      return "Error searching for similar questions: " + error.message;
     }
   },
 });
@@ -105,7 +127,7 @@ const mongoDBSimilarTool = new DynamicTool({
 // Store answer in MongoDB tool
 
 
-const tools = [ elasticSearchTool, mongoDBTool, mongoDBSimilarTool ];
+const tools = [elasticSearchTool, mongoDBTool, mongoDBSimilarTool];
 
 // Create chat prompt template with detailed instructions
 // Modified prompt template with system messages at the beginning
@@ -129,14 +151,17 @@ const prompt = ChatPromptTemplate.fromMessages([
   - Include relevant information from your tools
   - Format your response in a clear, readable manner
   - Cite the source of your information if possible
+  - Make sure HTML, CSS, JS, TS are always in the same file.
+  - Using CSS Class from TailWindCSS is NECESSARY, NO PURE CSS CODE
   
   Remember: For exact matches, return the exact answer. For similar questions, build on previous answers with new context. For new questions, rely entirely on elasticsearch results.
   
-  Relevant context from tools will be provided if available: {context}`],
+  ALL OUTPUT ANSWERS ESPECIALLY THE CODE MUST ALWAYS BE BASED ON NO DIFFERENCE IN ANY LINE OF CODE (DO NOT ADD, REMOVE OR RE-WRITE ANY CLASSNAME!), INCLUDING THE EXTRACTION OF THE PATH TO THE SOURCE OF THE IMAGE MUST BE FULL: {context}`],
     new MessagesPlaceholder(MEMORY_KEY),
     ["human", "{input}"],
   ]);
 
+  console.log("promptLLMs: ", prompt);
 // Improved output parser for Gemini responses
 class GeminiOutputParser extends Runnable<any, RunOutput> {
   get lc_namespace() {

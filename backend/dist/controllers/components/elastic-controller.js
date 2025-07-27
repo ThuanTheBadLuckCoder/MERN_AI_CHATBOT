@@ -345,7 +345,11 @@ export const getUniqueMetadataSources = async (req, res, next) => {
         const client = new Client(config);
         // Modify the aggregation to include all documents, not just samples
         const response = await client.search({
+<<<<<<< Updated upstream
             index: `${index}`,
+=======
+            index: `${index}`, // Replace with your index name
+>>>>>>> Stashed changes
             size: 0,
             body: {
                 aggs: {

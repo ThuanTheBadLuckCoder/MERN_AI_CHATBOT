@@ -222,6 +222,7 @@ export const getIndexSources = async (req: Request, res: Response, next: NextFun
             return res.status(400).json({ message: "Index name is required" });
         }
 
+<<<<<<< Updated upstream
         // Create Elasticsearch client
         const client = new Client(config);
 
@@ -394,6 +395,11 @@ export const getIndexSources = async (req: Request, res: Response, next: NextFun
         // Get overall stats (optional, you can keep this part if needed)
         const statsResponse = await client.search({
             index: `${index}`,
+=======
+        // Fetch documents from the index
+        const response = await client.search({
+            index: `${index}`, // Replace with your index name
+>>>>>>> Stashed changes
             size: 0,
             body: {
                 aggs: {
