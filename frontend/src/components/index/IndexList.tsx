@@ -6,6 +6,7 @@ import CachedIcon from '@mui/icons-material/Cached';
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import CodeIcon from '@mui/icons-material/Code';
@@ -15,6 +16,8 @@ import SegmentIcon from '@mui/icons-material/Segment';
 import InfoIcon from '@mui/icons-material/Info';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import PieChartIcon from '@mui/icons-material/PieChart';
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 =======
@@ -270,6 +273,7 @@ const IndexList = () => {
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     // Handle index selection
     useEffect(() => {
         if (chosenIndex) {
@@ -277,6 +281,10 @@ const IndexList = () => {
         }
 
         // Handle click outside dropdown
+=======
+    // Handle dropdown click outside
+    useEffect(() => {
+>>>>>>> Stashed changes
 =======
     // Handle dropdown click outside
     useEffect(() => {

@@ -401,6 +401,9 @@ export const getIndexSources = async (req: Request, res: Response, next: NextFun
             index: `${index}`, // Replace with your index name
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
