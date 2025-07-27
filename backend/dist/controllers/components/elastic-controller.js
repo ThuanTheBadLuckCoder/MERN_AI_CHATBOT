@@ -131,37 +131,221 @@ export const getIndexContents = async (req, res, next) => {
         return res.status(500).json({ message: "ERROR", cause: error.message });
     }
 };
-/*
-GET frontend_developer/_search
-{
-  "size": 0,
-  "aggs": {
-    "unique_metadata_sources": {
-      "composite": {
-        "sources": [
-          {
-            "metadata_source": {
-              "terms": {
-                "field": "metadata.source"
-              }
-            }
-          }
-        ],
-        "size": 10000
-      }
-    }
-  }
-}
-*/
 export const getIndexSources = async (req, res, next) => {
     try {
         const { index } = req.params;
         if (!index) {
             return res.status(400).json({ message: "Index name is required" });
         }
-        // Fetch documents from the index
+        // Create Elasticsearch client
+        const client = new Client(config);
+        // First, get only parent documents to understand the hierarchy
+        const parentsResponse = await client.search({
+            index: `${index}`,
+            size: 100,
+            body: {
+                query: {
+                    term: {
+                        "metadata.is_parent": true
+                    }
+                },
+                _source: [
+                    "metadata.document_id",
+                    "metadata.component_name",
+                    "metadata.source",
+                    "metadata.description",
+                    "metadata.file_format",
+                    "metadata.languages",
+                    "metadata.component_type",
+                    "metadata.framework",
+                    "metadata.features",
+                    "metadata.responsive",
+                    "metadata.created_at",
+                    "metadata.is_parent",
+                    "metadata.has_children",
+                    "metadata.child_count",
+                    "text"
+                ],
+                sort: [
+                    { "metadata.created_at": { order: "desc" } }
+                ]
+            }
+        });
+        // If there are multiple parents, we'll pick the one with children
+        // (this assumes that the parent with chunks is the one you want)
+        const parents = parentsResponse.hits.hits;
+        let targetParent = null;
+        for (const parent of parents) {
+            if (parent._source.metadata.has_children) {
+                targetParent = parent;
+                break;
+            }
+        }
+        // If no parent with children was found, use the first parent
+        if (!targetParent && parents.length > 0) {
+            targetParent = parents[0];
+        }
+        if (!targetParent) {
+            return res.status(404).json({ message: "No parent documents found" });
+        }
+        // Now get all child documents of the target parent
+        const childrenResponse = await client.search({
+            index: `${index}`,
+            size: 100,
+            body: {
+                query: {
+                    term: {
+                        "metadata.parent_id": targetParent._source.metadata.document_id
+                    }
+                },
+                _source: [
+                    "metadata.document_id",
+                    "metadata.component_name",
+                    "metadata.source",
+                    "metadata.file_format",
+                    "metadata.languages",
+                    "metadata.component_type",
+                    "metadata.framework",
+                    "metadata.features",
+                    "metadata.responsive",
+                    "metadata.created_at",
+                    "metadata.is_parent",
+                    "metadata.parent_id",
+                    "metadata.chunk_id",
+                    "metadata.chunk_index",
+                    "metadata.total_chunks",
+                    "metadata.snippet_type",
+                    "text"
+                ],
+                sort: [
+                    { "metadata.chunk_index": { order: "asc" } }
+                ]
+            }
+        });
+        // Format the parent
+        const formattedParent = {
+            id: targetParent._id,
+            name: targetParent._source.metadata.component_name || targetParent._source.metadata.source || "Unnamed",
+            description: targetParent._source.metadata.description,
+            file_format: targetParent._source.metadata.file_format,
+            languages: targetParent._source.metadata.languages || [],
+            type: targetParent._source.metadata.component_type,
+            framework: targetParent._source.metadata.framework,
+            features: targetParent._source.metadata.features || [],
+            responsive: targetParent._source.metadata.responsive || false,
+            created_at: targetParent._source.metadata.created_at,
+            is_parent: true,
+            parent_id: null,
+            has_chunks: targetParent._source.metadata.has_children || false,
+            chunk_count: targetParent._source.metadata.child_count || 0,
+            document_id: targetParent._source.metadata.document_id,
+            code: targetParent._source.text || ""
+        };
+        // Format the children
+        const formattedChildren = childrenResponse.hits.hits.map((hit) => {
+            return {
+                id: hit._id,
+                name: hit._source.metadata.component_name || hit._source.metadata.source || "Unnamed",
+                file_format: hit._source.metadata.file_format,
+                languages: hit._source.metadata.languages || [],
+                type: hit._source.metadata.component_type,
+                framework: hit._source.metadata.framework,
+                features: hit._source.metadata.features || [],
+                responsive: hit._source.metadata.responsive || false,
+                created_at: hit._source.metadata.created_at,
+                is_parent: false,
+                parent_id: hit._source.metadata.parent_id,
+                chunk_id: hit._source.metadata.chunk_id,
+                chunk_index: hit._source.metadata.chunk_index,
+                total_chunks: hit._source.metadata.total_chunks,
+                snippet_type: hit._source.metadata.snippet_type,
+                document_id: hit._source.metadata.document_id,
+                code: hit._source.text || ""
+            };
+        });
+        // Combine parent and children
+        const allDocuments = [formattedParent, ...formattedChildren];
+        // Get overall stats (optional, you can keep this part if needed)
+        const statsResponse = await client.search({
+            index: `${index}`,
+            size: 0,
+            body: {
+                aggs: {
+                    component_types: {
+                        terms: {
+                            field: "metadata.component_type.keyword",
+                            size: 20
+                        }
+                    },
+                    frameworks: {
+                        terms: {
+                            field: "metadata.framework.keyword",
+                            size: 20
+                        }
+                    },
+                    file_formats: {
+                        terms: {
+                            field: "metadata.file_format.keyword",
+                            size: 20
+                        }
+                    },
+                    languages: {
+                        terms: {
+                            field: "metadata.languages.keyword",
+                            size: 20
+                        }
+                    },
+                    total_parents: {
+                        filter: {
+                            term: {
+                                "metadata.is_parent": true
+                            }
+                        }
+                    },
+                    total_children: {
+                        filter: {
+                            term: {
+                                "metadata.is_parent": false
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        const aggregations = statsResponse.aggregations;
+        return res.status(200).json({
+            message: "OK",
+            all_documents: allDocuments,
+            stats: {
+                total: allDocuments.length,
+                component_types: aggregations.component_types.buckets,
+                frameworks: aggregations.frameworks.buckets,
+                file_formats: aggregations.file_formats.buckets,
+                languages: aggregations.languages.buckets,
+                total_parents: 1, // Override with 1 since we're only returning 1 parent
+                total_children: formattedChildren.length
+            }
+        });
+    }
+    catch (error) {
+        console.error("Error retrieving index sources:", error);
+        return res.status(500).json({
+            message: "Failed to retrieve index sources",
+            cause: error.message
+        });
+    }
+};
+export const getUniqueMetadataSources = async (req, res, next) => {
+    try {
+        const { index } = req.params;
+        if (!index) {
+            return res.status(400).json({ message: "Index name is required" });
+        }
+        // Create Elasticsearch client
+        const client = new Client(config);
+        // Modify the aggregation to include all documents, not just samples
         const response = await client.search({
-            index: 'frontend_developer', // Replace with your index name
+            index: `${index}`,
             size: 0,
             body: {
                 aggs: {
@@ -171,25 +355,79 @@ export const getIndexSources = async (req, res, next) => {
                                 {
                                     metadata_source: {
                                         terms: {
-                                            field: 'metadata.source'
+                                            field: "metadata.source"
                                         }
                                     }
                                 }
                             ],
-                            size: 9999
+                            size: 1000
                         }
                     }
                 }
             }
         });
+        // Get the unique source names
+        const sourcesAggs = response.aggregations;
+        const sources = [];
+        if (sourcesAggs &&
+            'unique_metadata_sources' in sourcesAggs &&
+            'buckets' in sourcesAggs.unique_metadata_sources) {
+            const buckets = sourcesAggs.unique_metadata_sources.buckets;
+            for (const bucket of buckets) {
+                sources.push(bucket.key.metadata_source);
+            }
+        }
+        // Now, for each source, get ALL its documents
+        const allSourcesWithDocs = [];
+        for (const sourceName of sources) {
+            // Query to get all documents for this source
+            const docsResponse = await client.search({
+                index: `${index}`,
+                size: 10000, // Large size to get all documents
+                body: {
+                    query: {
+                        term: {
+                            "metadata.source": sourceName
+                        }
+                    },
+                    _source: {
+                        excludes: ["embedding"] // Exclude embedding field
+                    },
+                    sort: [
+                        { "metadata.is_parent": { order: "desc" } },
+                        { "metadata.created_at": { order: "desc" } },
+                        { "metadata.chunk_index": { order: "asc" } }
+                    ]
+                }
+            });
+            // Format all documents from this source
+            const allDocuments = docsResponse.hits.hits.map((hit) => {
+                return {
+                    _index: hit._index,
+                    _id: hit._id,
+                    _score: hit._score,
+                    _ignored: hit._ignored,
+                    _source: hit._source
+                };
+            });
+            allSourcesWithDocs.push({
+                source_name: sourceName,
+                doc_count: allDocuments.length,
+                documents: allDocuments // Changed from "sample_docs" to "documents"
+            });
+        }
         return res.status(200).json({
             message: "OK",
-            response: response,
+            metadata_sources: allSourcesWithDocs,
+            total_sources: allSourcesWithDocs.length
         });
     }
     catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: "ERROR", cause: error.message });
+        console.error("Error retrieving unique metadata sources:", error);
+        return res.status(500).json({
+            message: "Failed to retrieve unique metadata sources",
+            cause: error instanceof Error ? error.message : String(error)
+        });
     }
 };
 //# sourceMappingURL=elastic-controller.js.map

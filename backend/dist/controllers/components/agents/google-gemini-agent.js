@@ -1,5 +1,5 @@
 import { DynamicTool } from "@langchain/core/tools";
-import { model } from "../../../config/gemini-config.js";
+import { modelGemini } from "../../../config/gemini-config.js";
 import { ChatPromptTemplate, MessagesPlaceholder } from "@langchain/core/prompts";
 import { RunnableSequence, Runnable } from "@langchain/core/runnables";
 import { AgentExecutor } from "langchain/agents";
@@ -122,7 +122,7 @@ const runnableAgent = RunnableSequence.from([
         chat_history: (i) => (i.chat_history ? i.chat_history.slice(-6) : []),
     },
     prompt,
-    model,
+    modelGemini,
     new GeminiOutputParser(),
 ]).withConfig({
     runName: "GeminiAgentWithSerpAPI",

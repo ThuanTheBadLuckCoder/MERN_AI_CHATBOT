@@ -117,7 +117,7 @@ const Login = () => {
                   <span className="text-red-500 text-sm mt-1">{passwordError}</span>
                 )}
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-2">
                   <div id='remember-me' className="flex flex-col">
                     <div className="flex items-center gap-2">
                       <label className="custom-checkbox">
