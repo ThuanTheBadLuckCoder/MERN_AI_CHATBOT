@@ -8,6 +8,7 @@
 ## 📋 Table of Contents
 
 - [Overview](#overview)
+- [Demo Video](#demo-video)
 - [Design Credits](#design-credits)
 - [Evaluation System](#evaluation-system)
 - [Dataset Integration](#dataset-integration)
@@ -27,6 +28,22 @@
 Codfe is a state-of-the-art chatbot application developed using the MERN stack (MongoDB, Express, ReactJS, NodeJS) and powered by cutting-edge Large Language Models (LLMs) such as OpenAI's GPT models and Google's Gemini. The system combines Docker to host Elasticsearch and Kibana, providing a comprehensive AI-powered virtual assistant for developers.
 
 This chatbot is designed to provide contextual and accurate responses by leveraging dRAGon 🐉 techniques (data-driven Retrieval-Augmented Generation over neural networks) and dedicated documentation for Front-end Developers. The system supports multiple LLMs and provides an unparalleled conversational experience with advanced document processing capabilities.
+
+## 🎬 Demo Video
+
+Watch our comprehensive demo video to see Codfe in action! The video showcases the application's key features, user interface, and demonstrates how the RAG-based chatbot works with different document types and AI models.
+
+[![Codfe Demo Video](https://youtu.be/gczsT44XTFk](Codfe_Demo_Video.mp4)
+
+**Video Highlights:**
+- 🚀 **Application Overview**: Complete walkthrough of the Codfe interface
+- 💬 **Chat Functionality**: Real-time conversations with GPT and Gemini models
+- 📚 **Document Processing**: Uploading and processing various file formats
+- 🔍 **RAG Implementation**: Demonstrating context-aware responses with references
+- 🎨 **UI/UX Features**: Showcasing the modern, responsive design
+- ⚙️ **Admin Features**: User management and system administration
+
+*Click the badge above or download the video file to see the full demonstration.*
 
 ## 🎨 Design Credits
 
