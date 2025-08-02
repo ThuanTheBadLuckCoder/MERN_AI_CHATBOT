@@ -33,7 +33,7 @@ This chatbot is designed to provide contextual and accurate responses by leverag
 
 Watch our comprehensive demo video to see Codfe in action! The video showcases the application's key features, user interface, and demonstrates how the RAG-based chatbot works with different document types and AI models.
 
-[![Codfe Demo Video](https://img.shields.io/badge/📹-Watch%20Demo%20Video-red?style=for-the-badge&logo=youtube)]([https://youtu.be/gczsT44XTFk](https://youtu.be/s1tgMymNWMs))
+[![Codfe Demo Video](https://img.shields.io/badge/📹-Watch%20Demo%20Video-red?style=for-the-badge&logo=youtube)]([https://www.youtube.com/watch?v=s1tgMymNWMs]))
 
 > **💡 Tip:** Right-click the badge above and select "Open link in new tab" to watch the demo video while keeping this page open.
 
