@@ -12,16 +12,16 @@
   "dependencies": {
     "@emotion/react": "^11.13.3",
     "@emotion/styled": "^11.13.0",
-    "@langchain/community": "^0.3.3",
-    "@langchain/core": "^0.2.34",
+    "@langchain/community": "^1.1.14",
+    "@langchain/core": "^0.3.80",
     "@mui/icons-material": "^6.1.1",
     "@mui/material": "^6.1.1",
     "axios": "^1.7.7",
-    "dompurify": "^3.2.3",
+    "dompurify": "^3.2.4",
     "framer-motion": "^12.4.7",
     "lucide-react": "^0.525.0",
     "mammoth": "^1.8.0",
-    "next": "^14.2.13",
+    "next": "^15.5.10",
     "pdf-lib": "^1.17.1",
     "pdf-parse": "^1.1.1",
     "pdfjs-dist": "^4.6.82",
@@ -30,8 +30,8 @@
     "react-hot-toast": "^2.4.1",
     "react-icons": "^5.3.0",
     "react-markdown": "^10.0.0",
-    "react-router-dom": "^6.26.1",
-    "react-syntax-highlighter": "^15.5.0",
+    "react-router-dom": "^6.30.3",
+    "react-syntax-highlighter": "^16.1.0",
     "react-type-animation": "^3.2.0"
   },
   "devDependencies": {
@@ -41,7 +41,7 @@
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@types/react-syntax-highlighter": "^15.5.13",
-    "@vitejs/plugin-react-swc": "^3.5.0",
+    "@vitejs/plugin-react-swc": "^3.11.0",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.9.0",
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
@@ -51,6 +51,6 @@
     "tailwindcss": "^3.4.17",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
-    "vite": "^5.4.1"
+    "vite": "^7.3.1"
   }
 }
